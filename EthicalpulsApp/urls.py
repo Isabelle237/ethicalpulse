@@ -2,11 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.index, name='index'),  # ✅ Cela crée une URL nommée 'index'
+    path('', views.index, name='index'),
     path('dashboard/', views.dashboard, name='dashboard'),
-    # Utilisateurs
 
-    path('users/', views.create_user_view, name='users'),  
+    # Utilisateurs
+    path('users/', views.create_user_view, name='users'),
     path('users/edit/<int:user_id>/', views.edit_user_view, name='edit_user'),
     path('users/delete/<int:user_id>/', views.delete_user_view, name='delete_user'),
     path('users/delete-multiple/', views.delete_multiple_users_view, name='delete_multiple_users'),
@@ -29,7 +29,7 @@ urlpatterns = [
 
     # Vulnérabilités
     path('vulnerabilities/', views.vulnerabilities, name='vulnerabilities'),
-    path('vulnerabilities_admin/', views.vulnerabilities_admin, name='vulnerabilities_admin'), 
+    path('vulnerabilities_admin/', views.vulnerabilities_admin, name='vulnerabilities_admin'),
     path('vulnerabilities/create/', views.vulnerabilities_create, name='vulnerabilities_create'),
     path('vulnerabilities/<int:vuln_id>/edit/', views.vulnerabilities_edit, name='vulnerabilities_edit'),
     path('vulnerabilities/<int:vuln_id>/delete/', views.vulnerabilities_delete, name='vulnerabilities_delete'),
@@ -62,7 +62,9 @@ urlpatterns = [
     path('reports/', views.report, name='reports'),
     path('training/', views.training, name='training'),
     path('analytics/', views.analytics, name='analytics'),
-    path('login/', views.login_page, name='login'),
-    path('verify-otp/<int:user_id>/', views.otp_verification, name='verify_otp'),
+
+    # Authentification
+    path('login/', views.email_login, name='login'),
+    path('verify-otp/', views.otp_verification, name='verify_otp'),  # ✅ Corrigé ici
     path('logout/', views.logout_view, name='logout'),
 ]

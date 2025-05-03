@@ -1,3 +1,4 @@
+from datetime import timedelta, datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.mail import send_mail
@@ -7,12 +8,11 @@ from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
-from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth import authenticate, login as auth_login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import get_user_model,logout,login
-
-
+from django.contrib.auth import get_user_model,login
 import pyotp
+import random
 
 from EthicalpulsApp.models import CustomUser
 from .forms import CustomUserCreationForm, EmailLoginForm, OTPVerificationForm
@@ -34,6 +34,8 @@ def create_user_view(request):
         if form.is_valid():
             user = form.save(commit=False)
             user.is_active = True
+            if not user.otp_secret:
+                user.otp_secret = pyotp.random_base32()
             user.save()
 
             html_message = render_to_string('emails/account_confirmation.html', {
@@ -98,88 +100,87 @@ def delete_multiple_users_view(request):
 
 # =================== Authentification ===================
 
-
 @csrf_protect
 def email_login(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = EmailLoginForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data['username']
-            password = form.cleaned_data['password']
+            email = form.cleaned_data["email"]
+            password = form.cleaned_data["password"]
             user = authenticate(request, email=email, password=password)
-            if user is not None:
-                otp = pyotp.TOTP(user.otp_secret).now()
-                send_otp_email(user, otp)
-                request.session['pre_otp_user_id'] = user.id
+            if user:
+                otp_code = str(random.randint(100000, 999999))  # Nouveau code à chaque connexion
+
+                user.otp_code = otp_code  # Stocke le code OTP dans l'utilisateur
+                user.otp_created_at = timezone.now()  # Stocke la date de création
+                user.save()
+
+                # Envoi du code OTP par email
+                send_otp_email(user.email, otp_code, user)
+
+                # Enregistre l'ID utilisateur dans la session pour la vérification ultérieure
+                request.session['otp_user_id'] = user.id
                 return redirect('verify_otp')
-            messages.error(request, "Identifiants incorrects.")
+            else:
+                messages.error(request, "Identifiants invalides.")
     else:
         form = EmailLoginForm()
+
     return render(request, 'registration/login.html', {'form': form})
 
 @csrf_protect
+@csrf_protect
+@csrf_protect
 def otp_verification(request):
-    user_id = request.session.get('pre_otp_user_id')
-    if not user_id:
-        return redirect('login')
-    user = get_object_or_404(CustomUser, id=user_id)
-
-    if request.method == 'POST':
+    if request.method == "POST":
         form = OTPVerificationForm(request.POST)
         if form.is_valid():
-            otp_code = form.cleaned_data['otp_code']
-            totp = pyotp.TOTP(user.otp_secret)
-            if totp.verify(otp_code):
-                login(request, user)
-                del request.session['pre_otp_user_id']
-                messages.success(request, "Connecté avec succès.")
-                return redirect('dashboard')
-            messages.error(request, "Code OTP invalide.")
+            otp_code = form.cleaned_data["otp_code"]
+            user_id = request.session.get("otp_user_id")  # Récupère l'ID utilisateur depuis la session
+            
+            if user_id:  # Vérifie que l'ID utilisateur existe dans la session
+                try:
+                    user = CustomUser.objects.get(id=user_id)
+                    
+                    # Vérification de l'OTP et de la validité dans le temps
+                    if user.otp_code == otp_code and user.otp_created_at and timezone.now() - user.otp_created_at <= timedelta(minutes=10):
+                        auth_login(request, user)  # Connecte l'utilisateur
+                        user.otp_code = None  # Supprime le code OTP après la validation
+                        user.otp_created_at = None
+                        user.save()  # Sauvegarde les modifications dans la base de données
+                        
+                        # Redirige en fonction du rôle de l'utilisateur
+                        if user.is_staff:  # Si l'utilisateur est un admin
+                            return redirect("dashboard")
+                        else:  # Sinon, redirige vers les utilisateurs
+                            return redirect("index")
+                    else:
+                        messages.error(request, "Code OTP invalide ou expiré.")  # Message d'erreur
+                except CustomUser.DoesNotExist:
+                    messages.error(request, "Utilisateur introuvable.")  # Si l'utilisateur n'existe pas
+            else:
+                messages.error(request, "Session expirée. Veuillez recommencer.")  # Si l'ID utilisateur n'est pas dans la session
     else:
         form = OTPVerificationForm()
-    return render(request, 'registration/otp_verification.html', {'form': form, 'user': user})
 
-def send_otp_email(user, otp_code):
-    html_message = render_to_string('emails/otp_confirmation.html', {
-        'user': user,
+    return render(request, 'registration/otp_verification.html', {'form': form})
+
+def send_otp_email(email, otp_code, user):
+    context = {
         'otp_code': otp_code,
-        'current_year': timezone.now().year,
-    })
-    plain_message = strip_tags(html_message)
-    send_mail(
-        subject="Votre code OTP - EthicalPulseShield",
-        message=plain_message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        html_message=html_message,
-        fail_silently=False,
-    )
-def send_otp_email(user, otp_code):
-    subject = "Vérification OTP - EthicalPulseShield"
-    current_year = timezone.now().year
-
-    html_message = render_to_string('emails/otp_confirmation.html', {
         'user': user,
-        'otp_code': otp_code,
-        'current_year': current_year
-    })
-    plain_message = strip_tags(html_message)
-
-    send_mail(
-        subject,
-        plain_message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        html_message=html_message,
-        fail_silently=False,
-    )
-
+        'current_year': datetime.now().year,
+    }
+    subject = "Votre code OTP - Ethical Pulse Shield"
+    message = render_to_string('emails/otp_confirmation.html', context)
+    send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [email], html_message=message)
 
 def logout_view(request):
     logout(request)
-    request.session.flush()  # Efface toutes les données de session (dont otp_validated)
+    request.session.flush()
     messages.success(request, "Vous avez été déconnecté avec succès.")
     return redirect('login')
+
 # =================== Autres vues ===================
 
 def projects(request):

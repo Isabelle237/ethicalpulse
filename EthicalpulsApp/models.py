@@ -1,4 +1,3 @@
-# === models.py ===
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
@@ -18,7 +17,7 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.otp_secret = pyotp.random_base32()
+        user.otp_secret = pyotp.random_base32()  # Générer un secret OTP pour l'utilisateur
         user.save()
         return user
 
@@ -36,7 +35,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(null=True, blank=True)
-    otp_secret = models.CharField(max_length=32, default=pyotp.random_base32)
+
+    # Ajout des champs nécessaires pour l'OTP
+    otp_code = models.CharField(max_length=6, null=True, blank=True)  # Code OTP
+    otp_created_at = models.DateTimeField(null=True, blank=True)  # Date de création de l'OTP
+    otp_secret = models.CharField(max_length=32, default=pyotp.random_base32)  # Secret OTP pour générer les codes
 
     objects = CustomUserManager()
 

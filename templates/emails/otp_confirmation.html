@@ -6,78 +6,85 @@
     <title>Confirmation de votre OTP - Ethical Pulse Shield</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f8;
-            color: #333333;
-            padding: 40px;
+            color: #333;
+            padding: 0;
             margin: 0;
         }
         .container {
             background-color: #ffffff;
             border-radius: 8px;
-            padding: 30px;
+            padding: 30px 40px;
             max-width: 600px;
-            margin: auto;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin: 40px auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         }
         h2 {
-            color: #2d6cdf;
-            font-size: 24px;
+            color: #1a73e8;
+            font-size: 22px;
             margin-bottom: 20px;
+            text-align: center;
         }
         p {
             font-size: 16px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
         .otp-code {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
-            color: #2d6cdf;
-            padding: 10px;
-            background-color: #f0f8ff;
-            border-radius: 5px;
-            margin: 20px 0;
+            color: #1a73e8;
+            text-align: center;
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 30px 0;
+            letter-spacing: 2px;
         }
         .footer {
             margin-top: 30px;
             font-size: 12px;
-            color: #888888;
+            color: #777;
             text-align: center;
         }
         .footer a {
-            color: #2d6cdf;
+            color: #1a73e8;
             text-decoration: none;
         }
         .logo {
-            width: 100px;
-            margin-bottom: 20px;
             display: block;
-            margin-left: auto;
-            margin-right: auto;
+            width: 100px;
+            margin: 0 auto 20px auto;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Logo -->
-        <img src="https://i.imgur.com/CwZ6Wbs.png" alt="EthicalPulse Logo" class="logo">
+        <img src="https://i.imgur.com/CwZ6Wbs.png" alt="Logo EthicalPulse" class="logo">
 
         <!-- Titre -->
-        <h2>Vérification de votre compte sur EthicalPulseShield</h2>
+        <h2>Vérification de votre compte</h2>
 
         <!-- Message -->
-        <p>Bonjour {{ user.username }},</p>
-        <p>Pour compléter votre connexion, veuillez entrer le code OTP suivant :</p>
+        <p>Bonjour <strong>{{ user.username }}</strong>,</p>
+        <p>Pour compléter votre connexion à <strong>Ethical Pulse Shield</strong>, veuillez entrer le code OTP suivant :</p>
 
         <!-- Code OTP -->
-        <p class="otp-code">{{ otp_code }}</p>
+        <div class="otp-code">{{ otp_code }}</div>
 
         <!-- Footer -->
-        <p class="footer">
-            Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.<br>
-            © {{ current_year }} EthicalPulseShield. Tous droits réservés.<br>
+        <div class="footer">
+            Si vous n'avez pas initié cette demande, vous pouvez ignorer cet e-mail.<br>
+            © {{ current_year }} Ethical Pulse Shield. Tous droits réservés.<br>
             <a href="https://www.ethicalpulse.com">Visitez notre site web</a>
-        </p>
+        </div>
     </div>
 </body>
 </html>
