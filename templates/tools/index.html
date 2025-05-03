@@ -1,0 +1,975 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Outils - Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-2">Outils de Sécurité</h1>
+            <p class="text-muted">Utilisez nos outils intégrés pour analyser et sécuriser vos systèmes</p>
+        </div>
+        <div class="col-auto">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="projectDropdown" data-bs-toggle="dropdown">
+                    {{ current_project.name }}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="projectDropdown">
+                    <li><a class="dropdown-item" href="#">Site Web E-commerce</a></li>
+                    <li><a class="dropdown-item" href="#">Application API</a></li>
+                    <li><a class="dropdown-item" href="#">Infrastructure Cloud</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-plus-circle me-2"></i>Nouveau projet</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="toolsTabs">
+        <li class="nav-item">
+            <button class="nav-link active" id="detection-tab" data-bs-toggle="tab" data-bs-target="#detection">Détection</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="remediation-tab" data-bs-toggle="tab" data-bs-target="#remediation">Remédiation</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Detection Tab -->
+        <div class="tab-pane fade show active" id="detection">
+            <div id="toolSelector" class="mb-4">
+                <ul class="nav nav-pills mb-4">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#scanner">Scanner</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pentest">Pentest</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#analyze">Analyse</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#remediation-tools">Remédiation</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#custom">Personnalisé</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="scanner">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for tool in tool_categories.scan %}
+                            <div class="col">
+                                <div class="card h-100 tool-card" data-tool-id="{{ tool.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-4">
+                                            <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                                                <i class="bi {{ tool.icon }} text-primary fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                                <p class="text-muted small">{{ tool.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="badge bg-light text-dark me-1">Scan</span>
+                                            <span class="badge bg-light text-dark">Sécurité</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-plus me-1"></i>Options
+                                            </button>
+                                            <a href="{% url 'tool_detail' tool.id %}" class="btn btn-primary btn-sm launch-tool">
+                                                <i class="bi bi-play-fill me-1"></i>Lancer
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="pentest">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for tool in tool_categories.pentest %}
+                            <div class="col">
+                                <div class="card h-100 tool-card" data-tool-id="{{ tool.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-4">
+                                            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                                                <i class="bi {{ tool.icon }} text-warning fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                                <p class="text-muted small">{{ tool.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="badge bg-light text-dark me-1">Pentest</span>
+                                            <span class="badge bg-light text-dark">Intrusion</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-plus me-1"></i>Options
+                                            </button>
+                                            <a href="{% url 'tool_detail' tool.id %}" class="btn btn-primary btn-sm launch-tool">
+                                                <i class="bi bi-play-fill me-1"></i>Lancer
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not tool_categories.pentest %}
+                            <div class="col-12">
+                                <p class="text-muted text-center py-5">Aucun outil de Pentest disponible actuellement</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="analyze">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for tool in tool_categories.analyse %}
+                            <div class="col">
+                                <div class="card h-100 tool-card" data-tool-id="{{ tool.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-4">
+                                            <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                                                <i class="bi {{ tool.icon }} text-info fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                                <p class="text-muted small">{{ tool.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="badge bg-light text-dark me-1">Analyse</span>
+                                            <span class="badge bg-light text-dark">Diagnostic</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-plus me-1"></i>Options
+                                            </button>
+                                            <a href="{% url 'tool_detail' tool.id %}" class="btn btn-primary btn-sm launch-tool">
+                                                <i class="bi bi-play-fill me-1"></i>Lancer
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not tool_categories.analyse %}
+                            <div class="col-12">
+                                <p class="text-muted text-center py-5">Aucun outil d'analyse disponible actuellement</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="remediation-tools">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for tool in tool_categories.remediation %}
+                            <div class="col">
+                                <div class="card h-100 tool-card" data-tool-id="{{ tool.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-4">
+                                            <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                                                <i class="bi {{ tool.icon }} text-success fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                                <p class="text-muted small">{{ tool.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="badge bg-light text-dark me-1">Remédiation</span>
+                                            <span class="badge bg-light text-dark">Protection</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-plus me-1"></i>Options
+                                            </button>
+                                            <a href="{% url 'tool_detail' tool.id %}" class="btn btn-primary btn-sm launch-tool">
+                                                <i class="bi bi-play-fill me-1"></i>Lancer
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not tool_categories.remediation %}
+                            <div class="col-12">
+                                <p class="text-muted text-center py-5">Aucun outil de remédiation disponible actuellement</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="custom">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for tool in tool_categories.custom %}
+                            <div class="col">
+                                <div class="card h-100 tool-card" data-tool-id="{{ tool.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-4">
+                                            <div class="rounded-circle bg-secondary bg-opacity-10 p-3 me-3">
+                                                <i class="bi {{ tool.icon }} text-secondary fs-4"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                                <p class="text-muted small">{{ tool.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="badge bg-light text-dark">Personnalisé</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-plus me-1"></i>Options
+                                            </button>
+                                            <a href="{% url 'tool_detail' tool.id %}" class="btn btn-primary btn-sm launch-tool">
+                                                <i class="bi bi-play-fill me-1"></i>Lancer
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not tool_categories.custom %}
+                            <div class="col-12">
+                                <p class="text-muted text-center py-5">Aucun outil personnalisé disponible actuellement</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if active_tool %}
+            <!-- Tool Command Interface -->
+            <div id="toolInterface" class="mb-4">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-tools text-warning me-2"></i>
+                            <h5 class="mb-0 tool-name">{{ active_tool|title }}</h5>
+                        </div>
+                        <a href="{% url 'index' %}" class="btn btn-link text-warning btn-sm text-decoration-none">
+                            Retour aux outils
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs mb-3" id="commandTabs">
+                            <li class="nav-item">
+                                <button class="nav-link active d-flex align-items-center" id="terminal-tab" data-bs-toggle="tab" data-bs-target="#terminal">
+                                    <i class="bi bi-terminal me-2"></i>Terminal
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link d-flex align-items-center" id="simple-tab" data-bs-toggle="tab" data-bs-target="#simple">
+                                    <i class="bi bi-code-slash me-2"></i>Exécution simple
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="terminal">
+                                <div id="terminalOutput" class="bg-dark text-light rounded p-3 mb-3" style="height: 300px; overflow: auto; font-family: monospace;">
+                                    Prêt à exécuter des commandes...
+                                </div>
+                                <div class="d-flex">
+                                    <input type="text" class="form-control font-monospace command-input me-2" placeholder="Entrez une commande...">
+                                    <button class="btn btn-primary execute-btn">Exécuter</button>
+                                    <button class="btn btn-outline-secondary ms-2" id="clearTerminal">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="simple">
+                                <div class="mb-3">
+                                    <label class="form-label">Type d'opération</label>
+                                    <select class="form-select operation-select">
+                                        <option value="">Sélectionner une option</option>
+                                        <option value="full-scan">Scan complet</option>
+                                        <option value="quick-scan">Scan rapide</option>
+                                        <option value="vuln-detection">Détection de vulnérabilités</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Commande à exécuter</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control font-monospace simple-command-input" readonly>
+                                        <button class="btn btn-primary simple-execute-btn">
+                                            <i class="bi bi-play-fill"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="simple-output d-none">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Résultat</h6>
+                                        <button class="btn btn-sm text-muted clear-output-btn">Effacer</button>
+                                    </div>
+                                    <div class="bg-dark text-light rounded p-3 simple-output-text" style="max-height: 300px; overflow: auto; font-family: monospace;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Résultats</h5>
+                        <p class="text-muted small mb-0">Résultats des dernières commandes exécutées</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive border rounded">
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30px;"></th>
+                                        <th>Timestamp</th>
+                                        <th>Outil</th>
+                                        <th>Commande</th>
+                                        <th>Cible</th>
+                                        <th>Type</th>
+                                        <th>Sévérité</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted py-4">
+                                            Aucun résultat disponible. Exécutez un outil pour voir les résultats.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Remediation Tab -->
+        <div class="tab-pane fade" id="remediation">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <!-- Firewall Tool -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-shield text-warning me-2"></i>
+                                <h5 class="mb-0">Configuration de Pare-feu</h5>
+                            </div>
+                            <p class="text-muted small mb-0">Configure des règles de pare-feu adaptées pour bloquer les menaces</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-column gap-3">
+                                <select class="form-select remediation-method">
+                                    <option value="">Sélectionner une méthode</option>
+                                    <option value="Configuration simple">Configuration simple</option>
+                                    <option value="Configuration avancée">Configuration avancée</option>
+                                    <option value="Mode DMZ">Mode DMZ</option>
+                                </select>
+                                <button class="btn btn-warning apply-remediation" data-type="firewall">Appliquer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IPtables Tool -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-server text-warning me-2"></i>
+                                <h5 class="mb-0">Règles IPtables</h5>
+                            </div>
+                            <p class="text-muted small mb-0">Configure des règles IPtables pour filtrer le trafic réseau</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-column gap-3">
+                                <select class="form-select remediation-method">
+                                    <option value="">Sélectionner une méthode</option>
+                                    <option value="Règles basiques">Règles basiques</option>
+                                    <option value="Protection anti-DoS">Protection anti-DoS</option>
+                                    <option value="Whitelist IP">Whitelist IP</option>
+                                </select>
+                                <button class="btn btn-warning apply-remediation" data-type="iptables">Appliquer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Web Fixes Tool -->
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-globe text-warning me-2"></i>
+                                <h5 class="mb-0">Correctifs Web</h5>
+                            </div>
+                            <p class="text-muted small mb-0">Applique des correctifs pour vulnérabilités web courantes (XSS, CSRF, Injection)</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-column gap-3">
+                                <select class="form-select remediation-method">
+                                    <option value="">Sélectionner une méthode</option>
+                                    <option value="Patch XSS">Patch XSS</option>
+                                    <option value="Patch Injection SQL">Patch Injection SQL</option>
+                                    <option value="Patch CSRF">Patch CSRF</option>
+                                </select>
+                                <button class="btn btn-warning apply-remediation" data-type="webapp">Appliquer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Historique des remédiations</h5>
+                    <p class="text-muted small mb-0">Résultats des dernières remédiations appliquées</p>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive border rounded">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30px;"></th>
+                                    <th>Timestamp</th>
+                                    <th>Outil</th>
+                                    <th>Commande</th>
+                                    <th>Cible</th>
+                                    <th>Type</th>
+                                    <th>Sévérité</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="remediationTableBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        Aucune remédiation appliquée. Utilisez les outils ci-dessus pour appliquer des corrections.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Result Detail Modal -->
+<div class="modal fade" id="resultDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails du résultat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="fw-bold mb-2">Détails</h6>
+                <p class="result-details mb-4"></p>
+                
+                <h6 class="fw-bold mb-2">Sortie brute</h6>
+                <pre class="bg-dark text-light p-3 rounded result-output" style="max-height: 400px; overflow: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-primary export-result">Exporter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong class="me-auto toast-title">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            Message de notification
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Références DOM
+        const terminalOutput = document.getElementById('terminalOutput');
+        const commandInput = document.querySelector('.command-input');
+        const executeBtn = document.querySelector('.execute-btn');
+        const clearTerminalBtn = document.getElementById('clearTerminal');
+        const operationSelect = document.querySelector('.operation-select');
+        const simpleCommandInput = document.querySelector('.simple-command-input');
+        const simpleExecuteBtn = document.querySelector('.simple-execute-btn');
+        const simpleOutput = document.querySelector('.simple-output');
+        const simpleOutputText = document.querySelector('.simple-output-text');
+        const clearOutputBtn = document.querySelector('.clear-output-btn');
+        const resultsTableBody = document.getElementById('resultsTableBody');
+        const remediationTableBody = document.getElementById('remediationTableBody');
+        const remediationBtns = document.querySelectorAll('.apply-remediation');
+        const remediationMethods = document.querySelectorAll('.remediation-method');
+        
+        // Toast de notification
+        const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+        const toastList = toastElList.map(function (toastEl) {
+            return new bootstrap.Toast(toastEl);
+        });
+        
+        const toastTitle = document.querySelector('.toast-title');
+        const toastBody = document.querySelector('.toast-body');
+
+        // Gestion des états de l'application
+        const appState = {
+            results: [],
+            currentProject: {
+                name: "Site Web E-commerce",
+                targetDomain: "example.com",
+                targetIP: "192.168.1.100",
+                targetType: "Web Application",
+                technologies: ["PHP", "MySQL", "Apache"]
+            }
+        };
+
+        // Gestion du terminal
+        if (executeBtn) {
+            executeBtn.addEventListener('click', function() {
+                const command = commandInput.value.trim();
+                if (command) {
+                    executeCommand(command, terminalOutput);
+                    commandInput.value = '';
+                    
+                    // Si c'est une commande de scan, on simule des résultats
+                    if (command.toLowerCase().includes('scan')) {
+                        setTimeout(() => {
+                            const target = command.split(' ')[1] || 'localhost';
+                            
+                            // Simuler différentes vulnérabilités
+                            let vulnerabilities = [
+                                { target: target, name: 'Port 21 (FTP) ouvert', severity: 'medium' },
+                                { target: target, name: 'Port 22 (SSH) utilise une version obsolète', severity: 'high' },
+                                { target: target, name: 'Port 80 (HTTP) sans TLS', severity: 'medium' }
+                            ];
+                            
+                            // Générer des résultats
+                            const result = {
+                                id: `result-${Date.now()}`,
+                                timestamp: new Date().toISOString(),
+                                toolName: "Nmap",
+                                command: command,
+                                details: "Résultat du scan de ports",
+                                rawOutput: "Port scanning completed. Found 3 open ports.",
+                                target: target,
+                                severity: 'medium',
+                                findingType: 'Port Ouvert'
+                            };
+                            
+                            appState.results.push(result);
+                            updateResultsTable();
+                            
+                            // Afficher les résultats dans la table
+                            document.querySelector('a[href="#results"]').click();
+                        }, 2000);
+                    }
+                }
+            });
+        }
+
+        if (commandInput) {
+            commandInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    executeBtn.click();
+                }
+            });
+        }
+
+        if (clearTerminalBtn) {
+            clearTerminalBtn.addEventListener('click', () => {
+                terminalOutput.textContent = 'Prêt à exécuter des commandes...';
+            });
+        }
+
+        // Mode simple
+        if (operationSelect) {
+            operationSelect.addEventListener('change', function() {
+                const operation = this.value;
+                updateSimpleCommand(operation);
+            });
+        }
+
+        function updateSimpleCommand(operation) {
+            const target = appState.currentProject?.targetDomain || "example.com";
+            
+            let command = "";
+            switch (operation) {
+                case "full-scan":
+                    command = `nmap -sS -sV -A -T4 ${target}`;
+                    break;
+                case "quick-scan":
+                    command = `nmap -F ${target}`;
+                    break;
+                case "vuln-detection":
+                    command = `nmap --script vuln ${target}`;
+                    break;
+                default:
+                    command = `nmap ${target}`;
+            }
+            
+            if (simpleCommandInput) {
+                simpleCommandInput.value = command;
+            }
+        }
+
+        if (simpleExecuteBtn) {
+            simpleExecuteBtn.addEventListener('click', () => {
+                if (!simpleCommandInput || !simpleCommandInput.value.trim()) return;
+                
+                const command = simpleCommandInput.value.trim();
+                if (simpleOutput) simpleOutput.classList.remove('d-none');
+                if (simpleOutputText) simpleOutputText.textContent = `Exécution de: ${command}\n\n`;
+                
+                simulateCommandExecution(command, simpleOutputText)
+                    .then((output) => {
+                        const result = {
+                            id: `result-${Date.now()}`,
+                            timestamp: new Date().toISOString(),
+                            toolName: getToolNameFromCommand(command),
+                            command: command,
+                            details: "Résultat de l'exécution de la commande",
+                            rawOutput: output,
+                            target: appState.currentProject?.targetDomain || command.split(' ')[1] || "localhost",
+                            severity: Math.random() > 0.5 ? 'high' : 'medium',
+                            findingType: command.includes('nmap') ? 'Port Ouvert' : 'Vulnérabilité'
+                        };
+                        
+                        appState.results.push(result);
+                        updateResultsTable();
+                    });
+            });
+        }
+
+        if (clearOutputBtn) {
+            clearOutputBtn.addEventListener('click', () => {
+                if (simpleOutputText) simpleOutputText.textContent = '';
+                if (simpleOutput) simpleOutput.classList.add('d-none');
+            });
+        }
+
+        // Remédiation
+        if (remediationBtns) {
+            remediationBtns.forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const type = btn.getAttribute('data-type');
+                    const method = remediationMethods[index].value;
+                    
+                    if (method) {
+                        applyRemediation(type, method);
+                    } else {
+                        showToast("Erreur", "Veuillez sélectionner une méthode de remédiation.", "danger");
+                    }
+                });
+            });
+        }
+
+        function applyRemediation(type, method) {
+            const remediationOutputs = {
+                "firewall": "Configuration du pare-feu terminée avec succès.\n\n- Règles configurées pour filtrer le trafic malveillant\n- Ports non nécessaires fermés\n- Journalisation des tentatives bloquées activée",
+                "iptables": "Configuration iptables terminée avec succès.\n\n```\n# Règles ajoutées:\niptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set\niptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 4 -j DROP\n```",
+                "webapp": "Correctifs des vulnérabilités d'application web appliqués.\n\n- Validation des entrées renforcée\n- Protection XSS mise en place\n- Tokens CSRF implémentés\n- Headers de sécurité configurés"
+            };
+            
+            const output = remediationOutputs[type] || "Remédiation appliquée avec succès.";
+            
+            const result = {
+                id: `remediation-${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                toolName: "Remédiation",
+                command: `${method} pour ${type}`,
+                details: "Résultat de la remédiation",
+                rawOutput: output,
+                target: appState.currentProject?.targetDomain || "",
+                severity: "info",
+                findingType: "Remédiation"
+            };
+            
+            appState.results.push(result);
+            updateRemediationTable();
+            
+            showToast("Remédiation appliquée", `${method} a été appliqué pour résoudre ${type}`);
+        }
+
+        // Simuler l'exécution de commande avec effet de frappe
+        async function simulateCommandExecution(command, outputElement) {
+            if (!outputElement) return "";
+            
+            let output = "";
+            
+            if (command.includes("nmap")) {
+                await typeText("Starting Nmap 7.94 ( https://nmap.org )\n", outputElement);
+                await typeText("Scanning targets...\n", outputElement);
+                await typeText("Scanning 1 host [1000 ports]\n", outputElement);
+                await typeText("Discovered open port 80/tcp on 192.168.1.1\n", outputElement);
+                await typeText("Discovered open port 443/tcp on 192.168.1.1\n", outputElement);
+                await typeText("Discovered open port 22/tcp on 192.168.1.1\n", outputElement);
+                output = "Port scanning completed. Found 3 open ports.";
+            } else if (command.includes("sqlmap")) {
+                await typeText("Initializing sqlmap engine...\n", outputElement);
+                await typeText("Testing connection to the target URL\n", outputElement);
+                await typeText("Checking if the target is protected by WAF/IPS\n", outputElement);
+                await typeText("Testing for SQL injection vulnerabilities\n", outputElement);
+                await typeText("Found SQL injection vulnerability in parameter 'id'\n", outputElement);
+                await typeText("Extracting database information\n", outputElement);
+                output = "Database extraction complete. Found 3 databases.";
+            } else if (command.includes("owasp") || command.includes("zap")) {
+                await typeText("Initializing OWASP ZAP...\n", outputElement);
+                await typeText("Exploring the application...\n", outputElement);
+                await typeText("Spider completed, found 24 unique URLs\n", outputElement);
+                await typeText("Scanning for vulnerabilities...\n", outputElement);
+                await typeText("Found Cross-Site Scripting (XSS) vulnerability\n", outputElement);
+                await typeText("Found SQL Injection vulnerability\n", outputElement);
+                output = "Scan completed. Found 5 high, 8 medium, 3 low vulnerabilities.";
+            } else {
+                await typeText("Exécution de la commande...\n", outputElement);
+                await typeText("Traitement en cours...\n", outputElement);
+                output = "Commande exécutée avec succès.";
+            }
+            
+            await typeText("\n" + output + "\n", outputElement);
+            return output;
+        }
+
+        // Effet de frappe
+        async function typeText(text, element) {
+            if (!element) return;
+            
+            for (let i = 0; i < text.length; i++) {
+                element.textContent += text.charAt(i);
+                element.scrollTop = element.scrollHeight;
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 10));
+            }
+        }
+
+        // Utilitaires
+        function getToolNameFromCommand(command) {
+            if (command.includes('nmap')) return 'Nmap';
+            if (command.includes('sqlmap')) return 'SQLMap';
+            if (command.includes('owasp') || command.includes('zap')) return 'OWASP ZAP';
+            return 'Outil';
+        }
+
+        // Mise à jour des tableaux de résultats
+        function updateResultsTable() {
+            if (!resultsTableBody) return;
+            
+            const filteredResults = appState.results.filter(r => r.toolName !== "Remédiation");
+            updateTable(resultsTableBody, filteredResults);
+        }
+
+        function updateRemediationTable() {
+            if (!remediationTableBody) return;
+            
+            const filteredResults = appState.results.filter(r => r.toolName === "Remédiation");
+            updateTable(remediationTableBody, filteredResults);
+        }
+
+        function updateTable(tableBody, results) {
+            if (!tableBody) return;
+            
+            if (results.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            Aucun résultat disponible.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = '';
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <button class="btn btn-sm btn-link p-0 toggle-details" data-result-id="${result.id}">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </td>
+                    <td class="text-nowrap">${new Date(result.timestamp).toLocaleString()}</td>
+                    <td>${result.toolName}</td>
+                    <td class="text-truncate" style="max-width: 150px;">
+                        <code>${result.command}</code>
+                    </td>
+                    <td>${result.target || '-'}</td>
+                    <td>${result.findingType || '-'}</td>
+                    <td>
+                        ${result.severity ? getSeverityBadge(result.severity) : '-'}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-link p-1 export-btn" title="Exporter" data-result-id="${result.id}">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+                
+                // Add event listeners for expand/collapse and export
+                const toggleBtn = row.querySelector('.toggle-details');
+                if (toggleBtn) {
+                    toggleBtn.addEventListener('click', () => {
+                        toggleResultDetails(result.id, toggleBtn, tableBody);
+                    });
+                }
+                
+                const exportBtn = row.querySelector('.export-btn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => {
+                        showResultDetails(result);
+                    });
+                }
+            });
+        }
+
+        // Afficher/Masquer les détails d'un résultat
+        function toggleResultDetails(resultId, button, tableBody) {
+            const result = appState.results.find(r => r.id === resultId);
+            if (!result || !button || !tableBody) return;
+            
+            const resultRow = button.closest('tr');
+            if (!resultRow) return;
+            
+            let detailsRow = resultRow.nextElementSibling;
+            
+            if (detailsRow && detailsRow.classList.contains('details-row')) {
+                // Hide details
+                detailsRow.remove();
+                button.innerHTML = '<i class="bi bi-chevron-down"></i>';
+            } else {
+                // Show details
+                detailsRow = document.createElement('tr');
+                detailsRow.classList.add('details-row');
+                detailsRow.innerHTML = `
+                    <td colspan="8">
+                        <div class="p-3 bg-light rounded">
+                            <h6 class="fw-bold mb-2">Détails</h6>
+                            <p class="mb-3">${result.details}</p>
+                            
+                            <h6 class="fw-bold mb-2">Sortie brute</h6>
+                            <pre class="bg-dark text-light p-2 rounded" style="max-height: 200px; overflow: auto;">${result.rawOutput}</pre>
+                        </div>
+                    </td>
+                `;
+                
+                resultRow.parentNode.insertBefore(detailsRow, resultRow.nextSibling);
+                button.innerHTML = '<i class="bi bi-chevron-up"></i>';
+            }
+        }
+
+        // Afficher les détails du résultat dans une modal
+        function showResultDetails(result) {
+            const modal = new bootstrap.Modal(document.getElementById('resultDetailModal'));
+            const resultDetails = document.querySelector('.result-details');
+            const resultOutput = document.querySelector('.result-output');
+            const exportBtn = document.querySelector('.export-result');
+            
+            if (!resultDetails || !resultOutput || !exportBtn || !modal) return;
+            
+            resultDetails.textContent = result.details;
+            resultOutput.textContent = result.rawOutput;
+            
+            exportBtn.onclick = () => {
+                showToast("Export réussi", `Le résultat de ${result.toolName} a été exporté.`);
+                modal.hide();
+            };
+            
+            modal.show();
+        }
+
+        // Gestion des notifications
+        function showToast(title, message, type = "info") {
+            if (!toastTitle || !toastBody || !toastList || toastList.length === 0) return;
+            
+            toastTitle.textContent = title;
+            toastBody.textContent = message;
+            
+            // Reset classes
+            const toastEl = document.getElementById('notificationToast');
+            if (!toastEl) return;
+            
+            toastEl.className = 'toast';
+            
+            // Add appropriate color based on type
+            if (type === "danger") {
+                toastEl.classList.add('bg-danger', 'text-white');
+            } else if (type === "warning") {
+                toastEl.classList.add('bg-warning');
+            } else if (type === "success") {
+                toastEl.classList.add('bg-success', 'text-white');
+            } else {
+                toastEl.classList.add('bg-info', 'text-white');
+            }
+            
+            toastList[0].show();
+        }
+
+        // Utility functions
+        function getSeverityBadge(severity) {
+            let bgClass = '';
+            switch (severity) {
+                case 'critical': bgClass = 'bg-danger'; break;
+                case 'high': bgClass = 'bg-danger'; break;
+                case 'medium': bgClass = 'bg-warning'; break;
+                case 'low': bgClass = 'bg-success'; break;
+                case 'info': bgClass = 'bg-info'; break;
+                default: bgClass = 'bg-secondary'; break;
+            }
+            
+            return `<span class="badge ${bgClass}">${severity.toUpperCase()}</span>`;
+        }
+
+        // Pour la compatibilité avec la fonction executeCommand de main.js
+        window.executeCommand = executeCommand;
+
+        // Initialisation
+        function init() {
+            // Mise à jour des tableaux
+            updateResultsTable();
+            updateRemediationTable();
+            
+            // Initialiser les opérations simples
+            if (operationSelect) {
+                updateSimpleCommand(operationSelect.value);
+            }
+            
+            // Sélectionner le premier outil par défaut
+            const toolCards = document.querySelectorAll('.tool-card');
+            if (toolCards.length > 0) {
+                toolCards[0].classList.add('border-primary');
+            }
+        }
+
+        init();
+    });
+</script>
+{% endblock %}

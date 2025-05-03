@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmation de création de compte</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            padding: 40px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        h2 {
+            color: #2d6cdf;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888888;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 20px;
+            margin-top: 20px;
+            background-color: #2d6cdf;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .logo {
+            width: 100px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://i.imgur.com/CwZ6Wbs.png" alt="EthicalPulse Logo" class="logo">
+        <h2>Bienvenue sur EthicalPulseShield !</h2>
+        <p>Bonjour {{ user.username }},</p>
+        <p>Votre compte a été <strong>créé avec succès</strong> et il est maintenant actif.</p>
+        <p>Vous pouvez dès à présent vous connecter avec votre adresse email : <strong>{{ user.email }}</strong></p>
+
+        <a href="{{ login_url }}" class="button">Se connecter</a>
+
+        <p class="footer">
+            Si vous n'êtes pas à l'origine de cette création de compte, ignorez simplement cet email.<br>
+            © {{ current_year }} EthicalPulseShield. Tous droits réservés.
+        </p>
+    </div>
+</body>
+</html>

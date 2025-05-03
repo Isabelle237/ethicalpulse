@@ -1,0 +1,572 @@
+
+{% extends "base.html" %}
+
+{% block title %}Scans de sécurité | Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête de la page -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-2">Scans de sécurité</h1>
+            <p class="text-secondary">Gérez et planifiez vos scans de sécurité</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-outline-secondary me-2">
+                <i class="bi bi-calendar me-1"></i> Planifier
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-play-fill me-1"></i> Nouveau scan
+            </button>
+        </div>
+    </div>
+
+    <!-- Onglets de navigation -->
+    <ul class="nav nav-tabs mb-4" id="scanTabs">
+        <li class="nav-item">
+            <a class="nav-link active" id="active-tab" data-bs-toggle="tab" href="#active" role="tab">Actifs</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="scheduled-tab" data-bs-toggle="tab" href="#scheduled" role="tab">Planifiés</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="completed-tab" data-bs-toggle="tab" href="#completed" role="tab">Terminés</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="templates-tab" data-bs-toggle="tab" href="#templates" role="tab">Modèles</a>
+        </li>
+    </ul>
+
+    <!-- Contenu des onglets -->
+    <div class="tab-content">
+        <!-- Onglet Actifs -->
+        <div class="tab-pane fade show active" id="active" role="tabpanel">
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h4 class="mb-2">Statut des scans</h4>
+                        <p class="text-secondary">Suivez vos scans de sécurité récents et planifiés</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-secondary btn-sm me-2">Historique</button>
+                        <button class="btn btn-primary btn-sm">
+                            <i class="bi bi-play-fill me-1"></i> Nouveau scan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Liste des scans actifs -->
+                <div class="scan-list">
+                    {% for scan in scans %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="mb-0">{{ scan.name }}</h5>
+                                    <small class="text-secondary">{{ scan.scan_type }}</small>
+                                </div>
+                                {% if scan.status == 'completed' %}
+                                <span class="badge bg-success">Terminé</span>
+                                {% elif scan.status == 'scheduled' %}
+                                <span class="badge bg-primary">Planifié</span>
+                                {% elif scan.status == 'in_progress' %}
+                                <span class="badge bg-warning">En cours</span>
+                                {% elif scan.status == 'failed' %}
+                                <span class="badge bg-danger">Échoué</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inconnu</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if scan.status == 'in_progress' %}
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Progression</span>
+                                    <span class="progress-value" data-scan-id="{{ scan.id }}">0%</span>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-{{ scan.id }}"></div>
+                                </div>
+                                <div class="d-flex justify-content-between small text-secondary">
+                                    <span>Début: {{ scan.start_time|date:"H:i d/m/Y" }}</span>
+                                    <span>Fin estimée: {{ scan.start_time|date:"H:i d/m/Y" }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="row">
+                                {% if scan.status == 'completed' %}
+                                <div class="col-md-3 mb-3">
+                                    <p class="text-secondary mb-1">Dernier scan</p>
+                                    <p>{{ scan.end_time|date:"H:i d/m/Y" }}</p>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <p class="text-secondary mb-1">Durée</p>
+                                    <p>
+                                        {% if scan.start_time and scan.end_time %}
+                                        {{ scan.duration|default:"45" }} minutes
+                                        {% else %}
+                                        45 minutes
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-secondary mb-1">Résultats</p>
+                                    <p>
+                                        {% if scan.findings_summary %}
+                                        {{ scan.findings_summary.critical }} critiques, {{ scan.findings_summary.high }} élevées, {{ scan.findings_summary.medium }} moyennes
+                                        {% else %}
+                                        2 critiques, 5 élevées, 8 moyennes
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% endif %}
+
+                                {% if scan.status == 'scheduled' %}
+                                <div class="col-md-4 mb-3">
+                                    <p class="text-secondary mb-1">Dernier scan</p>
+                                    <p>{{ scan.created_at|date:"H:i d/m/Y" }}</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <p class="text-secondary mb-1">Prochain scan</p>
+                                    <p>{{ scan.next_scan|default:"Demain, 03:30"|safe }}</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <p class="text-secondary mb-1">Résultats précédents</p>
+                                    <p>0 critiques, 3 élevées, 5 moyennes</p>
+                                </div>
+                                {% endif %}
+
+                                {% if scan.status == 'in_progress' %}
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-secondary mb-1">Cible</p>
+                                    <p>{{ scan.target_url }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-secondary mb-1">Type de scan</p>
+                                    <p>{{ scan.scan_type }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-top">
+                            <div class="d-flex justify-content-end">
+                                {% if scan.status == 'in_progress' %}
+                                <button class="btn btn-outline-danger btn-sm">Arrêter</button>
+                                {% endif %}
+                                
+                                {% if scan.status == 'scheduled' %}
+                                <button class="btn btn-outline-secondary btn-sm me-2">Modifier</button>
+                                <button class="btn btn-primary btn-sm start-scan-btn" data-scan-id="{{ scan.id }}">Lancer maintenant</button>
+                                {% endif %}
+                                
+                                {% if scan.status == 'completed' %}
+                                <button class="btn btn-outline-secondary btn-sm me-2">Rapport</button>
+                                <button class="btn btn-primary btn-sm">Relancer</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Planifiés -->
+        <div class="tab-pane fade" id="scheduled" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Scans planifiés</h5>
+                    <p class="mb-0 text-secondary">Visualisez et gérez vos scans automatiques programmés</p>
+                </div>
+                <div class="card-body">
+                    <div class="scheduled-scan-list">
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">Scan complet hebdomadaire</h5>
+                                        <p class="text-secondary mb-0">Tous les lundis à 01:00</p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-gear-fill me-1"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Lancer
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Type</p>
+                                        <p class="mb-0">Scan complet</p>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Cibles</p>
+                                        <p class="mb-0">Toutes les applications</p>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Prochain scan</p>
+                                        <p class="mb-0">Lundi 19 avril, 01:00</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">Scan API journalier</h5>
+                                        <p class="text-secondary mb-0">Tous les jours à 03:30</p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-gear-fill me-1"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Lancer
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Type</p>
+                                        <p class="mb-0">Scan ciblé</p>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Cibles</p>
+                                        <p class="mb-0">API Gateway, Auth Service</p>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Prochain scan</p>
+                                        <p class="mb-0">Demain, 03:30</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline-primary w-100 p-3 dashed-border">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Ajouter une planification
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Terminés -->
+        <div class="tab-pane fade" id="completed" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Scans terminés</h5>
+                    <p class="mb-0 text-secondary">Historique des scans de sécurité précédents</p>
+                </div>
+                <div class="card-body">
+                    <div class="completed-scan-list">
+                        {% for i in "12345" %}
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">
+                                            {% if forloop.counter|divisibleby:2 %}
+                                                Scan ciblé
+                                            {% else %}
+                                                Scan complet
+                                                {% if forloop.first %}
+                                                (problèmes détectés)
+                                                {% endif %}
+                                            {% endif %}
+                                        </h5>
+                                        <p class="text-secondary mb-0">
+                                            {% if forloop.first %}
+                                                Aujourd'hui
+                                            {% elif forloop.counter == 2 %}
+                                                Hier
+                                            {% else %}
+                                                Il y a {{ forloop.counter|add:"1" }} jours
+                                            {% endif %},
+                                            {{ forloop.counter|add:"13" }}:{{ forloop.counter|add:"25" }}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            Rapport
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Relancer
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Durée</p>
+                                        <p class="mb-0">{{ forloop.counter|add:"25" }} minutes</p>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Vulnérabilités</p>
+                                        <div>
+                                            {% if forloop.first %}
+                                            <p class="mb-0">
+                                                <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+                                                2 critiques, 5 élevées
+                                            </p>
+                                            {% elif forloop.counter == 2 %}
+                                            <p class="mb-0">3 élevées, 7 moyennes</p>
+                                            {% else %}
+                                            <p class="mb-0">{{ forloop.counter|add:"2" }} moyennes/faibles</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <p class="text-secondary mb-1">Cibles</p>
+                                        <p class="mb-0">
+                                            {% if forloop.counter|divisibleby:3 %}
+                                                Toutes les applications
+                                            {% elif forloop.counter|divisibleby:3 == 1 %}
+                                                API Gateway, Auth Service
+                                            {% else %}
+                                                Frontend, Database
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Modèles -->
+        <div class="tab-pane fade" id="templates" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Modèles de scan</h5>
+                    <p class="mb-0 text-secondary">Configurez des modèles réutilisables pour vos scans réguliers</p>
+                </div>
+                <div class="card-body">
+                    <div class="template-list">
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">Scan complet</h5>
+                                        <p class="text-secondary mb-0">
+                                            Analyse complète incluant toutes les méthodes de test
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-gear-fill me-1"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Utiliser
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <p class="text-secondary mb-1">Outils inclus</p>
+                                        <p class="mb-0">OWASP ZAP, Nmap, SQLMap, Nuclei, SSL Scanner</p>
+                                    </div>
+                                    <div class="col-12">
+                                        <p class="text-secondary mb-1">Durée estimée</p>
+                                        <p class="mb-0">45-60 minutes par application</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">Scan API rapide</h5>
+                                        <p class="text-secondary mb-0">
+                                            Scan léger pour les API et services REST
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-gear-fill me-1"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Utiliser
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <p class="text-secondary mb-1">Outils inclus</p>
+                                        <p class="mb-0">API Security Scanner, JWT Analyzer, CORS Tester</p>
+                                    </div>
+                                    <div class="col-12">
+                                        <p class="text-secondary mb-1">Durée estimée</p>
+                                        <p class="mb-0">15-20 minutes par API</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3 border">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">Scan d'infrastructure</h5>
+                                        <p class="text-secondary mb-0">
+                                            Analyse des serveurs et de l'infrastructure réseau
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-gear-fill me-1"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i> Utiliser
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <p class="text-secondary mb-1">Outils inclus</p>
+                                        <p class="mb-0">Nmap, OpenVAS, ServerScan, SSLyze</p>
+                                    </div>
+                                    <div class="col-12">
+                                        <p class="text-secondary mb-1">Durée estimée</p>
+                                        <p class="mb-0">30-40 minutes par segment réseau</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline-primary w-100 p-3 dashed-border">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Créer un nouveau modèle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashed-border {
+        border-style: dashed !important;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Simulation de la progression des scans en cours
+        const inProgressScans = document.querySelectorAll('[id^="progress-"]');
+        
+        inProgressScans.forEach(progressBar => {
+            const scanId = progressBar.id.replace('progress-', '');
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress <= 100) {
+                    progressBar.style.width = progress + '%';
+                    document.querySelector(`.progress-value[data-scan-id="${scanId}"]`).textContent = progress + '%';
+                    
+                    if (progress === 100) {
+                        clearInterval(interval);
+                        // Simuler la fin du scan
+                        alert(`Le scan ${scanId} est terminé !`);
+                        location.reload();
+                    }
+                } else {
+                    clearInterval(interval);
+                }
+            }, 2000);
+        });
+        
+        // Gestion du démarrage des scans planifiés
+        document.querySelectorAll('.start-scan-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const scanId = this.dataset.scanId;
+                alert(`Le scan ${scanId} va démarrer !`);
+                const card = this.closest('.card');
+                
+                // Mettre à jour le statut
+                const statusBadge = card.querySelector('.badge');
+                statusBadge.textContent = 'En cours';
+                statusBadge.className = 'badge bg-warning';
+                
+                // Créer et insérer une barre de progression
+                const cardBody = card.querySelector('.card-body');
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'mb-4';
+                progressDiv.innerHTML = `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Progression</span>
+                        <span class="progress-value" data-scan-id="${scanId}">0%</span>
+                    </div>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-${scanId}"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-secondary">
+                        <span>Début: ${new Date().toLocaleString()}</span>
+                        <span>Fin estimée: ${new Date(Date.now() + 7200000).toLocaleString()}</span>
+                    </div>
+                `;
+                cardBody.insertBefore(progressDiv, cardBody.firstChild);
+                
+                // Mettre à jour les informations
+                cardBody.querySelector('.row').innerHTML = `
+                    <div class="col-md-6 mb-3">
+                        <p class="text-secondary mb-1">Cible</p>
+                        <p>https://api.example.com</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="text-secondary mb-1">Type de scan</p>
+                        <p>Scan ciblé</p>
+                    </div>
+                `;
+                
+                // Mettre à jour le footer
+                const footer = card.querySelector('.card-footer');
+                footer.innerHTML = `
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-outline-danger btn-sm">Arrêter</button>
+                    </div>
+                `;
+                
+                // Démarrer la simulation de progression
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 5;
+                    if (progress <= 100) {
+                        const progressBar = document.getElementById(`progress-${scanId}`);
+                        if (progressBar) {
+                            progressBar.style.width = progress + '%';
+                            document.querySelector(`.progress-value[data-scan-id="${scanId}"]`).textContent = progress + '%';
+                            
+                            if (progress === 100) {
+                                clearInterval(interval);
+                                alert(`Le scan ${scanId} est terminé !`);
+                                location.reload();
+                            }
+                        } else {
+                            clearInterval(interval);
+                        }
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 2000);
+            });
+        });
+    });
+</script>
+{% endblock %}

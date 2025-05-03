@@ -1,0 +1,4 @@
+Django>=4.2
+mysqlclient>=2.2.0
+python-dotenv
+pyotp >=2.6.0

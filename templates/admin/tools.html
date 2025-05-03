@@ -1,0 +1,1213 @@
+
+{% extends 'admin/admin_base.html' %}
+
+{% block title %}Outils d'administration - Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-column flex-md-row">
+        <div>
+            <h1 class="fw-bold mb-2">Outils d'Administration</h1>
+            <p class="text-muted">
+                Outils avancés pour l'administration et la gestion de la sécurité
+            </p>
+        </div>
+        <div class="d-flex flex-column flex-sm-row gap-3 mt-3 mt-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="search" id="toolSearch" class="form-control" placeholder="Rechercher un outil...">
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Catégories
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" data-category="all">Tous les outils</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" data-category="analysis">Analyse de sécurité</a></li>
+                    <li><a class="dropdown-item" href="#" data-category="monitoring">Surveillance</a></li>
+                    <li><a class="dropdown-item" href="#" data-category="protection">Protection</a></li>
+                    <li><a class="dropdown-item" href="#" data-category="remediation">Remédiation</a></li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addToolModal">
+                <i class="bi bi-plus"></i> Ajouter un outil
+            </button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="toolsTabs">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#analysis">Analyse</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#monitoring">Surveillance</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#protection">Protection</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#remediation">Remédiation</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Analyse Tab -->
+        <div class="tab-pane fade show active" id="analysis">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for tool in tools_data.analysis %}
+                <div class="col tool-item">
+                    <div class="card h-100 tool-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                                    <i class="{{ tool.icon }} text-primary fs-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                    <p class="text-muted small">{{ tool.description }}</p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% for tag in tool.tags %}
+                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="text-muted small tool-description">{{ tool.description }}</p>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configureToolModal" data-tool-id="{{ tool.id }}">
+                                    <i class="bi bi-gear me-1"></i>Configurer
+                                </button>
+                                <button class="btn btn-primary btn-sm launch-tool" data-tool-id="{{ tool.id }}" data-tool-name="{{ tool.name }}">
+                                    <i class="bi bi-play-fill me-1"></i>Lancer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Surveillance Tab -->
+        <div class="tab-pane fade" id="monitoring">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for tool in tools_data.monitoring %}
+                <div class="col tool-item">
+                    <div class="card h-100 tool-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                                    <i class="{{ tool.icon }} text-warning fs-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                    <p class="text-muted small">{{ tool.description }}</p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% for tag in tool.tags %}
+                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="text-muted small tool-description">{{ tool.description }}</p>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configureToolModal" data-tool-id="{{ tool.id }}">
+                                    <i class="bi bi-gear me-1"></i>Configurer
+                                </button>
+                                <button class="btn btn-warning btn-sm launch-tool" data-tool-id="{{ tool.id }}" data-tool-name="{{ tool.name }}">
+                                    <i class="bi bi-play-fill me-1"></i>Lancer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Protection Tab -->
+        <div class="tab-pane fade" id="protection">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for tool in tools_data.protection %}
+                <div class="col tool-item">
+                    <div class="card h-100 tool-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="rounded-circle bg-danger bg-opacity-10 p-3 me-3">
+                                    <i class="{{ tool.icon }} text-danger fs-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                    <p class="text-muted small">{{ tool.description }}</p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% for tag in tool.tags %}
+                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="text-muted small tool-description">{{ tool.description }}</p>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configureToolModal" data-tool-id="{{ tool.id }}">
+                                    <i class="bi bi-gear me-1"></i>Configurer
+                                </button>
+                                <button class="btn btn-danger btn-sm launch-tool" data-tool-id="{{ tool.id }}" data-tool-name="{{ tool.name }}">
+                                    <i class="bi bi-play-fill me-1"></i>Lancer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Remediation Tab -->
+        <div class="tab-pane fade" id="remediation">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for tool in tools_data.remediation %}
+                <div class="col tool-item">
+                    <div class="card h-100 tool-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                                    <i class="{{ tool.icon }} text-success fs-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="fs-4 fw-semibold">{{ tool.name }}</h3>
+                                    <p class="text-muted small">{{ tool.description }}</p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% for tag in tool.tags %}
+                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="text-muted small tool-description">{{ tool.description }}</p>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configureToolModal" data-tool-id="{{ tool.id }}">
+                                    <i class="bi bi-gear me-1"></i>Configurer
+                                </button>
+                                <button class="btn btn-success btn-sm launch-tool" data-tool-id="{{ tool.id }}" data-tool-name="{{ tool.name }}">
+                                    <i class="bi bi-play-fill me-1"></i>Lancer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tool Output Section -->
+    <div class="card mt-5 d-none" id="toolOutputPanel">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0" id="activeToolName">Résultat de l'outil</h5>
+            <button class="btn btn-sm btn-outline-secondary" id="closeToolOutput">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs mb-3">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#console">Console</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#resultTab">Résultats</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#documentation">Documentation</a>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="console">
+                    <div class="d-flex flex-column">
+                        <div class="bg-dark text-light p-3 rounded" style="height: 300px; overflow: auto; font-family: 'Courier New', monospace;">
+                            <div id="terminalOutput" class="mb-2">
+                                > Bienvenue dans le terminal. Utilisez les commandes spécifiques à l'outil ou tapez 'help' pour afficher les commandes disponibles.
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <form id="terminalForm" class="d-flex">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark text-light">$</span>
+                                    <input type="text" id="commandInput" class="form-control" placeholder="Entrez votre commande...">
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="bi bi-arrow-return-right"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="resultTab">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Cible</th>
+                                    <th>Sévérité</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                                <!-- Les résultats seront affichés ici -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="documentation">
+                    <div id="toolDocumentation">
+                        <div class="alert alert-primary">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Sélectionnez un outil pour voir sa documentation spécifique.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Configure Tool -->
+<div class="modal fade" id="configureToolModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configuration de l'outil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <h4 id="configToolName" class="text-primary fs-5">Nom de l'outil</h4>
+                    <p id="configToolDescription" class="text-muted small">Description de l'outil</p>
+                </div>
+
+                <form id="toolConfigForm">
+                    <div class="mb-3">
+                        <h5 class="fs-6 mb-3">Options cibles</h5>
+                        <div class="mb-3" id="configTargets">
+                            <!-- Les champs de configuration de cible seront générés ici -->
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fs-6 mb-3">Options de configuration</h5>
+                        <div class="row" id="configOptions">
+                            <!-- Les options de configuration seront générées ici -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="saveConfigCheck">
+                        <label class="form-check-label" for="saveConfigCheck">Sauvegarder cette configuration</label>
+                    </div>
+                    <div class="mb-3" id="saveConfigName" style="display: none;">
+                        <label class="form-label">Nom de la configuration</label>
+                        <input type="text" class="form-control" placeholder="Ma configuration personnalisée">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="launchConfiguredTool">Lancer l'outil</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add New Tool -->
+<div class="modal fade" id="addToolModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un nouvel outil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newToolForm">
+                    <div class="mb-3">
+                        <label class="form-label">Nom de l'outil</label>
+                        <input type="text" class="form-control" id="newToolName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="newToolDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Catégorie</label>
+                            <select class="form-select" id="newToolCategory" required>
+                                <option value="analysis">Analyse</option>
+                                <option value="monitoring">Surveillance</option>
+                                <option value="protection">Protection</option>
+                                <option value="remediation">Remédiation</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Icône</label>
+                            <select class="form-select" id="newToolIcon">
+                                <option value="bi-shield-check">Shield</option>
+                                <option value="bi-bug">Bug</option>
+                                <option value="bi-globe">Globe</option>
+                                <option value="bi-diagram-3">Diagram</option>
+                                <option value="bi-lock">Lock</option>
+                                <option value="bi-activity">Activity</option>
+                                <option value="bi-database">Database</option>
+                                <option value="bi-graph-up">Graph</option>
+                                <option value="bi-wrench">Wrench</option>
+                                <option value="bi-tools">Tools</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tags (séparés par des virgules)</label>
+                        <input type="text" class="form-control" id="newToolTags" placeholder="Sécurité, Scan, Web">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commande d'exécution</label>
+                        <input type="text" class="form-control" id="newToolCommand" placeholder="Ex: python3 /path/to/tool.py">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Documentation</label>
+                        <textarea class="form-control" id="newToolDocumentation" rows="5" placeholder="Instructions d'utilisation, commandes, exemples..."></textarea>
+                    </div>
+                    
+                    <h5 class="fs-6 mb-3">Options de configuration</h5>
+                    <div id="toolOptionsContainer">
+                        <!-- Container pour les options de configuration dynamiques -->
+                        <div class="option-row border p-3 mb-3 rounded">
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Nom de l'option</label>
+                                    <input type="text" class="form-control option-name" placeholder="Mode">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Type</label>
+                                    <select class="form-select option-type">
+                                        <option value="text">Texte</option>
+                                        <option value="select">Liste déroulante</option>
+                                        <option value="checkbox">Case à cocher</option>
+                                        <option value="number">Nombre</option>
+                                        <option value="range">Plage</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mb-2 select-options-container" style="display: none;">
+                                <div class="col-12">
+                                    <label class="form-label">Options (séparées par des virgules)</label>
+                                    <input type="text" class="form-control select-options" placeholder="Option 1, Option 2, Option 3">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Valeur par défaut</label>
+                                    <input type="text" class="form-control option-default">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Aide</label>
+                                    <input type="text" class="form-control option-help" placeholder="Description de l'option">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addOptionBtn">
+                            <i class="bi bi-plus"></i> Ajouter une option
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveNewTool">Enregistrer l'outil</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Recherche d'outils
+    const toolSearch = document.getElementById('toolSearch');
+    const toolItems = document.querySelectorAll('.tool-item');
+    
+    toolSearch.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        toolItems.forEach(item => {
+            const toolName = item.querySelector('.fs-4.fw-semibold').textContent.toLowerCase();
+            const toolDesc = item.querySelector('.tool-description').textContent.toLowerCase();
+            const toolTags = Array.from(item.querySelectorAll('.badge')).map(tag => tag.textContent.toLowerCase());
+            
+            const matches = toolName.includes(query) || 
+                          toolDesc.includes(query) || 
+                          toolTags.some(tag => tag.includes(query));
+            
+            item.style.display = matches ? '' : 'none';
+        });
+    });
+    
+    // Filtrage par catégorie
+    const categoryLinks = document.querySelectorAll('.dropdown-menu .dropdown-item');
+    categoryLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const category = this.getAttribute('data-category');
+            
+            if (category === 'all') {
+                document.querySelectorAll('.tool-item').forEach(item => {
+                    item.style.display = '';
+                });
+            } else {
+                const tabPane = document.getElementById(category);
+                if (tabPane) {
+                    const tab = new bootstrap.Tab(document.querySelector(`button[data-bs-target="#${category}"]`));
+                    tab.show();
+                }
+            }
+        });
+    });
+
+    // Gestion des outils
+    const toolOutputPanel = document.getElementById('toolOutputPanel');
+    const activeToolName = document.getElementById('activeToolName');
+    const terminalOutput = document.getElementById('terminalOutput');
+    const commandInput = document.getElementById('commandInput');
+    const terminalForm = document.getElementById('terminalForm');
+    const closeToolOutput = document.getElementById('closeToolOutput');
+    const resultsTableBody = document.getElementById('resultsTableBody');
+    const toolDocumentation = document.getElementById('toolDocumentation');
+    
+    // Outils et leur documentation
+    const toolDocs = {
+        nmap: `
+            <h5>Documentation NMAP</h5>
+            <p>NMAP (Network Mapper) est un scanner de réseau open source utilisé pour découvrir des hôtes et services sur un réseau informatique.</p>
+            
+            <h6>Commandes de base:</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>nmap [options] [cible]</code><br>
+                <code>nmap -sV 192.168.1.1</code> - Scanner avec détection de version<br>
+                <code>nmap -p 1-1000 example.com</code> - Scanner les ports 1-1000<br>
+                <code>nmap -A 192.168.1.0/24</code> - Scanner agressif d'une plage d'adresses
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>-sS</code> - Scan SYN (furtif, par défaut)</li>
+                <li><code>-sT</code> - Scan TCP connect</li>
+                <li><code>-sU</code> - Scan UDP</li>
+                <li><code>-sV</code> - Détection de version</li>
+                <li><code>-O</code> - Détection du système d'exploitation</li>
+                <li><code>-A</code> - Détection agressive (OS + version + scripts + traceroute)</li>
+                <li><code>-T0</code> à <code>-T5</code> - Vitesse de scan (0=lent/furtif, 5=rapide)</li>
+            </ul>
+        `,
+        nikto: `
+            <h5>Documentation Nikto</h5>
+            <p>Nikto est un scanner de vulnérabilités web qui effectue des tests exhaustifs sur les serveurs web pour détecter des fichiers dangereux, des configurations obsolètes et des problèmes de sécurité.</p>
+            
+            <h6>Commandes de base:</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>nikto -h [hôte]</code><br>
+                <code>nikto -h example.com</code> - Scanner un site<br>
+                <code>nikto -h 192.168.1.1 -p 8080</code> - Scanner un serveur sur un port spécifique<br>
+                <code>nikto -h example.com -ssl</code> - Scanner avec SSL
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>-h</code> - Hôte cible</li>
+                <li><code>-p</code> - Port(s) à scanner</li>
+                <li><code>-ssl</code> - Utiliser SSL/HTTPS</li>
+                <li><code>-output</code> - Fichier de sortie</li>
+                <li><code>-Format</code> - Format de sortie (txt, csv, html, xml)</li>
+                <li><code>-Tuning</code> - Ajuster les tests (x=vulnérabilités XSS, s=SQL injection, etc.)</li>
+            </ul>
+        `,
+        sqlmap: `
+            <h5>Documentation SQLMap</h5>
+            <p>SQLMap est un outil open source de test de pénétration qui automatise le processus de détection et d'exploitation des vulnérabilités d'injection SQL pour prendre le contrôle de serveurs de bases de données.</p>
+            
+            <h6>Commandes de base:</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>sqlmap -u [url]</code><br>
+                <code>sqlmap -u "http://example.com/page.php?id=1"</code> - Test d'injection simple<br>
+                <code>sqlmap -u "http://example.com/page.php?id=1" --dbs</code> - Lister les bases de données<br>
+                <code>sqlmap -r request.txt</code> - Utiliser un fichier de requête
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>-u</code> - URL cible</li>
+                <li><code>--data</code> - Données POST</li>
+                <li><code>--cookie</code> - Cookies HTTP</li>
+                <li><code>--dbs</code> - Énumérer les bases de données</li>
+                <li><code>--tables</code> - Énumérer les tables</li>
+                <li><code>--dump</code> - Extraire les données</li>
+                <li><code>--risk</code> - Niveau de risque (1-3)</li>
+                <li><code>--level</code> - Niveau de test (1-5)</li>
+            </ul>
+        `,
+        nexus: `
+            <h5>Documentation Nexus Scanner</h5>
+            <p>Nexus Scanner est une solution professionnelle de scan de vulnérabilités qui permet de détecter les problèmes de sécurité dans les applications, systèmes et réseaux.</p>
+            
+            <h6>Commandes de base:</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>nexus-scan [options] [cible]</code><br>
+                <code>nexus-scan --target 192.168.1.0/24 --type full</code> - Scan complet d'un réseau<br>
+                <code>nexus-scan --target example.com --compliance pci</code> - Vérification de conformité PCI DSS<br>
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>--target</code> - Cible du scan</li>
+                <li><code>--type</code> - Type de scan (basic, standard, full)</li>
+                <li><code>--compliance</code> - Vérifier la conformité (pci, gdpr, iso27001)</li>
+                <li><code>--schedule</code> - Planifier le scan</li>
+                <li><code>--report</code> - Format du rapport</li>
+            </ul>
+        `,
+        owasp_zap: `
+            <h5>Documentation OWASP ZAP</h5>
+            <p>OWASP ZAP (Zed Attack Proxy) est un scanner de sécurité web open-source qui aide à trouver des vulnérabilités dans les applications web.</p>
+            
+            <h6>Commandes de base:</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>zap -cmd -quickurl [url]</code> - Scan rapide<br>
+                <code>zap -cmd -quickurl https://example.com</code> - Scan rapide d'un site<br>
+                <code>zap -cmd -session mysession -spider https://example.com</code> - Explorer un site<br>
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>-cmd</code> - Mode ligne de commande</li>
+                <li><code>-quickurl</code> - URL à scanner rapidement</li>
+                <li><code>-spider</code> - Explorer un site</li>
+                <li><code>-scan</code> - Scanner un site</li>
+                <li><code>-ajax</code> - Activer le crawl AJAX</li>
+                <li><code>-auth</code> - Authentification</li>
+                <li><code>-session</code> - Fichier de session</li>
+            </ul>
+        `,
+        wireshark: `
+            <h5>Documentation Wireshark</h5>
+            <p>Wireshark est un analyseur de protocole réseau qui permet de capturer et d'examiner interactivement le trafic sur un réseau informatique.</p>
+            
+            <h6>Commandes de base (tshark - version CLI):</h6>
+            <div class="bg-light p-2 rounded mb-3">
+                <code>tshark -i [interface]</code> - Capturer sur une interface<br>
+                <code>tshark -i eth0 -f "port 80"</code> - Capturer le trafic HTTP<br>
+                <code>tshark -r capture.pcap</code> - Lire un fichier de capture<br>
+            </div>
+            
+            <h6>Options principales:</h6>
+            <ul>
+                <li><code>-i</code> - Interface de capture</li>
+                <li><code>-f</code> - Filtre de capture</li>
+                <li><code>-Y</code> - Filtre d'affichage</li>
+                <li><code>-w</code> - Écrire dans un fichier</li>
+                <li><code>-r</code> - Lire depuis un fichier</li>
+                <li><code>-c</code> - Nombre de paquets à capturer</li>
+                <li><code>-a</code> - Conditions d'arrêt automatique</li>
+            </ul>
+        `
+    };
+
+    // Lancer un outil
+    document.querySelectorAll('.launch-tool').forEach(button => {
+        button.addEventListener('click', function() {
+            const toolId = this.getAttribute('data-tool-id');
+            const toolName = this.getAttribute('data-tool-name');
+            
+            // Afficher le panneau de l'outil
+            toolOutputPanel.classList.remove('d-none');
+            activeToolName.textContent = `${toolName} - Terminal`;
+            
+            // Afficher la documentation de l'outil
+            if (toolDocs[toolId]) {
+                toolDocumentation.innerHTML = toolDocs[toolId];
+            } else {
+                toolDocumentation.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        La documentation pour ${toolName} n'est pas encore disponible.
+                    </div>
+                `;
+            }
+            
+            // Réinitialiser le terminal
+            terminalOutput.innerHTML = `> Initialisation de ${toolName}...\n> Prêt. Tapez 'help ${toolId}' pour voir les commandes disponibles.`;
+            commandInput.value = '';
+            commandInput.focus();
+            
+            // Vider les résultats précédents
+            resultsTableBody.innerHTML = '';
+        });
+    });
+    
+    // Fermer le terminal
+    closeToolOutput.addEventListener('click', function() {
+        toolOutputPanel.classList.add('d-none');
+    });
+    
+    // Gestion du terminal et des commandes
+    terminalForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const command = commandInput.value.trim();
+        if (!command) return;
+        
+        // Afficher la commande dans le terminal
+        terminalOutput.innerHTML += `\n$ ${command}\n`;
+        commandInput.value = '';
+        
+        // Traiter la commande
+        processCommand(command);
+    });
+    
+    // Traitement des commandes
+    function processCommand(command) {
+        // Commandes générales
+        if (command === 'help') {
+            terminalOutput.innerHTML += `
+> Commandes disponibles :
+  help                 - Affiche cette aide
+  help [outil]         - Affiche l'aide pour un outil spécifique
+  scan [cible]         - Lance un scan sur la cible spécifiée
+  clear                - Efface le terminal
+  results              - Affiche les résultats dans l'onglet Résultats
+`;
+            return;
+        }
+        
+        if (command.startsWith('help nmap')) {
+            terminalOutput.innerHTML += `
+> Aide NMAP :
+  nmap [options] [cible]   - Scanner une cible
+  Options courantes :
+  -sS                      - Scan SYN (furtif)
+  -sV                      - Détection de version
+  -p [ports]               - Ports à scanner (ex: -p 80,443 ou -p 1-1000)
+  -O                       - Détection du système d'exploitation
+  
+  Exemples :
+  nmap 192.168.1.1         - Scan simple
+  nmap -sV -p 1-100 10.0.0.1  - Scan des ports 1-100 avec détection de version
+`;
+            return;
+        }
+        
+        if (command.startsWith('help sqlmap')) {
+            terminalOutput.innerHTML += `
+> Aide SQLMap :
+  sqlmap -u [url] [options]   - Tester une URL pour des injections SQL
+  
+  Options courantes :
+  -u [url]                    - URL cible
+  --dbs                       - Énumérer les bases de données
+  --tables                    - Énumérer les tables
+  --dump                      - Extraire les données
+  --risk=[1-3]                - Niveau de risque
+  
+  Exemples :
+  sqlmap -u "http://example.com/page.php?id=1"
+  sqlmap -u "http://example.com/login.php" --data="user=test&pass=test" --dbs
+`;
+            return;
+        }
+        
+        if (command === 'clear') {
+            terminalOutput.innerHTML = '> Terminal effacé.';
+            return;
+        }
+        
+        if (command === 'results') {
+            // Basculer vers l'onglet résultats
+            document.querySelector('a[href="#resultTab"]').click();
+            
+            // Simuler des résultats
+            generateMockResults();
+            return;
+        }
+        
+        // Commandes de scan
+        if (command.startsWith('scan') || command.startsWith('nmap') || command.startsWith('sqlmap')) {
+            simulateToolExecution(command);
+            return;
+        }
+        
+        // Commande inconnue
+        terminalOutput.innerHTML += `> Commande non reconnue: ${command}. Tapez 'help' pour voir les commandes disponibles.\n`;
+    }
+    
+    // Simuler l'exécution d'un outil
+    function simulateToolExecution(command) {
+        const lines = [
+            "> Initialisation de l'environnement...",
+            "> Chargement des dépendances...",
+            "> Préparation de l'analyse...",
+            `> Exécution de la commande: ${command}`
+        ];
+        
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index < lines.length) {
+                terminalOutput.innerHTML += `\n${lines[index]}`;
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                index++;
+            } else {
+                clearInterval(interval);
+                
+                setTimeout(() => {
+                    if (command.startsWith('nmap') || command.includes('192.168.')) {
+                        simulateNmapOutput();
+                    } else if (command.startsWith('sqlmap') || command.includes('injection')) {
+                        simulateSqlmapOutput();
+                    } else {
+                        simulateGenericScanOutput();
+                    }
+                    
+                    // Générer des résultats après l'exécution
+                    generateMockResults();
+                }, 1500);
+            }
+        }, 500);
+    }
+    
+    // Simuler la sortie de NMAP
+    function simulateNmapOutput() {
+        const output = `
+> Démarrage de Nmap 7.92 ( https://nmap.org )
+> Analyse de 192.168.1.1 [1000 ports]
+> La découverte d'hôte terminée (1 hôte actif)
+> Analyse de port en cours, veuillez patienter...
+
+PORT     STATE  SERVICE       VERSION
+21/tcp   open   ftp           vsftpd 3.0.3
+22/tcp   open   ssh           OpenSSH 8.2p1 (Protocol 2.0)
+25/tcp   closed smtp
+80/tcp   open   http          Apache httpd 2.4.41
+443/tcp  open   ssl/https     Apache httpd 2.4.41
+3306/tcp open   mysql         MySQL 8.0.27
+
+> Détection de service terminée. 6 ports analysés sur 1000 ports
+> Temps d'analyse total: 12.34 secondes
+> Nmap terminé: 1 adresse IP scannée et 1 hôte actif
+`;
+        terminalOutput.innerHTML += output;
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+    
+    // Simuler la sortie de SQLMap
+    function simulateSqlmapOutput() {
+        const output = `
+> sqlmap v1.6.3 - Outil automatisé de détection et d'exploitation d'injections SQL
+> Page web: https://sqlmap.org
+> Démarrage à 12:34:56
+
+[12:34:56] [INFO] testant la connexion à l'URL cible
+[12:34:57] [INFO] testant si la page cible est stable
+[12:34:58] [INFO] testant si GET parameter 'id' est injectable
+[12:35:01] [CRITICAL] GET parameter 'id' semble vulnérable à l'injection SQL de type 'boolean-based blind'
+[12:35:03] [INFO] testant MySQL
+[12:35:05] [INFO] confirmé MySQL comme système de gestion de base de données
+[12:35:07] [INFO] capacité d'extraction de données via l'injection confirmée
+
+> URL vulnérable: http://example.com/page.php?id=1
+> Type d'injection: boolean-based blind
+> Titre: AND boolean-based blind - WHERE or HAVING clause
+> DBMS: MySQL 5.x
+
+[12:35:10] [INFO] recherche terminée, trouvé 1 vulnérabilité
+`;
+        terminalOutput.innerHTML += output;
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+    
+    // Simuler une sortie générique
+    function simulateGenericScanOutput() {
+        const output = `
+> Démarrage du scan...
+> Initialisation du moteur d'analyse
+> Analyse de la cible spécifiée
+> Détection des services...
+> Analyse des vulnérabilités potentielles
+> Vérification des configurations de sécurité
+
+> [OK] 14 tests effectués
+> [WARNING] 3 problèmes de configuration détectés
+> [CRITICAL] 1 vulnérabilité critique détectée
+
+> Scan terminé en 8.76 secondes
+> Résultats disponibles dans l'onglet Résultats
+`;
+        terminalOutput.innerHTML += output;
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+    
+    // Générer des résultats fictifs
+    function generateMockResults() {
+        // Vider le tableau
+        resultsTableBody.innerHTML = "";
+        
+        // Générer entre 3 et 7 résultats aléatoires
+        const numResults = Math.floor(Math.random() * 5) + 3;
+        
+        for (let i = 1; i <= numResults; i++) {
+            const row = document.createElement('tr');
+            
+            // Types de résultats
+            const resultTypes = ["Vulnérabilité", "Faille de configuration", "Problème de sécurité", "Point faible", "Activité suspecte"];
+            const targets = ["192.168.1." + (Math.floor(Math.random() * 254) + 1), "serveur-web.local", "api.example.com", "base-donnees.interne"];
+            
+            const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+            const target = targets[Math.floor(Math.random() * targets.length)];
+            
+            // Sévérité aléatoire
+            const severities = [
+                { text: "Critique", class: "danger" },
+                { text: "Haute", class: "warning" },
+                { text: "Moyenne", class: "primary" },
+                { text: "Faible", class: "success" },
+                { text: "Information", class: "info" }
+            ];
+            
+            const severityIndex = Math.floor(Math.random() * severities.length);
+            const severity = severities[severityIndex];
+            
+            // Statut
+            const status = Math.random() > 0.3 ? "Résolu" : "En attente";
+            
+            row.innerHTML = `
+                <td>VULN-${1000 + Math.floor(Math.random() * 9000)}</td>
+                <td>${resultType}</td>
+                <td>${target}</td>
+                <td><span class="badge bg-${severity.class}">${severity.text}</span></td>
+                <td><span class="badge bg-${status === 'Résolu' ? 'success' : 'secondary'}">${status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary">Détails</button>
+                    <button class="btn btn-sm btn-outline-success ms-1">Remédier</button>
+                </td>
+            `;
+            
+            resultsTableBody.appendChild(row);
+        }
+        
+        // Basculer vers l'onglet des résultats
+        document.querySelector('a[href="#resultTab"]').click();
+    }
+    
+    // Configuration d'un outil
+    document.getElementById('configureToolModal').addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const toolId = button.getAttribute('data-tool-id');
+        const toolName = button.closest('.tool-card').querySelector('.fs-4.fw-semibold').textContent;
+        const toolDesc = button.closest('.tool-card').querySelector('.tool-description').textContent;
+        
+        document.getElementById('configToolName').textContent = toolName;
+        document.getElementById('configToolDescription').textContent = toolDesc;
+        
+        // Configurer le formulaire de configuration selon l'outil
+        const configTargets = document.getElementById('configTargets');
+        const configOptions = document.getElementById('configOptions');
+        
+        // Vider les conteneurs
+        configTargets.innerHTML = '';
+        configOptions.innerHTML = '';
+        
+        // Exemple de configuration pour NMAP
+        if (toolId === 'nmap') {
+            configTargets.innerHTML = `
+                <label class="form-label">Cible à scanner</label>
+                <input type="text" class="form-control" value="192.168.1.1" placeholder="IP, nom d'hôte ou plage (ex: 192.168.1.0/24)">
+                <div class="form-text">Adresse IP, nom d'hôte ou plage CIDR à analyser</div>
+            `;
+            
+            configOptions.innerHTML = `
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Ports</label>
+                    <input type="text" class="form-control" value="1-1000" placeholder="ex: 80,443 ou 1-1000">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Timing</label>
+                    <select class="form-select">
+                        <option>0 (Paranoid)</option>
+                        <option>1 (Sneaky)</option>
+                        <option>2 (Polite)</option>
+                        <option selected>3 (Normal)</option>
+                        <option>4 (Aggressive)</option>
+                        <option>5 (Insane)</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="detectOSCheck" checked>
+                        <label class="form-check-label" for="detectOSCheck">Détection du système d'exploitation</label>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="detectServicesCheck" checked>
+                        <label class="form-check-label" for="detectServicesCheck">Détection des services</label>
+                    </div>
+                </div>
+            `;
+        }
+        // Exemple de configuration pour SQLMap
+        else if (toolId === 'sqlmap') {
+            configTargets.innerHTML = `
+                <label class="form-label">URL cible</label>
+                <input type="text" class="form-control" value="http://example.com/page.php?id=1" placeholder="URL avec paramètre potentiellement injectable">
+                <div class="form-text">URL contenant un paramètre potentiellement vulnérable à l'injection SQL</div>
+            `;
+            
+            configOptions.innerHTML = `
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Niveau de risque</label>
+                    <input type="range" class="form-range" min="1" max="3" value="1" id="riskRange">
+                    <div class="d-flex justify-content-between">
+                        <span>1 (Faible)</span>
+                        <span>2 (Moyen)</span>
+                        <span>3 (Élevé)</span>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Niveau de test</label>
+                    <input type="range" class="form-range" min="1" max="5" value="1" id="levelRange">
+                    <div class="d-flex justify-content-between">
+                        <span>1</span>
+                        <span>3</span>
+                        <span>5</span>
+                    </div>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="form-label">SGBD cible</label>
+                    <select class="form-select">
+                        <option selected>Auto-détection</option>
+                        <option>MySQL</option>
+                        <option>PostgreSQL</option>
+                        <option>Oracle</option>
+                        <option>Microsoft SQL Server</option>
+                        <option>SQLite</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Techniques</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="booleanCheck" checked>
+                                <label class="form-check-label" for="booleanCheck">Boolean-based blind</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="errorCheck">
+                                <label class="form-check-label" for="errorCheck">Error-based</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="timeCheck" checked>
+                                <label class="form-check-label" for="timeCheck">Time-based blind</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="unionCheck">
+                                <label class="form-check-label" for="unionCheck">Union query-based</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        // Pour les autres outils, afficher une configuration générique
+        else {
+            configTargets.innerHTML = `
+                <label class="form-label">Cible</label>
+                <input type="text" class="form-control" placeholder="Entrez la cible à analyser">
+            `;
+            
+            configOptions.innerHTML = `
+                <div class="col-12 mb-3">
+                    <p class="text-muted">Configurez les options spécifiques pour cet outil.</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Mode</label>
+                    <select class="form-select">
+                        <option>Basique</option>
+                        <option selected>Standard</option>
+                        <option>Avancé</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Verbosité</label>
+                    <select class="form-select">
+                        <option>Minimale</option>
+                        <option selected>Normale</option>
+                        <option>Détaillée</option>
+                    </select>
+                </div>
+            `;
+        }
+    });
+    
+    // Afficher/masquer le champ de nom de configuration
+    document.getElementById('saveConfigCheck').addEventListener('change', function() {
+        document.getElementById('saveConfigName').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Lancer l'outil configuré
+    document.getElementById('launchConfiguredTool').addEventListener('click', function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('configureToolModal'));
+        modal.hide();
+        
+        // Afficher le panneau de résultat d'outil
+        toolOutputPanel.classList.remove('d-none');
+        document.querySelector('a[href="#console"]').click();
+        
+        // Simulation du lancement d'outil configuré
+        terminalOutput.innerHTML = '> Initialisation avec paramètres personnalisés...\n> Chargement de la configuration...';
+        
+        setTimeout(() => {
+            simulateToolExecution('scan --configured');
+        }, 1000);
+    });
+    
+    // Gestion du formulaire d'ajout d'outil
+    document.querySelectorAll('.option-type').forEach(select => {
+        select.addEventListener('change', function() {
+            const row = this.closest('.option-row');
+            const selectOptionsContainer = row.querySelector('.select-options-container');
+            
+            if (this.value === 'select' || this.value === 'multiselect') {
+                selectOptionsContainer.style.display = 'block';
+            } else {
+                selectOptionsContainer.style.display = 'none';
+            }
+        });
+    });
+    
+    // Ajouter une option supplémentaire
+    document.getElementById('addOptionBtn').addEventListener('click', function() {
+        const container = document.getElementById('toolOptionsContainer');
+        const newOption = container.querySelector('.option-row').cloneNode(true);
+        
+        // Réinitialiser les valeurs
+        newOption.querySelectorAll('input, select').forEach(input => {
+            if (input.type !== 'radio' && input.type !== 'checkbox') {
+                input.value = '';
+            }
+        });
+        
+        // Cacher le conteneur d'options select par défaut
+        newOption.querySelector('.select-options-container').style.display = 'none';
+        
+        // Ajouter l'événement de changement de type
+        newOption.querySelector('.option-type').addEventListener('change', function() {
+            const selectOptionsContainer = newOption.querySelector('.select-options-container');
+            if (this.value === 'select' || this.value === 'multiselect') {
+                selectOptionsContainer.style.display = 'block';
+            } else {
+                selectOptionsContainer.style.display = 'none';
+            }
+        });
+        
+        container.appendChild(newOption);
+    });
+    
+    // Enregistrer le nouvel outil
+    document.getElementById('saveNewTool').addEventListener('click', function() {
+        const name = document.getElementById('newToolName').value;
+        const description = document.getElementById('newToolDescription').value;
+        
+        if (!name || !description) {
+            alert('Veuillez remplir au moins le nom et la description de l\'outil.');
+            return;
+        }
+        
+        // Simuler l'enregistrement
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addToolModal'));
+        modal.hide();
+        
+        // Afficher un message de succès
+        const successAlert = document.createElement('div');
+        successAlert.className = 'alert alert-success alert-dismissible fade show';
+        successAlert.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>
+            L'outil <strong>${name}</strong> a été ajouté avec succès.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.querySelector('.container-fluid').insertBefore(successAlert, document.querySelector('.container-fluid').firstChild);
+        
+        // Créer une nouvelle carte pour l'outil
+        const category = document.getElementById('newToolCategory').value;
+        const icon = document.getElementById('newToolIcon').value;
+        const tags = document.getElementById('newToolTags').value.split(',').map(tag => tag.trim());
+        
+        const newCardHTML = `
+            <div class="col tool-item">
+                <div class="card h-100 tool-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-4">
+                            <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                                <i class="${icon} text-primary fs-4"></i>
+                            </div>
+                            <div>
+                                <h3 class="fs-4 fw-semibold">${name}</h3>
+                                <p class="text-muted small">${description}</p>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            ${tags.map(tag => `<span class="badge bg-light text-dark me-1">${tag}</span>`).join('')}
+                        </div>
+                        <p class="text-muted small tool-description">${description}</p>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configureToolModal" data-tool-id="custom-tool">
+                                <i class="bi bi-gear me-1"></i>Configurer
+                            </button>
+                            <button class="btn btn-primary btn-sm launch-tool" data-tool-id="custom-tool" data-tool-name="${name}">
+                                <i class="bi bi-play-fill me-1"></i>Lancer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Ajouter la carte au bon onglet
+        document.querySelector(`#${category} .row`).innerHTML += newCardHTML;
+        
+        // Ajouter l'event listener pour le nouveau bouton
+        document.querySelector(`#${category} .row`).lastElementChild.querySelector('.launch-tool').addEventListener('click', function() {
+            const toolId = this.getAttribute('data-tool-id');
+            const toolName = this.getAttribute('data-tool-name');
+            
+            toolOutputPanel.classList.remove('d-none');
+            activeToolName.textContent = `${toolName} - Terminal`;
+            
+            terminalOutput.innerHTML = `> Initialisation de ${toolName}...\n> Prêt. Tapez 'help' pour voir les commandes disponibles.`;
+            commandInput.value = '';
+            commandInput.focus();
+            
+            resultsTableBody.innerHTML = '';
+            
+            toolDocumentation.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    La documentation pour ${toolName} n'est pas encore disponible.
+                </div>
+            `;
+        });
+    });
+});
+</script>
+{% endblock %}
