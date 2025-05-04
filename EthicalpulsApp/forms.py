@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser
+from .models import CustomUser,Project
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = CustomUser
@@ -73,3 +74,18 @@ class OTPVerificationForm(forms.Form):
 
         return otp_code
 
+
+class ProjectForm(forms.ModelForm):
+    class Meta:
+        model = Project
+        fields = ['name', 'description', 'project_type', 'domain', 'ip_address', 'url', 'scope', 'mac_address']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'project_type': forms.Select(attrs={'class': 'form-select'}),
+            'domain': forms.TextInput(attrs={'class': 'form-control'}),
+            'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
+            'url': forms.URLInput(attrs={'class': 'form-control'}),
+            'scope': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'mac_address': forms.TextInput(attrs={'class': 'form-control'}),
+        }

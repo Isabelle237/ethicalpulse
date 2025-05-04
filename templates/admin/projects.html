@@ -1,4 +1,3 @@
-
 {% extends 'admin/admin_base.html' %}
 
 {% block title %}Gestion des projets - Ethical Pulse Shield{% endblock %}
@@ -56,8 +55,8 @@
                         {% for project in projects %}
                         <tr>
                             <td>{{ project.name }}</td>
-                            <td>{{ project.target_domain }}</td>
-                            <td>{{ project.target_type }}</td>
+                            <td>{{ project.domain }}</td>
+                            <td>{{ project.project_type }}</td>
                             <td>{{ project.created_by.username }}</td>
                             <td>{{ project.created_at|date:"d/m/Y" }}</td>
                             <td>
@@ -133,65 +132,68 @@
 <!-- Modal d'ajout de projet -->
 <div class="modal fade" id="addProjectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Ajouter un nouveau projet</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="projectName" class="form-label">Nom du projet</label>
-                            <input type="text" class="form-control" id="projectName" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="targetDomain" class="form-label">Domaine cible</label>
-                            <input type="text" class="form-control" id="targetDomain" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="targetType" class="form-label">Type de cible</label>
-                            <select class="form-select" id="targetType" required>
-                                <option value="">Sélectionner un type</option>
-                                <option value="website">Site Web</option>
-                                <option value="api">API</option>
-                                <option value="server">Serveur</option>
-                                <option value="network">Réseau</option>
-                                <option value="application">Application</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="projectOwner" class="form-label">Propriétaire du projet</label>
-                            <select class="form-select" id="projectOwner" required>
-                                <option value="">Sélectionner un utilisateur</option>
-                                <option value="1">Admin</option>
-                                <option value="2">Jean Dupont</option>
-                                <option value="3">Marie Martin</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="projectDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="projectDescription" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="projectScope" class="form-label">Périmètre</label>
-                        <textarea class="form-control" id="projectScope" rows="2"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary">Créer le projet</button>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Ajouter un nouveau projet</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <div class="modal-body">
+          <form method="post" action="{% url 'projects' %}">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.name.label_tag }}
+                {{ form.name }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.domain.label_tag }}
+                {{ form.domain }}
+              </div>
+            </div>
+  
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.project_type.label_tag }}
+                {{ form.project_type }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.ip_address.label_tag }}
+                {{ form.ip_address }}
+              </div>
+            </div>
+  
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.url.label_tag }}
+                {{ form.url }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.mac_address.label_tag }}
+                {{ form.mac_address }}
+              </div>
+            </div>
+  
+            <div class="mb-3">
+              {{ form.description.label_tag }}
+              {{ form.description }}
+            </div>
+  
+            <div class="mb-3">
+              {{ form.scope.label_tag }}
+              {{ form.scope }}
+            </div>
+  
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary">Créer le projet</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}

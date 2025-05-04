@@ -48,3 +48,28 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+# Choix du type de projet
+PROJECT_TYPES = [
+    ('web', 'Application Web'),
+    ('api', 'API'),
+    ('mobile', 'Application Mobile'),
+    ('infra', 'Infrastructure Réseau'),
+    ('desktop', 'Application Desktop'),
+    ('autre', 'Autre'),
+]
+
+class Project(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Nom du projet")
+    description = models.TextField(blank=True, verbose_name="Description")
+    project_type = models.CharField(max_length=20, choices=PROJECT_TYPES, verbose_name="Type de projet")
+    domain = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nom de domaine")
+    ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name="Adresse IP")
+    url = models.URLField(blank=True, null=True, verbose_name="URL")
+    scope = models.TextField(blank=True, null=True)
+    mac_address = models.CharField(max_length=50, blank=True, null=True, verbose_name="Adresse MAC")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+
+    def __str__(self):
+        return self.name

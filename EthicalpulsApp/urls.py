@@ -12,9 +12,8 @@ urlpatterns = [
     path('users/delete-multiple/', views.delete_multiple_users_view, name='delete_multiple_users'),
 
     # Projets
-    path('projects/', views.projects, name='projects'),
-    path('projects/create/', views.projects_create, name='projects_create'),
-    path('projects/<int:project_id>/', views.project_detail, name='project_detail'),
+    path('projects/', views.projects_create, name='projects'),
+    path('projects/<int:project_id>/', views.projects_view, name='project_detail'),
     path('projects/<int:project_id>/edit/', views.projects_edit, name='projects_edit'),
     path('projects/<int:project_id>/delete/', views.projects_delete, name='projects_delete'),
 

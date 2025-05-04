@@ -13,9 +13,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model,login
 import pyotp
 import random
-
-from EthicalpulsApp.models import CustomUser
-from .forms import CustomUserCreationForm, EmailLoginForm, OTPVerificationForm
+from EthicalpulsApp.models import *
+from .forms import *
 
 # =================== Pages Générales ===================
 
@@ -128,8 +127,7 @@ def email_login(request):
 
     return render(request, 'registration/login.html', {'form': form})
 
-@csrf_protect
-@csrf_protect
+
 @csrf_protect
 def otp_verification(request):
     if request.method == "POST":
@@ -181,16 +179,21 @@ def logout_view(request):
     messages.success(request, "Vous avez été déconnecté avec succès.")
     return redirect('login')
 
-# =================== Autres vues ===================
 
-def projects(request):
-    return render(request, 'admin/projects.html')
-
-def project_detail(request, project_id):
-    return render(request, 'admin/project_detail.html')
+def projects_view(request):
+    form = ProjectForm()
+    projects = Project.objects.all().order_by('-created_at')
+    return render(request, 'admin/projects.html', {'form': form, 'projects': projects})
 
 def projects_create(request):
-    return redirect('projects')
+    if request.method == 'POST':
+        form = ProjectForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('projects_view')  # nom à adapter à ton URL
+    else:
+        form = ProjectForm()
+    return render(request, 'admin/projects.html', {'form': form, 'projects': Project.objects.all()})
 
 def projects_edit(request, project_id):
     return redirect('projects')

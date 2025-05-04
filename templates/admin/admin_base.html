@@ -38,6 +38,9 @@
                         <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'vulnerabilities_admin' %}">Vulnérabilités</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'remediations_admin' %}">remediations</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if '/admin/tools' in request.path %}active{% endif %}" href="{%url 'tools_admin'%}"> Outils</a>
                     </li>
                     <li class="nav-item">

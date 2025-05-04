@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser
+from .models import CustomUser,Project
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -24,4 +24,8 @@ class CustomUserAdmin(UserAdmin):
 admin.site.register(CustomUser, CustomUserAdmin)
 from django.contrib import admin
 
-# Register your models here.
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ('name', 'project_type', 'domain', 'ip_address', 'url', 'mac_address', 'created_at')
+    search_fields = ('name', 'domain', 'ip_address')
+    list_filter = ('project_type', 'created_at')
