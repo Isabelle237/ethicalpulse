@@ -1,0 +1,307 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Paramètres | Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-gear"></i> Paramètres</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Navigation</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="nav flex-column nav-pills" role="tablist">
+                        <button class="nav-link active text-start ps-3 py-3" data-bs-toggle="pill" data-bs-target="#profile" type="button">
+                            <i class="bi bi-person me-2"></i> Profil
+                        </button>
+                        <button class="nav-link text-start ps-3 py-3" data-bs-toggle="pill" data-bs-target="#account" type="button">
+                            <i class="bi bi-shield-lock me-2"></i> Compte
+                        </button>
+                        <button class="nav-link text-start ps-3 py-3" data-bs-toggle="pill" data-bs-target="#notifications" type="button">
+                            <i class="bi bi-bell me-2"></i> Notifications
+                        </button>
+                        <button class="nav-link text-start ps-3 py-3" data-bs-toggle="pill" data-bs-target="#appearance" type="button">
+                            <i class="bi bi-palette me-2"></i> Apparence
+                        </button>
+                        <button class="nav-link text-start ps-3 py-3" data-bs-toggle="pill" data-bs-target="#api" type="button">
+                            <i class="bi bi-code-slash me-2"></i> API
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="tab-content">
+                <!-- Profil -->
+                <div class="tab-pane fade show active" id="profile">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Profil Utilisateur</h5>
+                        </div>
+                        <div class="card-body">
+                            <form>
+                                <div class="row mb-4">
+                                    <div class="col-md-3 text-center">
+                                        <div class="avatar-upload mb-3">
+                                            <div class="avatar" style="width: 128px; height: 128px; background-color: #e9ecef; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center;">
+                                                <i class="bi bi-person" style="font-size: 64px;"></i>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary">Modifier</button>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="firstName" class="form-label">Prénom</label>
+                                                <input type="text" class="form-control" id="firstName" value="Admin">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="lastName" class="form-label">Nom</label>
+                                                <input type="text" class="form-control" id="lastName" value="Utilisateur">
+                                            </div>
+                                            <div class="col-md-12">
+                                                <label for="jobTitle" class="form-label">Titre / Poste</label>
+                                                <input type="text" class="form-control" id="jobTitle" value="Administrateur Sécurité">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" value="admin@example.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Téléphone</label>
+                                    <input type="tel" class="form-control" id="phone" value="+33 1 23 45 67 89">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="bio" class="form-label">Biographie</label>
+                                    <textarea class="form-control" id="bio" rows="3">Administrateur sécurité chez Ethical Pulse Shield.</textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Compte -->
+                <div class="tab-pane fade" id="account">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Paramètres du compte</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-3">Modifier le mot de passe</h6>
+                            <form class="mb-4">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Mot de passe actuel</label>
+                                    <input type="password" class="form-control" id="currentPassword">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">Nouveau mot de passe</label>
+                                    <input type="password" class="form-control" id="newPassword">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirmer le mot de passe</label>
+                                    <input type="password" class="form-control" id="confirmPassword">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Mettre à jour le mot de passe</button>
+                            </form>
+                            
+                            <hr>
+                            
+                            <h6 class="mb-3">Authentification à deux facteurs</h6>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="enable2fa">
+                                <label class="form-check-label" for="enable2fa">Activer l'authentification à deux facteurs</label>
+                            </div>
+                            <button class="btn btn-outline-secondary mb-4" disabled>Configurer</button>
+                            
+                            <hr>
+                            
+                            <h6 class="mb-3">Sessions actives</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Appareil</th>
+                                            <th>Emplacement</th>
+                                            <th>Dernière activité</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Chrome sur Windows</td>
+                                            <td>Paris, France</td>
+                                            <td>Maintenant</td>
+                                            <td><span class="badge bg-success">Session actuelle</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Firefox sur Mac</td>
+                                            <td>Lyon, France</td>
+                                            <td>Il y a 2 jours</td>
+                                            <td><button class="btn btn-sm btn-danger">Déconnecter</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6 class="text-danger">Zone dangereuse</h6>
+                            <p>Ces actions sont permanentes et ne peuvent pas être annulées.</p>
+                            <button class="btn btn-outline-danger">Supprimer le compte</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Autres onglets -->
+                <div class="tab-pane fade" id="notifications">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Notifications</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-3">Notifications par email</h6>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="emailNewScan" checked>
+                                <label class="form-check-label" for="emailNewScan">Nouveaux scans terminés</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="emailNewVuln" checked>
+                                <label class="form-check-label" for="emailNewVuln">Nouvelles vulnérabilités critiques/élevées</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="emailRemediationComplete">
+                                <label class="form-check-label" for="emailRemediationComplete">Remédiations terminées</label>
+                            </div>
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="emailReports" checked>
+                                <label class="form-check-label" for="emailReports">Rapports hebdomadaires et mensuels</label>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6 class="mb-3">Alertes système</h6>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="alertCriticalVuln" checked>
+                                <label class="form-check-label" for="alertCriticalVuln">Vulnérabilités critiques</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="alertScanComplete" checked>
+                                <label class="form-check-label" for="alertScanComplete">Scan terminé</label>
+                            </div>
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="alertSystemUpdates" checked>
+                                <label class="form-check-label" for="alertSystemUpdates">Mises à jour système</label>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Enregistrer les préférences</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="appearance">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Apparence</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-3">Thème</h6>
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="theme" id="themeLight" checked>
+                                    <label class="form-check-label" for="themeLight">
+                                        Clair
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="theme" id="themeDark">
+                                    <label class="form-check-label" for="themeDark">
+                                        Sombre
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="theme" id="themeSystem">
+                                    <label class="form-check-label" for="themeSystem">
+                                        Utiliser les préférences système
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6 class="mb-3">Tableau de bord</h6>
+                            <div class="mb-3">
+                                <label for="dashboardLayout" class="form-label">Disposition</label>
+                                <select class="form-select" id="dashboardLayout">
+                                    <option value="default" selected>Par défaut</option>
+                                    <option value="compact">Compact</option>
+                                    <option value="expanded">Étendu</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Appliquer</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="api">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Clés API</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> Les clés API vous permettent d'accéder à nos services via des intégrations externes.
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <h6>Votre clé API</h6>
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control" value="••••••••••••••••••••••••••••••" readonly>
+                                        <button class="btn btn-outline-secondary" type="button">Afficher</button>
+                                        <button class="btn btn-outline-primary" type="button">Copier</button>
+                                    </div>
+                                    <button class="btn btn-warning btn-sm">Régénérer la clé</button>
+                                </div>
+                            </div>
+                            
+                            <h6>Options de la clé</h6>
+                            <div class="mb-3">
+                                <label for="apiPermissions" class="form-label">Permissions</label>
+                                <select class="form-select" id="apiPermissions">
+                                    <option value="read" selected>Lecture seule</option>
+                                    <option value="write">Lecture et écriture</option>
+                                    <option value="admin">Administration complète</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="apiExpiration" class="form-label">Expiration</label>
+                                <select class="form-select" id="apiExpiration">
+                                    <option value="never" selected>Jamais</option>
+                                    <option value="30days">30 jours</option>
+                                    <option value="90days">90 jours</option>
+                                    <option value="1year">1 an</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Mettre à jour les options</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Logs du Système{% endblock %}
+
+{% block admin_header_actions %}
+<div class="d-flex">
+    <div class="dropdown me-2">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter"></i> Filtrer par
+        </button>
+        <ul class="dropdown-menu">
+            <li><h6 class="dropdown-header">Type de Log</h6></li>
+            <li><a class="dropdown-item" href="?type=auth">Authentification</a></li>
+            <li><a class="dropdown-item" href="?type=scan">Scans</a></li>
+            <li><a class="dropdown-item" href="?type=vuln">Vulnérabilités</a></li>
+            <li><a class="dropdown-item" href="?type=system">Système</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">Niveau</h6></li>
+            <li><a class="dropdown-item" href="?level=info">Information</a></li>
+            <li><a class="dropdown-item" href="?level=warning">Avertissement</a></li>
+            <li><a class="dropdown-item" href="?level=error">Erreur</a></li>
+            <li><a class="dropdown-item" href="?level=critical">Critique</a></li>
+        </ul>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exportLogsModal">
+        <i class="bi bi-download"></i> Exporter
+    </button>
+</div>
+{% endblock %}
+
+{% block admin_content %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Date & Heure</th>
+                <th>Type</th>
+                <th>Niveau</th>
+                <th>Utilisateur</th>
+                <th>IP</th>
+                <th>Message</th>
+                <th>Détails</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                <td>
+                    <span class="badge 
+                    {% if log.type == 'auth' %}bg-primary
+                    {% elif log.type == 'scan' %}bg-success
+                    {% elif log.type == 'vuln' %}bg-warning text-dark
+                    {% elif log.type == 'system' %}bg-info
+                    {% else %}bg-secondary{% endif %}">
+                        {{ log.get_type_display }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge 
+                    {% if log.level == 'critical' %}bg-danger
+                    {% elif log.level == 'error' %}bg-warning text-dark
+                    {% elif log.level == 'warning' %}bg-info
+                    {% else %}bg-secondary{% endif %}">
+                        {{ log.get_level_display }}
+                    </span>
+                </td>
+                <td>{{ log.user|default:"Système" }}</td>
+                <td>{{ log.ip_address|default:"-" }}</td>
+                <td>{{ log.message }}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#logDetailsModal{{ log.id }}">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if logs.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.level %}&level={{ request.GET.level }}{% endif %}">&laquo; Premier</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ logs.previous_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.level %}&level={{ request.GET.level }}{% endif %}">Précédent</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">&laquo; Premier</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">Précédent</span>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">
+                Page {{ logs.number }} sur {{ logs.paginator.num_pages }}
+            </span>
+        </li>
+        
+        {% if logs.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ logs.next_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.level %}&level={{ request.GET.level }}{% endif %}">Suivant</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ logs.paginator.num_pages }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.level %}&level={{ request.GET.level }}{% endif %}">Dernier &raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Suivant</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">Dernier &raquo;</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<!-- Export Logs Modal -->
+<div class="modal fade" id="exportLogsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Exporter les Logs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'admin:export_logs' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="export-format" class="form-label">Format</label>
+                        <select class="form-select" id="export-format" name="format">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                            <option value="xml">XML</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="export-date-from" class="form-label">Date de début</label>
+                        <input type="date" class="form-control" id="export-date-from" name="date_from">
+                    </div>
+                    <div class="mb-3">
+                        <label for="export-date-to" class="form-label">Date de fin</label>
+                        <input type="date" class="form-control" id="export-date-to" name="date_to">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Types de logs à inclure</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="export-auth" name="include_auth" checked>
+                            <label class="form-check-label" for="export-auth">Authentification</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="export-scan" name="include_scan" checked>
+                            <label class="form-check-label" for="export-scan">Scans</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="export-vuln" name="include_vuln" checked>
+                            <label class="form-check-label" for="export-vuln">Vulnérabilités</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="export-system" name="include_system" checked>
+                            <label class="form-check-label" for="export-system">Système</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Exporter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Log Details Modals -->
+{% for log in logs %}
+<div class="modal fade" id="logDetailsModal{{ log.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails du Log</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Date & Heure:</strong> {{ log.timestamp|date:"d/m/Y H:i:s" }}</p>
+                <p><strong>Type:</strong> {{ log.get_type_display }}</p>
+                <p><strong>Niveau:</strong> {{ log.get_level_display }}</p>
+                <p><strong>Utilisateur:</strong> {{ log.user|default:"Système" }}</p>
+                <p><strong>IP:</strong> {{ log.ip_address|default:"-" }}</p>
+                <p><strong>Message:</strong> {{ log.message }}</p>
+                <p><strong>URL:</strong> {{ log.url|default:"-" }}</p>
+                <div class="mb-3">
+                    <label class="form-label"><strong>Données Complètes:</strong></label>
+                    <div class="p-3 bg-light border rounded">
+                        <pre class="mb-0"><code>{{ log.data_json|default:"{}" }}</code></pre>
+                    </div>
+                </div>
+                <p><strong>User Agent:</strong> {{ log.user_agent|default:"-" }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

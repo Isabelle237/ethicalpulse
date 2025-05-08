@@ -1,0 +1,165 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Rapports | Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-file-earmark-text"></i> Rapports de Sécurité</h1>
+        <div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newReportModal">
+                <i class="bi bi-plus-circle"></i> Nouveau Rapport
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Cartes de rapport -->
+        {% for report in reports_data %}
+        <div class="col-md-4 col-xl-3">
+            <div class="card h-100">
+                {% if report.type == 'monthly' %}
+                <div class="card-img-top text-center p-3 bg-light">
+                    <i class="bi bi-calendar-month" style="font-size: 4rem; color: #6c757d;"></i>
+                </div>
+                {% elif report.type == 'analysis' %}
+                <div class="card-img-top text-center p-3 bg-light">
+                    <i class="bi bi-graph-up" style="font-size: 4rem; color: #0d6efd;"></i>
+                </div>
+                {% elif report.type == 'audit' %}
+                <div class="card-img-top text-center p-3 bg-light">
+                    <i class="bi bi-check-circle" style="font-size: 4rem; color: #198754;"></i>
+                </div>
+                {% elif report.type == 'compliance' %}
+                <div class="card-img-top text-center p-3 bg-light">
+                    <i class="bi bi-shield-check" style="font-size: 4rem; color: #6f42c1;"></i>
+                </div>
+                {% else %}
+                <div class="card-img-top text-center p-3 bg-light">
+                    <i class="bi bi-file-earmark-text" style="font-size: 4rem; color: #dc3545;"></i>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ report.name }}</h5>
+                    <p class="card-text">
+                        <small class="text-muted">Date: {{ report.date }}</small><br>
+                        <span class="badge 
+                            {% if report.status == 'completed' %}bg-success
+                            {% elif report.status == 'scheduled' %}bg-warning
+                            {% elif report.status == 'in_progress' %}bg-primary
+                            {% else %}bg-secondary{% endif %}">
+                            {{ report.status }}
+                        </span>
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Voir</button>
+                        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Télécharger</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Tableau des rapports récents -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Rapports récents</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports_data %}
+                        <tr>
+                            <td>{{ report.name }}</td>
+                            <td>{{ report.type }}</td>
+                            <td>{{ report.date }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if report.status == 'completed' %}bg-success
+                                    {% elif report.status == 'scheduled' %}bg-warning
+                                    {% elif report.status == 'in_progress' %}bg-primary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ report.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i></button>
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour nouveau rapport -->
+<div class="modal fade" id="newReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouveau Rapport</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="reportName" class="form-label">Nom du rapport</label>
+                        <input type="text" class="form-control" id="reportName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="reportType" class="form-label">Type</label>
+                        <select class="form-select" id="reportType">
+                            <option value="monthly">Mensuel</option>
+                            <option value="analysis">Analyse</option>
+                            <option value="audit">Audit</option>
+                            <option value="compliance">Conformité</option>
+                            <option value="risk">Risque</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reportDate" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="reportDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Inclure</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeVulnerabilities" checked>
+                            <label class="form-check-label" for="includeVulnerabilities">Vulnérabilités</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeScans" checked>
+                            <label class="form-check-label" for="includeScans">Scans</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeRemediation" checked>
+                            <label class="form-check-label" for="includeRemediation">Remédiations</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary">Générer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

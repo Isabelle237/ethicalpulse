@@ -1,0 +1,200 @@
+
+{% extends 'base.html' %}
+
+{% block title %}{{ tool.name }} - Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-2">{{ tool.name }}</h1>
+            <p class="text-muted">{{ tool.description }}</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'index' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour aux outils
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#terminal">Terminal</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#results">Résultats</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#documentation">Documentation</a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Terminal Tab -->
+                <div class="tab-pane fade show active" id="terminal">
+                    <div id="terminalOutput" class="terminal-output bg-dark text-light rounded p-3 mb-3" style="height: 300px; overflow: auto; font-family: monospace;">
+                        Prêt à exécuter des commandes...
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="commandInput" class="form-control" placeholder="Entrez votre commande...">
+                        <button class="btn btn-primary" type="button" id="executeBtn">Exécuter</button>
+                    </div>
+                </div>
+                
+                <!-- Results Tab -->
+                <div class="tab-pane fade" id="results">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Exécutez une commande dans le terminal pour voir les résultats ici.
+                    </div>
+                    
+                    <div id="resultsContainer" class="d-none">
+                        <h5>Résultat du scan</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Cible</th>
+                                        <th>Vulnérabilité</th>
+                                        <th>Sévérité</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTable">
+                                    <!-- Les résultats apparaîtront ici -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Documentation Tab -->
+                <div class="tab-pane fade" id="documentation">
+                    <div id="toolDocumentation">
+                        <h5>Documentation {{ tool.name }}</h5>
+                        <p>Utilisez les commandes ci-dessous pour tirer le meilleur parti de cet outil.</p>
+                        
+                        <h6>Commandes de base:</h6>
+                        <ul>
+                            <li><code>scan [host]</code> - Scanner un hôte ou une adresse IP</li>
+                            <li><code>help</code> - Afficher l'aide</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const terminalOutput = document.getElementById('terminalOutput');
+        const commandInput = document.getElementById('commandInput');
+        const executeBtn = document.getElementById('executeBtn');
+        
+        // Afficher un message de bienvenue dans le terminal
+        terminalOutput.innerHTML = '<div class="mb-2">Bienvenue dans le terminal de {{ tool.name }}. Tapez <code>help</code> pour voir les commandes disponibles.</div>';
+        
+        // Exécuter la commande quand on clique sur le bouton
+        executeBtn.addEventListener('click', function() {
+            const command = commandInput.value.trim();
+            if (command) {
+                executeCommand(command);
+                commandInput.value = '';
+            }
+        });
+        
+        // Permettre d'utiliser la touche Enter pour exécuter la commande
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                executeBtn.click();
+            }
+        });
+        
+        // Fonction pour simuler l'exécution de commande
+        function executeCommand(command) {
+            const timestamp = new Date().toLocaleTimeString();
+            terminalOutput.innerHTML += `<div><span class="text-muted">[${timestamp}]</span> <span class="text-white-50">$</span> <span class="text-white">${command}</span></div>`;
+            
+            // Simuler des résultats différents basés sur la commande
+            let output = '';
+            
+            if (command.toLowerCase().includes('help')) {
+                output = `Les commandes disponibles sont:
+- scan [cible]: lance un scan de sécurité
+- vuln: liste les vulnérabilités trouvées
+- clear: efface le terminal
+- help: affiche l'aide`;
+            } else if (command.toLowerCase().includes('scan')) {
+                const target = command.split(' ')[1] || 'localhost';
+                output = `Lancement du scan sur ${target}...
+[+] Scan en cours...
+[+] Vérification des ports ouverts...
+[+] Analyse des vulnérabilités...
+[+] Scan terminé. Résultats affichés dans l'onglet Résultats.`;
+                
+                // Simuler l'affichage des résultats
+                setTimeout(() => {
+                    document.querySelector('a[href="#results"]').click();
+                    document.getElementById('resultsContainer').classList.remove('d-none');
+                    
+                    const resultsTable = document.getElementById('resultsTable');
+                    resultsTable.innerHTML = '';
+                    
+                    // Générer des résultats aléatoires
+                    const vulnerabilities = [
+                        { target: target, name: 'Port 21 (FTP) ouvert', severity: 'medium' },
+                        { target: target, name: 'Port 22 (SSH) utilise une version obsolète', severity: 'high' },
+                        { target: target, name: 'Port 80 (HTTP) sans TLS', severity: 'medium' }
+                    ];
+                    
+                    vulnerabilities.forEach(vuln => {
+                        const row = document.createElement('tr');
+                        
+                        // Définir la classe de la ligne selon la sévérité
+                        if (vuln.severity === 'high') {
+                            row.classList.add('table-warning');
+                        } else if (vuln.severity === 'medium') {
+                            row.classList.add('table-info');
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${vuln.target}</td>
+                            <td>${vuln.name}</td>
+                            <td>
+                                <span class="badge ${vuln.severity === 'high' ? 'bg-warning' : 'bg-info'}">
+                                    ${vuln.severity}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">Détails</button>
+                                <button class="btn btn-sm btn-outline-success">Remédier</button>
+                            </td>
+                        `;
+                        resultsTable.appendChild(row);
+                    });
+                }, 2000);
+            } else if (command.toLowerCase().includes('vuln')) {
+                output = `Vulnérabilités détectées:
+1. [CRITIQUE] Injection SQL - /admin/login.php
+2. [ÉLEVÉE] XSS Persistant - /forum/message.php
+3. [MOYENNE] CSRF - /user/settings.php
+4. [FAIBLE] En-têtes de sécurité manquants`;
+            } else if (command.toLowerCase().includes('clear')) {
+                terminalOutput.innerHTML = '';
+                return;
+            } else {
+                output = `Commande non reconnue: ${command}\nTapez 'help' pour voir les commandes disponibles.`;
+            }
+            
+            terminalOutput.innerHTML += `<div class="ps-3">${output.replace(/\n/g, '<br>')}</div>`;
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+Django>=4.2
+mysqlclient>=2.2.0
+python-dotenv
+pyotp>=2.6.0
+django-widget-tweaks
+python-nmap==0.7.1 
+zaproxy==0.2.0 
+gvm-tools==23.11.0

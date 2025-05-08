@@ -1,0 +1,158 @@
+
+{% extends 'admin/admin_base.html' %}
+
+{% block title %}Tableau de bord administrateur - Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Tableau de bord administrateur</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-box primary">
+                <h5>Utilisateurs</h5>
+                <h2>{{ total_users }}</h2>
+                <p class="text-muted mb-0">{{ new_users }} nouveaux cette semaine</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-box success">
+                <h5>Projets</h5>
+                <h2>{{ total_projects }}</h2>
+                <p class="text-muted mb-0">{{ active_projects }} projets actifs</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-box warning">
+                <h5>Scans</h5>
+                <h2>{{ total_scans }}</h2>
+                <p class="text-muted mb-0">{{ recent_scans }} effectués cette semaine</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-box danger">
+                <h5>Vulnérabilités</h5>
+                <h2>{{ total_vulnerabilities }}</h2>
+                <p class="text-muted mb-0">{{ critical_vulnerabilities }} critiques</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="admin-card card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Activité récente</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="activityChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="admin-card card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Distribution des vulnérabilités</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="vulnerabilityPieChart" height="260"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-card card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Dernières activités système</h5>
+                    <a href="/admin/logs" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Utilisateur</th>
+                                    <th>Action</th>
+                                    <th>Entité</th>
+                                    <th>Date</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in system_logs %}
+                                <tr>
+                                    <td>{{ log.user }}</td>
+                                    <td>{{ log.action }}</td>
+                                    <td>{{ log.entity }}</td>
+                                    <td>{{ log.date }}</td>
+                                    <td>
+                                        <span class="badge {% if log.status == 'success' %}bg-success{% elif log.status == 'warning' %}bg-warning{% elif log.status == 'error' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ log.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Aucun log système récent</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Graphique d'activité
+    const activityCtx = document.getElementById('activityChart').getContext('2d');
+    const activityChart = new Chart(activityCtx, {
+        type: 'line',
+        data: {
+            labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+            datasets: [{
+                label: 'Scans',
+                data: [12, 19, 15, 25, 22, 13, 18],
+                borderColor: '#0d6efd',
+                tension: 0.4,
+                fill: false
+            }, {
+                label: 'Vulnérabilités',
+                data: [7, 11, 5, 8, 3, 7, 9],
+                borderColor: '#dc3545',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+    
+    // Graphique circulaire des vulnérabilités
+    const vulnCtx = document.getElementById('vulnerabilityPieChart').getContext('2d');
+    const vulnChart = new Chart(vulnCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Critiques', 'Élevées', 'Moyennes', 'Faibles'],
+            datasets: [{
+                data: [12, 19, 27, 15],
+                backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#20c997']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+});
+</script>
+{% endblock %}

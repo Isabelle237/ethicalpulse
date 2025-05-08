@@ -1,0 +1,483 @@
+{% extends 'admin/admin_base.html' %}
+
+{% block title %}Gestion des projets - Ethical Pulse Shield{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Display Django Messages -->
+    {% if messages %}
+    <div class="mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des projets</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+            <i class="bi bi-plus-circle"></i> Nouveau projet
+        </button>
+    </div>
+
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#">Tous les projets</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Rechercher..." aria-label="Rechercher des projets">
+                        <button class="btn btn-outline-secondary" type="button" aria-label="Rechercher des projets">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table admin-table" id="projectTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="name">Nom <i class="bi bi-arrow-down-up"></i></th>
+                            <th class="sortable" data-sort="type">Type <i class="bi bi-arrow-down-up"></i></th>
+                            <th class="sortable" data-sort="domain">Domaine <i class="bi bi-arrow-down-up"></i></th>
+                            <th>Adresse IP</th>
+                            <th>URL</th>
+                            <th>Adresse MAC</th>
+                            <th class="sortable" data-sort="created_at">Date de création <i class="bi bi-arrow-down-up"></i></th>
+                            <th class="sortable" data-sort="updated_at">Date de modification <i class="bi bi-arrow-down-up"></i></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectTableBody">
+                        {% for project in projects %}
+                        <tr>
+                            <td>{{ project.name }}</td>
+                            <td>{{ project.get_project_type_display }}</td>
+                            <td>{{ project.domain|default:"" }}</td>
+                            <td>{{ project.ip_address|default:"" }}</td>
+                            <td>{{ project.url|default:"" }}</td>
+                            <td>{{ project.mac_address|default:"" }}</td>
+                            <td>{{ project.created_at|date:"d/m/Y" }}</td>
+                            <td>{{ project.updated_at|date:"d/m/Y" }}</td>
+                            <td>
+                                <!-- ÉDITER -->
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editProjectModal"
+                                        data-project-id="{{ project.id }}"
+                                        data-project-name="{{ project.name }}"
+                                        data-project-description="{{ project.description }}"
+                                        data-project-type="{{ project.project_type }}"
+                                        data-project-domain="{{ project.domain }}"
+                                        data-project-ip="{{ project.ip_address }}"
+                                        data-project-url="{{ project.url }}"
+                                        data-project-mac="{{ project.mac_address }}"
+                                        data-project-scope="{{ project.scope }}">
+                                    <i class="bi bi-pencil"></i> Éditer
+                                </button>
+                                <!-- SUPPRIMER -->
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteProjectModal"
+                                        data-project-id="{{ project.id }}"
+                                        data-project-name="{{ project.name }}">
+                                    <i class="bi bi-trash"></i> Supprimer
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">Aucun projet trouvé.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Projets par type</div>
+                <div class="card-body">
+                    <canvas id="projectTypeChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Tendance des projets</div>
+                <div class="card-body">
+                    <canvas id="projectTrendChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Project Modal -->
+    <div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addProjectModalLabel">Ajouter un nouveau projet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addProjectForm" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="add_project" value="1">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.name.label_tag }}
+                                {{ form.name }}
+                                <div class="invalid-feedback">Le nom du projet est requis.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.domain.label_tag }}
+                                {{ form.domain }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.project_type.label_tag }}
+                                {{ form.project_type }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.ip_address.label_tag }}
+                                {{ form.ip_address }}
+                                <div class="invalid-feedback">Veuillez entrer une adresse IP valide.</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.url.label_tag }}
+                                {{ form.url }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.mac_address.label_tag }}
+                                {{ form.mac_address }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            {{ form.description.label_tag }}
+                            {{ form.description }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.scope.label_tag }}
+                            {{ form.scope }}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">Ajouter</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editProjectModalLabel">Modifier le projet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProjectForm" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="edit_project" value="1">
+                        <input type="hidden" name="project_id" id="editProjectId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_name" class="form-label">Nom du projet</label>
+                                <input type="text" name="name" id="id_name" class="form-control" required>
+                                <div class="invalid-feedback">Le nom du projet est requis.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_domain" class="form-label">Nom de domaine</label>
+                                <input type="text" name="domain" id="id_domain" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_project_type" class="form-label">Type de projet</label>
+                                <select name="project_type" id="id_project_type" class="form-control">
+                                    {% for value, label in form.project_type.field.choices %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_ip_address" class="form-label">Adresse IP</label>
+                                <input type="text" name="ip_address" id="id_ip_address" class="form-control">
+                                <div class="invalid-feedback">Veuillez entrer une adresse IP valide.</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_url" class="form-label">URL</label>
+                                <input type="url" name="url" id="id_url" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_mac_address" class="form-label">Adresse MAC</label>
+                                <input type="text" name="mac_address" id="id_mac_address" class="form-control">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" id="id_description" class="form-control" rows="4"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_scope" class="form-label">Scope</label>
+                            <textarea name="scope" id="id_scope" class="form-control" rows="4"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Modal -->
+    <div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteProjectModalLabel">Confirmer la suppression</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer le projet <strong id="deleteProjectName"></strong> ?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="post"" id="deleteProjectForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_project" value="1">
+                        <input type="hidden" name="project_id" id="deleteProjectId">
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap Tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Chart Data Fetching
+    const fetchChartData = async (url, chartId, type, labelName, backgroundColors, borderColor) => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch chart data');
+            const result = await response.json();
+            const labels = result.data.map(item => item.project_type || item.month.slice(0, 7));
+            const data = result.data.map(item => item.count);
+
+            new Chart(document.getElementById(chartId).getContext('2d'), {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: labelName,
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColor,
+                        borderWidth: 1,
+                        fill: type === 'line' ? false : true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching chart data:', error);
+            document.getElementById(chartId).parentElement.innerHTML = '<p class="text-danger">Erreur lors du chargement du graphique.</p>';
+        }
+    };
+
+    // Initialize Charts
+    fetchChartData("{% url 'projects_chart_type' %}", 'projectTypeChart', 'doughnut', 'Projets par type', [
+        '#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6c757d', '#198754'
+    ], '#fff');
+    fetchChartData("{% url 'projects_chart_trend' %}", 'projectTrendChart', 'line', 'Nouveaux projets', [
+        '#0d6efd'
+    ], '#0d6efd');
+
+    // Search Functionality
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', function () {
+        const filter = searchInput.value.toLowerCase();
+        const rows = document.querySelectorAll('#projectTableBody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+
+    // Table Sorting
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const sortKey = header.dataset.sort;
+            const table = document.getElementById('projectTable');
+            const tbody = document.getElementById('projectTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const isAscending = !header.classList.contains('asc');
+            
+            rows.sort((a, b) => {
+                let aValue = a.querySelector(`td:nth-child(${Array.from(header.parentElement.children).indexOf(header) + 1})`).textContent;
+                let bValue = b.querySelector(`td:nth-child(${Array.from(header.parentElement.children).indexOf(header) + 1})`).textContent;
+                
+                if (sortKey === 'created_at') {
+                    aValue = new Date(aValue.split('/').reverse().join('-'));
+                    bValue = new Date(bValue.split('/').reverse().join('-'));
+                }
+                
+                return isAscending 
+                    ? aValue.localeCompare(bValue, undefined, { numeric: true })
+                    : bValue.localeCompare(aValue, undefined, { numeric: true });
+            });
+
+            sortableHeaders.forEach(h => h.classList.remove('asc', 'desc'));
+            header.classList.add(isAscending ? 'asc' : 'desc');
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+
+    // Form Validation for Add Project
+    const addProjectForm = document.getElementById('addProjectForm');
+    addProjectForm.addEventListener('submit', function (e) {
+        let isValid = true;
+        const nameInput = addProjectForm.querySelector('#id_name');
+        const ipInput = addProjectForm.querySelector('#id_ip_address');
+        const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+
+        // Reset validation states
+        nameInput.classList.remove('is-invalid');
+        ipInput.classList.remove('is-invalid');
+
+        // Validate name
+        if (!nameInput.value.trim()) {
+            nameInput.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        // Validate IP address (if provided)
+        if (ipInput.value && !ipRegex.test(ipInput.value)) {
+            ipInput.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+
+    // Edit Modal Handling
+    const editButtons = document.querySelectorAll('[data-bs-target="#editProjectModal"]');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function () {
+            const projectId = this.dataset.projectId;
+            const projectName = this.dataset.projectName;
+            const projectDescription = this.dataset.projectDescription;
+            const projectType = this.dataset.projectType;
+            const projectDomain = this.dataset.projectDomain;
+            const projectIp = this.dataset.projectIp;
+            const projectUrl = this.dataset.projectUrl;
+            const projectMac = this.dataset.projectMac;
+            const projectScope = this.dataset.projectScope;
+
+            console.log('Edit button clicked:', { projectId, projectName }); // Debug
+            if (!projectId || isNaN(projectId)) {
+                alert('Erreur : ID de projet invalide.');
+                return;
+            }
+
+            document.getElementById('editProjectId').value = projectId;
+            document.getElementById('id_name').value = projectName || '';
+            document.getElementById('id_description').value = projectDescription || '';
+            document.getElementById('id_project_type').value = projectType || '';
+            document.getElementById('id_domain').value = projectDomain || '';
+            document.getElementById('id_ip_address').value = projectIp || '';
+            document.getElementById('id_url').value = projectUrl || '';
+            document.getElementById('id_mac_address').value = projectMac || '';
+            document.getElementById('id_scope').value = projectScope || '';
+            document.getElementById('editProjectModalLabel').textContent = `Modifier le projet : ${projectName || 'Inconnu'}`;
+        });
+    });
+
+    // Delete Modal Handling
+    const deleteButtons = document.querySelectorAll('[data-bs-target="#deleteProjectModal"]');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function () {
+            const projectId = this.dataset.projectId;
+            const projectName = this.dataset.projectName;
+            console.log('Delete button clicked:', { projectId, projectName }); // Debug
+            if (!projectId || isNaN(projectId)) {
+                alert('Erreur : ID de projet invalide.');
+                return;
+            }
+            document.getElementById('deleteProjectId').value = projectId;
+            document.getElementById('deleteProjectName').textContent = projectName || 'Inconnu';
+        });
+    });
+
+    // Prevent Empty project_id Submission
+    const forms = document.querySelectorAll('#editProjectForm, #deleteProjectForm');
+    forms.forEach(form => {
+        form.addEventListener('submit', function (e) {
+            const projectIdInput = form.querySelector('input[name="project_id"]');
+            if (!projectIdInput.value || isNaN(projectIdInput.value)) {
+                e.preventDefault();
+                alert('Erreur : ID de projet invalide.');
+            }
+        });
+    });
+});
+</script>
+<style>
+.sortable {
+    cursor: pointer;
+}
+.sortable.asc .bi-arrow-down-up::before { content: "\f146"; }
+.sortable.desc .bi-arrow-down-up::before { content: "\f145"; }
+</style>
+{% endblock %}

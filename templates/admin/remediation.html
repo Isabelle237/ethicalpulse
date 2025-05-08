@@ -1,0 +1,249 @@
+
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Gestion des Remédiations{% endblock %}
+
+{% block admin_header_actions %}
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newRemediationModal">
+    <i class="bi bi-bandaid"></i> Nouvelle Remédiation
+</button>
+{% endblock %}
+
+{% block admin_content %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Vulnérabilité</th>
+                <th>Projet</th>
+                <th>Type</th>
+                <th>Statut</th>
+                <th>Exécuté le</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for remediation in remediations %}
+            <tr>
+                <td>{{ remediation.id }}</td>
+                <td>{{ remediation.name }}</td>
+                <td>{{ remediation.vulnerability.name }}</td>
+                <td>{{ remediation.project.name }}</td>
+                <td>
+                    <span class="badge bg-info">{{ remediation.get_remediation_type_display }}</span>
+                </td>
+                <td>
+                    <span class="badge 
+                    {% if remediation.status == 'success' %}bg-success
+                    {% elif remediation.status == 'in_progress' %}bg-primary
+                    {% elif remediation.status == 'pending' %}bg-warning text-dark
+                    {% elif remediation.status == 'failed' %}bg-danger
+                    {% else %}bg-secondary{% endif %}">
+                        {{ remediation.get_status_display }}
+                    </span>
+                </td>
+                <td>{{ remediation.executed_at|default:'-'|date:"d/m/Y H:i" }}</td>
+                <td>
+                    <div class="btn-group">
+                        <a href="{% url 'admin:remediation_detail' remediation.id %}" class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editRemediationModal{{ remediation.id }}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% if remediation.status == 'pending' %}
+                        <form method="post" action="{% url 'admin:remediations_execute' remediation.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-play"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRemediationModal{{ remediation.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if remediations.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1">&laquo; Premier</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ remediations.previous_page_number }}">Précédent</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">&laquo; Premier</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">Précédent</span>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">
+                Page {{ remediations.number }} sur {{ remediations.paginator.num_pages }}
+            </span>
+        </li>
+        
+        {% if remediations.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ remediations.next_page_number }}">Suivant</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ remediations.paginator.num_pages }}">Dernier &raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Suivant</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">Dernier &raquo;</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<!-- New Remediation Modal -->
+<div class="modal fade" id="newRemediationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Créer une Nouvelle Remédiation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'admin:remediations_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="new-rem-name" class="form-label">Nom de la Remédiation</label>
+                            <input type="text" class="form-control" id="new-rem-name" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-rem-vuln" class="form-label">Vulnérabilité</label>
+                            <select class="form-select" id="new-rem-vuln" name="vulnerability_id" required>
+                                {% for vuln in all_vulnerabilities %}
+                                <option value="{{ vuln.id }}">{{ vuln.name }} ({{ vuln.project.name }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-rem-type" class="form-label">Type de Remédiation</label>
+                        <select class="form-select" id="new-rem-type" name="remediation_type" required>
+                            <option value="patch">Patch</option>
+                            <option value="configuration">Configuration</option>
+                            <option value="code_fix">Correction de code</option>
+                            <option value="workaround">Contournement</option>
+                            <option value="other">Autre</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-rem-method" class="form-label">Méthode de Remédiation</label>
+                        <textarea class="form-control" id="new-rem-method" name="method" rows="5" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer Remédiation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit and Delete Modals for each remediation -->
+{% for remediation in remediations %}
+<!-- Edit Remediation Modal -->
+<div class="modal fade" id="editRemediationModal{{ remediation.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier la Remédiation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'admin:remediations_edit' remediation.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit-rem-name-{{ remediation.id }}" class="form-label">Nom de la Remédiation</label>
+                            <input type="text" class="form-control" id="edit-rem-name-{{ remediation.id }}" name="name" value="{{ remediation.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit-rem-type-{{ remediation.id }}" class="form-label">Type de Remédiation</label>
+                            <select class="form-select" id="edit-rem-type-{{ remediation.id }}" name="remediation_type" required>
+                                <option value="patch" {% if remediation.remediation_type == 'patch' %}selected{% endif %}>Patch</option>
+                                <option value="configuration" {% if remediation.remediation_type == 'configuration' %}selected{% endif %}>Configuration</option>
+                                <option value="code_fix" {% if remediation.remediation_type == 'code_fix' %}selected{% endif %}>Correction de code</option>
+                                <option value="workaround" {% if remediation.remediation_type == 'workaround' %}selected{% endif %}>Contournement</option>
+                                <option value="other" {% if remediation.remediation_type == 'other' %}selected{% endif %}>Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-rem-method-{{ remediation.id }}" class="form-label">Méthode de Remédiation</label>
+                        <textarea class="form-control" id="edit-rem-method-{{ remediation.id }}" name="method" rows="5" required>{{ remediation.method }}</textarea>
+                    </div>
+                    {% if remediation.status != 'pending' %}
+                    <div class="mb-3">
+                        <label for="edit-rem-status-{{ remediation.id }}" class="form-label">Statut</label>
+                        <select class="form-select" id="edit-rem-status-{{ remediation.id }}" name="status">
+                            <option value="pending" {% if remediation.status == 'pending' %}selected{% endif %}>En attente</option>
+                            <option value="in_progress" {% if remediation.status == 'in_progress' %}selected{% endif %}>En cours</option>
+                            <option value="success" {% if remediation.status == 'success' %}selected{% endif %}>Succès</option>
+                            <option value="failed" {% if remediation.status == 'failed' %}selected{% endif %}>Échec</option>
+                            <option value="cancelled" {% if remediation.status == 'cancelled' %}selected{% endif %}>Annulé</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-rem-output-{{ remediation.id }}" class="form-label">Sortie</label>
+                        <textarea class="form-control" id="edit-rem-output-{{ remediation.id }}" name="output" rows="3">{{ remediation.output }}</textarea>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Remediation Modal -->
+<div class="modal fade" id="deleteRemediationModal{{ remediation.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la Suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer la remédiation <strong>{{ remediation.name }}</strong>?</p>
+                <p class="text-danger">Cette action est irréversible!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'admin:remediations_delete' remediation.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

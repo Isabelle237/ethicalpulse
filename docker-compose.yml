@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_db-ethicalpulse
+    restart: always
+    environment:
+      MYSQL_DATABASE: ethicalpulse_app
+      MYSQL_USER: clara
+      MYSQL_PASSWORD: ethicalpulse
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3310:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-ethicalpulse
+    restart: always
+    environment:
+      PMA_HOST: db
+      PMA_USER: clara
+      PMA_PASSWORD: ethicalpulse
+    ports:
+      - "8084:80"
+    depends_on:
+      - db
+
+  web:
+    build: .
+    container_name: django_web-ethicalpulse
+    entrypoint: ["./wait-for-it.sh", "db:3306", "--", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+  
+  zap:
+    image: owasp/zap2docker-stable
+    ports:
+      - "8080:8080"
+    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.key=your-zap-api-key
+
+  openvas:
+    image: greenbone/openvas-scanner
+    environment:
+      - GVM_ADMIN_PASSWORD=admin
+    ports:
+      - "9392:9392"
+volumes:
+  mysql_data:
