@@ -126,19 +126,20 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'debug.log',
-        },
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
+            'filename': '/app/debug.log',
         },
     },
     'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
+        '': {
+            'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': True,
         },
     },
 }
+
 AUTH_USER_MODEL = 'EthicalpulsApp.CustomUser'
+# Configuration Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL du broker Redis
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

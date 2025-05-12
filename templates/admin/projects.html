@@ -53,7 +53,6 @@
                             <th class="sortable" data-sort="domain">Domaine <i class="bi bi-arrow-down-up"></i></th>
                             <th>Adresse IP</th>
                             <th>URL</th>
-                            <th>Adresse MAC</th>
                             <th class="sortable" data-sort="created_at">Date de création <i class="bi bi-arrow-down-up"></i></th>
                             <th class="sortable" data-sort="updated_at">Date de modification <i class="bi bi-arrow-down-up"></i></th>
                             <th>Actions</th>
@@ -67,7 +66,6 @@
                             <td>{{ project.domain|default:"" }}</td>
                             <td>{{ project.ip_address|default:"" }}</td>
                             <td>{{ project.url|default:"" }}</td>
-                            <td>{{ project.mac_address|default:"" }}</td>
                             <td>{{ project.created_at|date:"d/m/Y" }}</td>
                             <td>{{ project.updated_at|date:"d/m/Y" }}</td>
                             <td>
@@ -83,7 +81,6 @@
                                         data-project-domain="{{ project.domain }}"
                                         data-project-ip="{{ project.ip_address }}"
                                         data-project-url="{{ project.url }}"
-                                        data-project-mac="{{ project.mac_address }}"
                                         data-project-scope="{{ project.scope }}">
                                     <i class="bi bi-pencil"></i> Éditer
                                 </button>
@@ -234,10 +231,6 @@
                             <div class="col-md-6 mb-3">
                                 <label for="id_url" class="form-label">URL</label>
                                 <input type="url" name="url" id="id_url" class="form-control">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="id_mac_address" class="form-label">Adresse MAC</label>
-                                <input type="text" name="mac_address" id="id_mac_address" class="form-control">
                             </div>
                         </div>
                         <div class="mb-3">

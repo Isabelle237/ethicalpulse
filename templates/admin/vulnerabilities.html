@@ -1,6 +1,6 @@
 
 {% extends 'admin/admin_base.html' %}
-
+{% load static scan_filters %}
 {% block title %}Gestion des vulnérabilités - Ethical Pulse Shield{% endblock %}
 
 {% block content %}
@@ -12,7 +12,10 @@
                 <i class="bi bi-file-earmark-arrow-down"></i> Exporter
             </button>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVulnModal">
-                <i class="bi bi-plus-circle"></i> Ajouter manuellement
+                <i class="bi bi-plus-circle"></i> Lancer un scan
+            </button>
+            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#scheduleScanModal">
+                <i class="bi bi-calendar-plus"></i> Planifier un scan
             </button>
         </div>
     </div>
@@ -79,46 +82,67 @@
     
     <!-- Filtres et recherche -->
     <div class="admin-card card mb-4">
-        <div class="card-body">
+    <div class="card-body">
+        <form method="GET">
             <div class="row">
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <select class="form-select" id="projectFilter">
+                <!-- Filtre par projet -->
+                <div class="col-md-2 mb-3">
+                    <select class="form-select" id="projectFilter" name="project">
                         <option value="">Tous les projets</option>
-                        <option value="1">Site Web E-commerce</option>
-                        <option value="2">API de paiement</option>
-                        <option value="3">Réseau interne</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}" {% if request.GET.project == project.id|stringformat:"s" %}selected{% endif %}>
+                                {{ project.name }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <select class="form-select" id="severityFilter">
+
+                <!-- Filtre par sévérité -->
+                <div class="col-md-2 mb-3">
+                    <select class="form-select" id="severityFilter" name="severity">
                         <option value="">Toutes les sévérités</option>
-                        <option value="critical">Critique</option>
-                        <option value="high">Élevée</option>
-                        <option value="medium">Moyenne</option>
-                        <option value="low">Faible</option>
+                        <option value="critical" {% if request.GET.severity == 'critical' %}selected{% endif %}>Critique</option>
+                        <option value="high" {% if request.GET.severity == 'high' %}selected{% endif %}>Élevée</option>
+                        <option value="medium" {% if request.GET.severity == 'medium' %}selected{% endif %}>Moyenne</option>
+                        <option value="low" {% if request.GET.severity == 'low' %}selected{% endif %}>Faible</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <select class="form-select" id="statusFilter">
+
+                <!-- Filtre par statut -->
+                <div class="col-md-2 mb-3">
+                    <select class="form-select" id="statusFilter" name="status">
                         <option value="">Tous les statuts</option>
-                        <option value="open">Ouverte</option>
-                        <option value="in_progress">En cours</option>
-                        <option value="resolved">Résolue</option>
-                        <option value="closed">Fermée</option>
-                        <option value="false_positive">Faux positif</option>
+                        <option value="open" {% if request.GET.status == 'open' %}selected{% endif %}>Planifié</option>
+                        <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>En cours</option>
+                        <option value="resolved" {% if request.GET.status == 'resolved' %}selected{% endif %}>Terminé</option>
+                        <option value="closed" {% if request.GET.status == 'closed' %}selected{% endif %}>Échoué</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+
+                <!-- Date de début -->
+                <div class="col-md-2 mb-3">
+                    <input type="date" class="form-control" name="from" placeholder="Date de début" value="{{ request.GET.from }}">
+                </div>
+
+                <!-- Date de fin -->
+                <div class="col-md-2 mb-3">
+                    <input type="date" class="form-control" name="to" placeholder="Date de fin" value="{{ request.GET.to }}">
+                </div>
+
+                <!-- Recherche -->
+                <div class="col-md-2 mb-3">
                     <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Rechercher...">
-                        <button class="btn btn-outline-secondary" type="button">
+                        <input type="text" class="form-control" placeholder="Rechercher..." name="query" value="{{ request.GET.query }}">
+                        <button class="btn btn-outline-secondary" type="submit">
                             <i class="bi bi-search"></i>
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     </div>
+</div>
+
     
     <!-- Liste des vulnérabilités -->
     <div class="admin-card card">
@@ -132,43 +156,74 @@
                             <th>Projet</th>
                             <th>Sévérité</th>
                             <th>Statut</th>
-                            <th>URL cible</th>
-                            <th>Découverte</th>
+                            <th>Date de debut</th>
+                            <th>Date de fin</th>
+                            <th>Durée</th>
+                            <th>Outils</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for vuln in vulnerabilities %}
+                        {% for scan in scans %}
                         <tr>
-                            <td>{{ vuln.id }}</td>
-                            <td>{{ vuln.name }}</td>
-                            <td>{{ vuln.project.name }}</td>
-                            <td>
-                                <span class="badge {% if vuln.severity == 'critical' %}bg-danger{% elif vuln.severity == 'high' %}bg-warning text-dark{% elif vuln.severity == 'medium' %}bg-primary{% else %}bg-success{% endif %}">
-                                    {{ vuln.severity }}
-                                </span>
+                            <td>{{ scan.id }}</td>
+                            <td>{{ scan.name }}</td>
+                            <td>{{ scan.project.name }}</td>
+                          <td>
+                                {% for severity, count in scan.severities.items %}
+                                    {% if count > 0 %}
+                                        <span class="badge 
+                                            {% if severity == 'critical' %}bg-danger
+                                            {% elif severity == 'high' %}bg-warning text-dark
+                                            {% elif severity == 'medium' %}bg-primary
+                                            {% elif severity == 'low' %}bg-success
+                                            {% else %}bg-secondary
+                                            {% endif %}">
+                                            {{ severity|title }}: {{ count }}
+                                        </span>
+                                    {% endif %}
+                                {% endfor %}
                             </td>
                             <td>
-                                <span class="badge {% if vuln.status == 'open' %}bg-danger{% elif vuln.status == 'in_progress' %}bg-primary{% elif vuln.status == 'resolved' %}bg-success{% elif vuln.status == 'closed' %}bg-secondary{% else %}bg-info{% endif %}">
-                                    {{ vuln.status }}
+                                <span class="badge 
+                                    {% if scan.status == 'scheduled' %}bg-warning text-dark
+                                    {% elif scan.status == 'in_progress' %}bg-primary
+                                    {% elif scan.status == 'completed' %}bg-success
+                                    {% elif scan.status == 'failed' %}bg-danger
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ scan.status|title }}
                                 </span>
                             </td>
-                            <td>{{ vuln.target_url }}</td>
-                            <td>{{ vuln.discovered_at|date:"d/m/Y" }}</td>
+                            <td>{{ scan.start_time|date:"d/m/Y" }}</td>
+                            <td>{{ scan.end_time|date:"d/m/Y" }}</td>
+                            <td>{{ scan.duration }}</td>
+                            <td>{{ scan.tool }}</td>
                             <td>
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewVulnModal{{ vuln.id }}">
+                                    <!-- Bouton Voir -->
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewScanModal{{ scan.id }}">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#remediateModal{{ vuln.id }}">
-                                        <i class="bi bi-bandaid"></i>
+
+                                    <!-- Bouton Supprimer -->
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteScanModal{{ scan.id }}">
+                                        <i class="bi bi-trash"></i> 
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editVulnModal{{ vuln.id }}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteVulnModal{{ vuln.id }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+
+                                    <!-- Bouton Imprimer -->
+                                    <a href="{% url 'generate_scan_report' scan.id %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-printer"></i> 
+                                    </a>
+                                    
+                                    <!-- Bouton Relancer -->
+                                    <a href="{% url 'relaunch_scan' scan.id %}" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </a>
+
+                                    
+
+
                                 </div>
                             </td>
                         </tr>
@@ -198,79 +253,23 @@
     </div>
 </div>
 
-<!-- Modal d'ajout de vulnérabilité -->
+<!-- Modal de lancement de scan -->
 <div class="modal fade" id="addVulnModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Ajouter une vulnérabilité</h5>
+                <h5 class="modal-title">Lancer un scan</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="vulnName" class="form-label">Nom de la vulnérabilité</label>
-                            <input type="text" class="form-control" id="vulnName" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="vulnProject" class="form-label">Projet</label>
-                            <select class="form-select" id="vulnProject" required>
-                                <option value="">Sélectionner un projet</option>
-                                <option value="1">Site Web E-commerce</option>
-                                <option value="2">API de paiement</option>
-                                <option value="3">Réseau interne</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="vulnSeverity" class="form-label">Sévérité</label>
-                            <select class="form-select" id="vulnSeverity" required>
-                                <option value="">Sélectionner</option>
-                                <option value="critical">Critique</option>
-                                <option value="high">Élevée</option>
-                                <option value="medium">Moyenne</option>
-                                <option value="low">Faible</option>
-                                <option value="info">Information</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="vulnStatus" class="form-label">Statut</label>
-                            <select class="form-select" id="vulnStatus" required>
-                                <option value="open">Ouverte</option>
-                                <option value="in_progress">En cours</option>
-                                <option value="resolved">Résolue</option>
-                                <option value="closed">Fermée</option>
-                                <option value="false_positive">Faux positif</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="vulnCve" class="form-label">CVE ID (optionnel)</label>
-                            <input type="text" class="form-control" id="vulnCve" placeholder="CVE-XXXX-XXXXX">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="vulnUrl" class="form-label">URL cible</label>
-                        <input type="url" class="form-control" id="vulnUrl" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="vulnDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="vulnDescription" rows="3" required></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="vulnSteps" class="form-label">Étapes de reproduction</label>
-                        <textarea class="form-control" id="vulnSteps" rows="3"></textarea>
+                <form method="POST" action="{% url 'launch_scan' %}">
+                    {% csrf_token %}
+                    {{ form.as_p }} <!-- Affiche les champs du formulaire -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Lancer le scan</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary">Ajouter</button>
             </div>
         </div>
     </div>
@@ -326,27 +325,220 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de suppression de scan -->
+{% for scan in scans %}
+<div class="modal fade" id="deleteScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Supprimer le scan {{ scan.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer ce scan ? Cette action est irréversible.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{% url 'delete_scan' scan.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endfor %}
+<!-- Modal de visualisation de scan -->
+{% for scan in scans %}
+<div class="modal fade" id="viewScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails du scan {{ scan.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Détails du scan -->
+                <p><strong>Nom :</strong> {{ scan.name }}</p>
+                <p><strong>Projet :</strong> {{ scan.project.name }}</p>
+                <p><strong>Sévérités :</strong></p>
+                {% for severity, count in scan.severities.items %}
+                    <li>{{ severity|title }} : {{ count }}</li>
+                {% endfor %}
+                </ul>
+                <p><strong>Statut :</strong> {{ scan.status }}</p>
+                <p><strong>Durée :</strong> {{ scan.duration }}</p>
+                <p><strong>Outil :</strong> {{ scan.tool }}</p>
+
+                <!-- Détails du scan planifié -->
+                {% if scan.scheduled_scan %}
+                <hr>
+                <h5>Détails du scan planifié</h5>
+                <p><strong>Date et Heure Planifiées :</strong> {{ scan.scheduled_scan.scheduled_time }}</p>
+                <p><strong>Fréquence :</strong> {{ scan.scheduled_scan.get_frequency_display }}</p>
+                <p><strong>Créé le :</strong> {{ scan.scheduled_scan.created_at }}</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<!-- Modal de relance de scan -->
+{% for scan in scans %}
+<div class="modal fade" id="relaunchScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Relancer le scan {{ scan.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir relancer ce scan ?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{% url 'relaunch_scan' scan.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning">Relancer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal de planification de scan -->
+ <div class="modal fade" id="scheduleScanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Planifier un scan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{% url 'schedule_scan' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="project" class="form-label">Projet</label>
+                        <select class="form-select" id="project" name="project">
+                            {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tool" class="form-label">Outil</label>
+                        <select class="form-select" id="tool" name="tool">
+                            <option value="NMAP">NMAP</option>
+                            <option value="ZAP">OWASP ZAP</option>
+                            <option value="SQLMAP">SQLMAP</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="time" class="form-label">Heure</label>
+                        <input type="time" class="form-control" id="time" name="time" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="frequency" class="form-label">Fréquence</label>
+                        <select class="form-select" id="frequency" name="frequency">
+                            <option value="once">Une seule fois</option>
+                            <option value="daily">Tous les jours</option>
+                            <option value="weekly">Toutes les semaines</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success">Planifier</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Ici on pourrait ajouter du JavaScript pour la filtration dynamique des vulnérabilités
     const projectFilter = document.getElementById('projectFilter');
     const severityFilter = document.getElementById('severityFilter');
     const statusFilter = document.getElementById('statusFilter');
-    
+
     [projectFilter, severityFilter, statusFilter].forEach(filter => {
         filter.addEventListener('change', updateFilters);
     });
-    
+
     function updateFilters() {
-        console.log('Filtres mis à jour:', {
-            project: projectFilter.value,
-            severity: severityFilter.value,
-            status: statusFilter.value
-        });
-        // Ici, envoyer une requête AJAX pour filtrer les données
+        const project = projectFilter.value;
+        const severity = severityFilter.value;
+        const status = statusFilter.value;
+
+        // Requête AJAX pour récupérer les vulnérabilités filtrées
+        fetch('{% url "vulnerabilities_filter" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({ project, severity, status }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour le tableau des vulnérabilités
+            const tableBody = document.querySelector('table tbody');
+            tableBody.innerHTML = ''; // Vider le tableau
+
+            if (data.vulnerabilities.length > 0) {
+                data.vulnerabilities.forEach(vuln => {
+                    const row = `
+                        <tr>
+                            <td>${vuln.id}</td>
+                            <td>${vuln.name}</td>
+                            <td>${vuln.project}</td>
+                            <td><span class="badge bg-${vuln.severity_class}">${vuln.severity}</span></td>
+                            <td><span class="badge bg-${vuln.status_class}">${vuln.status}</span></td>
+                            <td>${vuln.target_url}</td>
+                            <td>${vuln.discovered_at}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-primary">Voir</button>
+                                    <button class="btn btn-sm btn-outline-success">Remédier</button>
+                                    <button class="btn btn-sm btn-outline-secondary">Modifier</button>
+                                    <button class="btn btn-sm btn-outline-danger">Supprimer</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Aucune vulnérabilité trouvée</td></tr>';
+            }
+        })
+        .catch(error => console.error('Erreur lors de la récupération des données:', error));
     }
 });
 </script>

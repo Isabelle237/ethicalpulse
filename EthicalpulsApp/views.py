@@ -1,4 +1,12 @@
+# Imports standard
+import random
+import time
+import json
 from datetime import timedelta, datetime
+from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+
+# Imports Django
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.mail import send_mail
@@ -7,26 +15,102 @@ from django.utils import timezone
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib.auth import authenticate, login as auth_login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import get_user_model,login
-import pyotp
-import random
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Q
+from django.http import JsonResponse, HttpResponse
+from django.urls import reverse
+from django.middleware.csrf import get_token
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from zapv2 import ZAPv2
+import nmap
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+
+# Imports spécifiques à ton projet
 from EthicalpulsApp.models import *
 from .forms import *
-from django.http import JsonResponse
-from django.db.models import Count
-from django.contrib import messages
-from django.urls import reverse
-from django.contrib import messages
-from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse
-from django.db.models import Count
+from .models import *
 
+# Imports de bibliothèques externes
+import pyotp
+import subprocess
+from zapv2 import ZAPv2
+import logging
 
+# Imports pour la génération de PDF
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor, black, white
+from reportlab.platypus import Table, TableStyle
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.utils.timezone import now
+from .models import Project, Scan, Vulnerability
+from .forms import ScanForm
+
+import subprocess
+import json
+import os
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from django.utils.timezone import make_aware
+from datetime import datetime, timedelta
+from .models import ScheduledScan
 # =================== Pages Générales ===================
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.utils.timezone import now
+from .models import Vulnerability
+from .forms import ScanForm
+import os, subprocess, json, time
+from zapv2 import ZAPv2
+from celery import shared_task
+from .models import ScheduledScan, Scan
+from django.utils.timezone import now
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.utils.timezone import now
+from .models import Project, Scan, Vulnerability
+from .forms import ScanForm
+
+import subprocess
+import json
+import os
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+from django.utils.timezone import now
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+import subprocess
+import json
+
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from .models import Scan
 def index(request):
     return render(request, 'dashboard/index.html')
 
@@ -107,36 +191,6 @@ def delete_multiple_users_view(request):
     return redirect('users')
 
 
-
-# def liste_projets(request):
-#     projects = Project.objects.all().order_by('-created_at')
-
-#     if request.method == 'POST':
-#         form = ProjectForm(request.POST)
-#         if form.is_valid():
-#             form.save()
-#             return redirect('liste_projets')
-#     else:
-#         form = ProjectForm()
-
-#     return render(request, 'admin/projects.html', {'form': form, 'projects': projects})
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from .models import Project
-from .forms import ProjectForm
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.db.models import Count
-from django.http import JsonResponse
-from django.utils import timezone
-from django.contrib import messages
-from django.db.models import Q
-from .models import Project, PROJECT_TYPES
-from .forms import ProjectForm
-#import datetime
-
-@login_required
 def admin_projets(request):
     """
     View to handle project listing, creation, editing, and deletion.
@@ -330,240 +384,686 @@ def logout_view(request):
     from django.shortcuts import render, redirect, get_object_or_404
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.utils import timezone
-from django.http import JsonResponse
-import nmap
-import subprocess
-import json
-from zapv2 import ZAPv2
-from .models import Scan, Project
-from .forms import ScanForm
-import logging
-
-logger = logging.getLogger(__name__)
-
 @login_required
-def admin_scans(request):
+def get_project_details(request, project_id):
     """
-    View to handle scan listing, creation, and actions (start, stop, etc.).
+    API endpoint to fetch project details for scan form.
     """
-    if request.method == 'POST':
-        if 'add_scan' in request.POST:
-            form = ScanForm(request.POST)
-            if form.is_valid():
-                scan = form.save(commit=False)
-                scan.status = 'scheduled'
-                scan.save()
-                messages.success(request, "Nouveau scan planifié.")
-                return redirect('admin_scans')
-            else:
-                messages.error(request, "Erreur lors de la création du scan.")
-        elif 'start_scan' in request.POST:
-            scan_id = request.POST.get('scan_id')
-            if not scan_id or not scan_id.isdigit():
-                messages.error(request, "ID de scan invalide.")
-                return redirect('admin_scans')
-            scan = get_object_or_404(Scan, id=scan_id)
-            if scan.status == 'scheduled':
-                scan.status = 'in_progress'
-                scan.start_time = timezone.now()
-                scan.save()
-                # Use project's url or ip_address as target
-                target = scan.project.url or scan.project.ip_address or scan.project.domain
-                if not target:
-                    scan.status = 'failed'
-                    scan.end_time = timezone.now()
-                    scan.save()
-                    messages.error(request, "Le projet n'a pas d'URL ou d'IP valide.")
-                    return redirect('admin_scans')
-                try:
-                    if scan.scan_type in ['INFRA', 'TARGETED']:
-                        results = run_nmap_scan(target)
-                    elif scan.scan_type in ['API', 'FULL']:
-                        results = run_zap_scan(target)
-                    else:
-                        results = run_openvas_scan(target)
-                    scan.findings_summary = results
-                    scan.status = 'completed'
-                    scan.end_time = timezone.now()
-                    scan.save()
-                    messages.success(request, f"Le scan « {scan.name} » est terminé.")
-                except Exception as e:
-                    logger.error(f"Erreur lors du scan {scan.id}: {str(e)}")
-                    scan.status = 'failed'
-                    scan.end_time = timezone.now()
-                    scan.save()
-                    messages.error(request, "Erreur lors du lancement du scan.")
-            else:
-                messages.error(request, "Le scan ne peut pas être démarré.")
-            return redirect('admin_scans')
-        elif 'stop_scan' in request.POST:
-            scan_id = request.POST.get('scan_id')
-            if not scan_id or not scan_id.isdigit():
-                messages.error(request, "ID de scan invalide.")
-                return redirect('admin_scans')
-            scan = get_object_or_404(Scan, id=scan_id)
-            if scan.status == 'in_progress':
-                scan.status = 'failed'
-                scan.end_time = timezone.now()
-                scan.findings_summary = {"critical": 0, "high": 0, "medium": 0}
-                scan.save()
-                messages.success(request, f"Le scan « {scan.name} » a été arrêté.")
-            else:
-                messages.error(request, "Le scan ne peut pas être arrêté.")
-            return redirect('admin_scans')
-        elif 'edit_scan' in request.POST:
-            scan_id = request.POST.get('scan_id')
-            if not scan_id or not scan_id.isdigit():
-                messages.error(request, "ID de scan invalide.")
-                return redirect('admin_scans')
-            scan = get_object_or_404(Scan, id=scan_id)
-            form = ScanForm(request.POST, instance=scan)
-            if form.is_valid():
-                form.save()
-                messages.success(request, f"Le scan « {scan.name} » a été modifié.")
-            else:
-                messages.error(request, "Erreur lors de la modification du scan.")
-            return redirect('admin_scans')
-    else:
-        form = ScanForm()
-
-    scans = Scan.objects.select_related('project').all()
-    scan_templates = [
-        {
-            'id': 1,
-            'name': 'Scan complet',
-            'description': 'Analyse complète incluant toutes les méthodes de test',
-            'tools': 'OWASP ZAP, Nmap, OpenVAS',
-            'estimated_duration': '45-60 minutes par application'
-        },
-        {
-            'id': 2,
-            'name': 'Scan API rapide',
-            'description': 'Scan léger pour les API et services REST',
-            'tools': 'OWASP ZAP, API Security Scanner',
-            'estimated_duration': '15-20 minutes par API'
-        },
-        {
-            'id': 3,
-            'name': 'Scan d\'infrastructure',
-            'description': 'Analyse des serveurs et de l\'infrastructure réseau',
-            'tools': 'Nmap, OpenVAS',
-            'estimated_duration': '30-40 minutes par segment réseau'
-        }
-    ]
-    context = {
-        'scans': scans,
-        'form': form,
-        'scan_templates': scan_templates,
-    }
-    return render(request, 'admin/scans.html', context)
-
-def run_nmap_scan(target):
-    """
-    Execute Nmap scan for INFRA or TARGETED scans.
-    """
-    nm = nmap.PortScanner()
-    try:
-        nm.scan(target, arguments='-sV -O -p1-1000')
-        findings = {"critical": 0, "high": 0, "medium": 0}
-        for host in nm.all_hosts():
-            for proto in nm[host].all_protocols():
-                ports = nm[host][proto].keys()
-                for port in ports:
-                    state = nm[host][proto][port]['state']
-                    if state == 'open':
-                        findings['medium'] += 1
-        return findings
-    except Exception as e:
-        logger.error(f"Nmap scan error: {str(e)}")
-        return {"critical": 0, "high": 0, "medium": 0}
-
-def run_zap_scan(target):
-    """
-    Execute OWASP ZAP scan for API or FULL scans.
-    """
-    zap = ZAPv2(apikey='your-zap-api-key', proxies={'http': 'http://localhost:8080', 'https': 'http://localhost:8080'})
-    try:
-        zap.urlopen(target)
-        zap.spider.scan(target)
-        zap.ascan.scan(target)
-        alerts = zap.core.alerts(baseurl=target)
-        findings = {"critical": 0, "high": 0, "medium": 0}
-        for alert in alerts:
-            risk = alert.get('risk')
-            if risk == 'High':
-                findings['high'] += 1
-            elif risk == 'Medium':
-                findings['medium'] += 1
-            elif risk == 'Low':
-                findings['medium'] += 1
-        return findings
-    except Exception as e:
-        logger.error(f"ZAP scan error: {str(e)}")
-        return {"critical": 0, "high": 0, "medium": 0}
-
-def run_openvas_scan(target):
-    """
-    Execute OpenVAS scan for FULL scans.
-    """
-    try:
-        cmd = f"gvm-cli socket --gmp-username admin --gmp-password admin --xml '<create_task><name>Scan {target}</name><target>{target}</target></create_task>'"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        findings = {"critical": 0, "high": 0, "medium": 0}
-        return findings
-    except Exception as e:
-        logger.error(f"OpenVAS scan error: {str(e)}")
-        return {"critical": 0, "high": 0, "medium": 0}
-
-@login_required
-def get_scan_progress(request, scan_id):
-    """
-    API endpoint to fetch scan progress (simulated for now).
-    """
-    scan = get_object_or_404(Scan, id=scan_id)
-    if scan.status == 'in_progress':
-        return JsonResponse({'status': scan.status, 'progress': 50})
-    return JsonResponse({'status': scan.status, 'progress': 100})
-
-@login_required
-def get_scan_details(request, scan_id):
-    """
-    API endpoint to fetch scan details for editing.
-    """
-    scan = get_object_or_404(Scan, id=scan_id)
+    project = get_object_or_404(Project, id=project_id)
     data = {
-        'name': scan.name,
-        'scan_type': scan.scan_type,
-        'target_url': scan.target_url,
-        'next_scan': scan.next_scan.isoformat() if scan.next_scan else '',
-        'project': scan.project.id,
+        'name': project.name,
+        'url': project.url,
+        'ip_address': project.ip_address,
+        'domain': project.domain,
     }
     return JsonResponse(data)
 
-def scans_start(request, scan_id):
-    return redirect('scans')
 
-def scans_cancel(request, scan_id):
-    return redirect('scans')
 
-def vulnerabilities(request):
-    return render(request, 'vulnerabilities.html')
+def vulnerabilities_view(request):
+    projects = Project.objects.all()
+    scans = Scan.objects.prefetch_related('vulnerabilities').all()
+    vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
+    form = ScanForm()
 
-def vulnerabilities_admin(request):
-    return render(request, 'admin/vulnerabilities.html')
 
-def vulnerabilities_create(request):
+    project_filter = request.GET.get('project')
+    severity_filter = request.GET.get('severity')
+    status_filter = request.GET.get('status')
+    
+
+    if project_filter:
+        vulnerabilities = vulnerabilities.filter(scan__project_id=project_filter)
+    if severity_filter:
+        vulnerabilities = vulnerabilities.filter(severity__iexact=severity_filter)
+    if status_filter:
+        vulnerabilities = vulnerabilities.filter(status__iexact=status_filter)
+    
+    # Ajouter les sévérités pour chaque scan
+    for scan in scans:
+        severities = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+        for vuln in scan.vulnerabilities.all():
+            severities[vuln.severity] += 1
+        scan.severities = severities
+    # Ajouter la durée du scan
+    for scan in scans:
+        if scan.start_time and scan.end_time:
+            scan.duration = scan.end_time - scan.start_time
+        else:
+            scan.duration = None
+    # Associer un scan planifié (ScheduledScan) au scan
+        scan.scheduled_scan = ScheduledScan.objects.filter(project=scan.project, tool=scan.tool).first()
+
+    context = {
+        'projects': projects,
+        'vulnerabilities': vulnerabilities.distinct(),
+        'form': form,
+        'scans': scans,
+    }
+    return render(request, 'admin/vulnerabilities.html', context)
+
+from django.http import JsonResponse
+from django.db.models import Q
+from .models import Vulnerability, Scan
+
+def vulnerabilities_filter(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        project = data.get('project')
+        severity = data.get('severity')
+        status = data.get('status')
+
+        # Filtrer les vulnérabilités
+        vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
+
+        if project:
+            vulnerabilities = vulnerabilities.filter(scan__project_id=project)
+        if severity:
+            vulnerabilities = vulnerabilities.filter(severity__iexact=severity)
+        if status:
+            vulnerabilities = vulnerabilities.filter(scan__status__iexact=status)
+
+        # Préparer les données pour la réponse JSON
+        results = []
+        for vuln in vulnerabilities:
+            results.append({
+                'id': vuln.id,
+                'name': vuln.name,
+                'project': vuln.scan.project.name,
+                'severity': vuln.severity,
+                'severity_class': get_severity_class(vuln.severity),
+                'status': vuln.scan.status,
+                'status_class': get_status_class(vuln.scan.status),
+                'target_url': vuln.target_url,
+                'discovered_at': vuln.discovered_at.strftime('%d/%m/%Y'),
+            })
+
+        return JsonResponse({'vulnerabilities': results})
+
+def get_severity_class(severity):
+    if severity == 'critical':
+        return 'danger'
+    elif severity == 'high':
+        return 'warning text-dark'
+    elif severity == 'medium':
+        return 'primary'
+    elif severity == 'low':
+        return 'success'
+    else:
+        return 'secondary'
+
+def get_status_class(status):
+    if status == 'scheduled':
+        return 'warning text-dark'
+    elif status == 'in_progress':
+        return 'primary'
+    elif status == 'completed':
+        return 'success'
+    elif status == 'failed':
+        return 'danger'
+    else:
+        return 'secondary'
+
+def classify_scan_findings(scan_results):
+    severity_map = {
+        "critical": [],
+        "high": [],
+        "medium": [],
+        "low": [],
+        "info": []
+    }
+
+    def get_nmap_severity(service, port):
+        critical_services = ['msrpc', 'rdp', 'telnet', 'vnc']
+        high_services = ['ftp', 'smb', 'smtp']
+        medium_services = ['http', 'ssh', 'mysql']
+        low_services = ['https', 'dns']
+        service = service.lower()
+        if service in critical_services or port in [3389, 23, 5900]:
+            return 'critical'
+        elif service in high_services or port in [21, 445, 25]:
+            return 'high'
+        elif service in medium_services or port in [80, 22, 3306]:
+            return 'medium'
+        elif service in low_services or port in [443, 53]:
+            return 'low'
+        else:
+            return 'info'
+
+    for result in scan_results.get("nmap", []):
+        for port_info in result.get("protocols", []):
+            severity = get_nmap_severity(port_info['service'], port_info['port'])
+            severity_map[severity].append({
+                "tool": "Nmap",
+                "description": f"{port_info['port']}/{port_info['protocol']} - {port_info['service']}",
+                "state": port_info['state']
+            })
+
+    for alert in scan_results.get("zap", []):
+        zap_sev = alert.get("risk", "Informational").lower()
+        severity = {
+            "high": "high",
+            "medium": "medium",
+            "low": "low",
+            "informational": "info"
+        }.get(zap_sev, "info")
+        severity_map[severity].append({
+            "tool": "ZAP",
+            "description": alert.get("alert", "Unknown issue"),
+            "url": alert.get("url", "")
+        })
+
+    for vuln in scan_results.get("sqlmap", []):
+        sql_sev = vuln.get("risk", "info").lower()
+        if "high" in sql_sev:
+            severity = "high"
+        elif "medium" in sql_sev:
+            severity = "medium"
+        elif "low" in sql_sev:
+            severity = "low"
+        else:
+            severity = "info"
+        severity_map[severity].append({
+            "tool": "SQLMap",
+            "description": vuln.get("description", "Injection détectée"),
+            "parameter": vuln.get("parameter", "")
+        })
+
+    for issue in scan_results.get("apisec", []):
+        risk = issue.get("risk", "info").lower()
+        if "critical" in risk:
+            severity = "critical"
+        elif "high" in risk:
+            severity = "high"
+        elif "medium" in risk:
+            severity = "medium"
+        elif "low" in risk:
+            severity = "low"
+        else:
+            severity = "info"
+        severity_map[severity].append({
+            "tool": "API Security Scanner",
+            "description": issue.get("issue", "API issue"),
+            "endpoint": issue.get("endpoint", "")
+        })
+
+    return severity_map
+
+
+def parse_scan_results(output, tool):
+    results = {
+        "nmap": [],
+        "zap": [],
+        "sqlmap": [],
+        "apisec": []
+    }
+
+    if tool == 'NMAP':
+        lines = output.splitlines()
+        protocols = []
+        for line in lines:
+            if "open" in line and "/" in line:
+                parts = line.split()
+                if len(parts) >= 3:
+                    port_protocol = parts[0].split('/')
+                    port = int(port_protocol[0])
+                    protocol = port_protocol[1]
+                    state = parts[1]
+                    service = parts[2]
+                    protocols.append({
+                        "port": port,
+                        "protocol": protocol,
+                        "state": state,
+                        "service": service
+                    })
+        if protocols:
+            results["nmap"].append({"protocols": protocols})
+
+    elif tool == 'SQLMAP':
+        if "vulnerable" in output.lower():
+            results["sqlmap"].append({
+                "risk": "high",
+                "description": "Injection SQL détectée.",
+                "parameter": "non précisé"
+            })
+
+    elif tool == 'ZAP':
+        lines = output.lower().splitlines()
+        for line in lines:
+            if "alert" in line or "xss" in line:
+                results["zap"].append({
+                    "risk": "high",
+                    "alert": "XSS détectée",
+                    "url": "inconnue"
+                })
+
+    return results
+
+
+
+def launch_scan(request):
+    if request.method == 'POST':
+        form = ScanForm(request.POST)
+        if form.is_valid():
+            scan = form.save(commit=False)
+            scan.status = 'in_progress'
+            scan.start_time = now()
+            scan.save()
+
+            tool = scan.tool
+            project = scan.project
+            target_url = project.url
+            target_ip = project.ip_address
+
+            if not target_url and tool != 'NMAP':
+                messages.error(request, "Le projet sélectionné n'a pas d'URL définie.")
+                return redirect('vulnerabilities')
+
+            try:
+                if tool == 'NMAP':
+                    command = ['nmap', '-sT', '-Pn', '-T4', '-F', target_ip]
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=400)
+                    output = result.stdout
+
+                elif tool == 'SQLMAP':
+                    command = ['sqlmap', '-u', target_url, '--batch', '--output-dir=/tmp']
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=400)
+                    output = result.stdout
+
+                elif tool == 'ZAP':
+                    try:
+                        zap = ZAPv2(
+                            apikey='620tjnb5od0ef8tep7n78usun',
+                            proxies={'http': 'http://localhost:8086', 'https': 'http://localhost:8086'}
+                        )
+
+                        # Attente que ZAP soit prêt
+                        for _ in range(100):
+                            try:
+                                _ = zap.core.version()  # Appel correct de la méthode
+                                break
+                            except Exception:
+                                time.sleep(3)
+                        else:
+                            raise Exception("ZAP ne répond pas après 300 secondes")
+
+                        zap.urlopen(target_url)
+                        time.sleep(2)  # Donne un peu de temps à ZAP pour charger la page
+
+                        print("Début du spidering...")
+                        zap.spider.scan(target_url)
+                        while int(zap.spider.status()) < 100:
+                            print("Progression Spider :", zap.spider.status())
+                            time.sleep(2)
+
+                        print("Début de l'analyse active...")
+                        zap.ascan.scan(target_url)
+                        while int(zap.ascan.status()) < 100:
+                            print("Progression Scan actif :", zap.ascan.status())
+                            time.sleep(5)
+
+                        print("Récupération des alertes...")
+                        alerts = zap.core.alerts(baseurl=target_url)
+                        print("ALERTES ZAP :", alerts)  # À enlever en production
+
+                        for alert in alerts:
+                            Vulnerability.objects.create(
+                                scan=scan,
+                                name=alert.get('alert', 'Vulnérabilité détectée'),
+                                description=alert.get('description', ''),
+                                severity=alert.get('risk', 'Medium'),
+                                target_url=alert.get('url', target_url),
+                                remediation=alert.get('solution', ''),
+                                cve_id=alert.get('cve', None),
+                                status='open',
+                                discovered_at=now()
+                            )
+
+                        report_dir = os.path.join('static', 'zap_reports')
+                        os.makedirs(report_dir, exist_ok=True)
+                        report_path = os.path.join(report_dir, f'zap_report_{scan.id}.html')
+
+                        report = zap.core.htmlreport()
+                        with open(report_path, 'w') as f:
+                            f.write(report)
+
+                        scan.findings_summary = f"ZAP report generated at: {report_path}"
+
+                    except Exception as e:
+                        scan.status = 'failed'
+                        scan.save()
+                        messages.error(request, f"Erreur ZAP : {str(e)}")
+                        return redirect('vulnerabilities')
+
+                else:
+                    messages.error(request, "Outil de scan non pris en charge.")
+                    return redirect('vulnerabilities')
+
+                if tool in ['NMAP', 'SQLMAP']:
+                    # Remplace ces fonctions par ta logique d'analyse
+
+                    scan_results = parse_scan_results(output, tool)
+                    severity_map = classify_scan_findings(scan_results)
+
+                    for severity, vulns in severity_map.items():
+                        for vuln_data in vulns:
+                            Vulnerability.objects.create(
+                                scan=scan,
+                                name=vuln_data.get('description', 'Vulnérabilité détectée'),
+                                description=vuln_data.get('description', ''),
+                                severity=severity,
+                                target_url=target_url,
+                                remediation=vuln_data.get('remediation', ''),
+                                cve_id=vuln_data.get('cve_id', None),
+                                status='open',
+                                discovered_at=now()
+                            )
+
+                    scan.findings_summary = json.dumps(severity_map)
+
+                scan.status = 'completed'
+                scan.end_time = now()
+                scan.duration = (scan.end_time - scan.start_time).total_seconds()
+                scan.save()
+                messages.success(request, f"Scan {tool} terminé avec succès.")
+                return redirect('vulnerabilities')
+
+            except subprocess.TimeoutExpired:
+                scan.status = 'failed'
+                scan.save()
+                messages.error(request, "Le scan a expiré après 400 secondes.")
+            except Exception as e:
+                scan.status = 'failed'
+                scan.save()
+                messages.error(request, f"Erreur lors de l'exécution du scan : {str(e)}")
+        else:
+            messages.error(request, "Le formulaire est invalide.")
     return redirect('vulnerabilities')
 
-def vulnerabilities_edit(request, vuln_id):
+
+
+def generate_scan_report(request, scan_id):
+    scan = get_object_or_404(Scan, id=scan_id)
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="rapport_scan_{scan.id}.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        name='TitleStyle',
+        fontSize=20,
+        leading=24,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#003366"),
+        spaceAfter=20
+    )
+    subtitle_style = ParagraphStyle(
+        name='SubtitleStyle',
+        fontSize=14,
+        leading=18,
+        alignment=TA_LEFT,
+        textColor=colors.HexColor("#003366"),
+        spaceAfter=10
+    )
+    footer_style = ParagraphStyle(
+        name='FooterStyle',
+        fontSize=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#FFFFFF"),
+        backColor=colors.HexColor("#003366"),
+        spaceBefore=10
+    )
+
+    # Logo
+    logo_path = os.path.join('static', 'logo.png')
+    if os.path.exists(logo_path):
+        elements.append(Image(logo_path, width=1.5 * inch, height=1.5 * inch))
+
+    # Titre principal
+    elements.append(Paragraph(f"Rapport de Scan #{scan.id}", title_style))
+    elements.append(Spacer(1, 12))
+
+    # Détails du scan
+    elements.append(Paragraph("Détails du Scan", subtitle_style))
+    details = [
+        ["Nom du Scan", scan.name],
+        ["Projet", scan.project.name],
+        ["Adresse IP", scan.project.ip_address or 'N/A'],
+        ["URL", scan.project.url or 'N/A'],
+        ["Outil utilisé", scan.tool],
+        ["Durée", f"{scan.duration} secondes"],
+        ["Statut", scan.status]
+    ]
+    table_details = Table(details, hAlign='LEFT', colWidths=[2.5 * inch, 4 * inch])
+    table_details.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#D3D3D3')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(table_details)
+    elements.append(Spacer(1, 24))
+
+    # Résultats des vulnérabilités
+    elements.append(Paragraph("<b>Vulnérabilités détectées :</b>", styles['Heading2']))
+
+    data = []
+    if scan.tool.lower() == "nmap":
+        data = [["Port", "État", "Service"]]
+        for vuln in scan.vulnerabilities.all():
+            # Exemple vuln.name = "80/tcp - http"
+            port = "-"
+            service = "-"
+            state = vuln.status
+
+            if " - " in vuln.name:
+                left, right = vuln.name.split(" - ", 1)
+                port = left.strip()
+                service = right.strip()
+            elif '/' in vuln.name:
+                port = vuln.name.strip()
+
+            data.append([port, state, service])
+
+
+    elif scan.tool.lower() == "zap":
+        data = [["Nom", "Gravité", "CVE"]]
+        for vuln in scan.vulnerabilities.all():
+            data.append([vuln.name, vuln.severity, vuln.cve_id or "-"])
+
+    elif scan.tool.lower() == "sqlmap":
+        data = [["Nom", "Gravité", "CVE"]]
+        for vuln in scan.vulnerabilities.all():
+            data.append([vuln.name, vuln.severity, vuln.cve_id or "-"])
+
+    else:
+        data = [["Nom", "Gravité", "CVE"]]
+        for vuln in scan.vulnerabilities.all():
+            data.append([vuln.name, vuln.severity, vuln.cve_id or "-"])
+
+    table_vulns = Table(data, hAlign='LEFT', repeatRows=1, colWidths=[2*inch, 2*inch, 2*inch])
+    table_vulns.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#003366")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F5F5F5')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+
+    ]))
+    elements.append(table_vulns)
+    elements.append(Spacer(1, 24))
+
+    # Pied de page
+    footer = Paragraph("EthicalPulse &copy; 2025 - Rapport généré par EthicalPulseShield.", footer_style)
+    elements.append(Spacer(1, 24))
+    elements.append(footer)
+
+    doc.build(elements)
+    return response
+
+
+def delete_scan(request, scan_id):
+    """
+    Supprime un scan spécifique.
+    """
+    scan = get_object_or_404(Scan, id=scan_id)
+    scan.delete()
+    messages.success(request, f"Le scan #{scan_id} a été supprimé avec succès.")
     return redirect('vulnerabilities')
 
-def vulnerabilities_delete(request, vuln_id):
+
+def relaunch_scan(request, scan_id):
+    # Récupérer le scan existant
+    original_scan = get_object_or_404(Scan, id=scan_id)
+    try:
+        # Créer un nouveau scan basé sur l'original
+        new_scan = Scan.objects.create(
+            name=f"{original_scan.name} (Relancé)",
+            project=original_scan.project,
+            tool=original_scan.tool,
+            status='in_progress',
+            start_time=now(),
+        )
+
+        # Relancer le scan en appelant la logique d'exécution
+        if new_scan.tool == 'NMAP':
+            command = ['nmap', '-sT', '-Pn', '-T4', '-F', new_scan.project.ip_address]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=400)
+            output = result.stdout
+            scan_results = parse_scan_results(output, 'NMAP')
+        elif new_scan.tool == 'SQLMAP':
+            command = ['sqlmap', '-u', new_scan.project.url, '--batch', '--output-dir=/tmp']
+            result = subprocess.run(command, capture_output=True, text=True, timeout=400)
+            output = result.stdout
+            scan_results = parse_scan_results(output, 'SQLMAP')
+        elif new_scan.tool == 'ZAP':
+            zap = ZAPv2(apikey='620tjnb5od0ef8tep7n78usun', proxies={'http': 'http://localhost:8086'})
+            zap.urlopen(new_scan.project.url)
+            zap.spider.scan(new_scan.project.url)
+            while int(zap.spider.status()) < 100:
+                time.sleep(2)
+            zap.ascan.scan(new_scan.project.url)
+            while int(zap.ascan.status()) < 100:
+                time.sleep(5)
+            alerts = zap.core.alerts(baseurl=new_scan.project.url)
+            scan_results = {"zap": alerts}
+        else:
+            messages.error(request, "Outil de scan non pris en charge.")
+            return redirect('vulnerabilities')
+
+        # Traiter les résultats et mettre à jour le nouveau scan
+        severity_map = classify_scan_findings(scan_results)
+        for severity, vulns in severity_map.items():
+            for vuln_data in vulns:
+                Vulnerability.objects.create(
+                    scan=new_scan,
+                    name=vuln_data.get('description', 'Vulnérabilité détectée'),
+                    description=vuln_data.get('description', ''),
+                    severity=severity,
+                    target_url=new_scan.project.url,
+                    remediation=vuln_data.get('remediation', ''),
+                    cve_id=vuln_data.get('cve_id', None),
+                    status='open',
+                    discovered_at=now()
+                )
+        new_scan.status = 'completed'
+        new_scan.end_time = now()
+        new_scan.duration = (new_scan.end_time - new_scan.start_time).total_seconds()
+        new_scan.save()
+        messages.success(request, f"Le scan {new_scan.name} a été relancé avec succès.")
+    except Exception as e:
+        new_scan.status = 'failed'
+        new_scan.save()
+        messages.error(request, f"Erreur lors de la relance du scan : {str(e)}")
     return redirect('vulnerabilities')
+
+from django.shortcuts import redirect
+from django.utils.timezone import make_aware
+from datetime import datetime
+from .models import Scan
+
+def schedule_scan(request):
+    if request.method == 'POST':
+        project_id = request.POST.get('project')
+        tool = request.POST.get('tool')
+        date = request.POST.get('date')
+        time = request.POST.get('time')
+
+        # Convertir la date et l'heure en objet datetime
+        scheduled_time = make_aware(datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M"))
+
+        # Créer un scan planifié
+        Scan.objects.create(
+            name=f"Scan planifié ({tool})",
+            project_id=project_id,
+            tool=tool,
+            status='scheduled',
+            start_time=scheduled_time,
+            is_scheduled=True
+        )
+        messages.success(request, "Le scan a été planifié avec succès.")
+        return redirect('vulnerabilities')
+
+from celery import shared_task
+from django.utils.timezone import now
+from .models import Scan
+
+@shared_task
+def execute_scheduled_scans():
+    # Récupérer les scans planifiés dont l'heure est arrivée
+    scheduled_scans = Scan.objects.filter(status='scheduled', start_time__lte=now())
+    for scan in scheduled_scans:
+        try:
+            # Mettre à jour le statut à "En cours"
+            scan.status = 'in_progress'
+            scan.save()
+
+            # Logique pour exécuter le scan (exemple avec ZAP)
+            if scan.tool == 'ZAP':
+                zap = ZAPv2(apikey='620tjnb5od0ef8tep7n78usun', proxies={'http': 'http://localhost:8086'})
+                zap.urlopen(scan.project.url)
+                zap.spider.scan(scan.project.url)
+                while int(zap.spider.status()) < 100:
+                    time.sleep(2)
+                zap.ascan.scan(scan.project.url)
+                while int(zap.ascan.status()) < 100:
+                    time.sleep(5)
+                alerts = zap.core.alerts(baseurl=scan.project.url)
+                scan_results = {"zap": alerts}
+
+                # Traiter les résultats et mettre à jour le scan
+                severity_map = classify_scan_findings(scan_results)
+                for severity, vulns in severity_map.items():
+                    for vuln_data in vulns:
+                        Vulnerability.objects.create(
+                            scan=scan,
+                            name=vuln_data.get('description', 'Vulnérabilité détectée'),
+                            description=vuln_data.get('description', ''),
+                            severity=severity,
+                            target_url=scan.project.url,
+                            remediation=vuln_data.get('remediation', ''),
+                            cve_id=vuln_data.get('cve_id', None),
+                            status='open',
+                            discovered_at=now()
+                        )
+
+            # Mettre à jour le statut à "Complet"
+            scan.status = 'completed'
+            scan.end_time = now()
+            scan.duration = (scan.end_time - scan.start_time).total_seconds()
+            scan.save()
+        except Exception as e:
+            # En cas d'erreur, mettre à jour le statut à "Échoué"
+            scan.status = 'failed'
+            scan.save()
+
+
 
 def tools_admin(request):
     return render(request, 'admin/tools.html')
@@ -628,5 +1128,5 @@ def training(request):
 def analytics(request):
     return render(request, 'analytics.html')
 
-def scans_admin(request):
-    return render(request, 'admin/scans.html')
+
+

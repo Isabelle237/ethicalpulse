@@ -82,7 +82,7 @@ class OTPVerificationForm(forms.Form):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'description', 'project_type', 'domain', 'ip_address', 'url', 'mac_address', 'scope']
+        fields = ['name', 'description', 'project_type', 'domain', 'ip_address', 'url', 'scope']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom du projet'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Description du projet'}),
@@ -90,7 +90,6 @@ class ProjectForm(forms.ModelForm):
             'domain': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de domaine'}),
             'ip_address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Adresse IP'}),
             'url': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'URL du projet'}),
-            'mac_address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Adresse MAC'}),
             'scope': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Portée du projet'}),
         }
 
@@ -106,11 +105,7 @@ class ProjectForm(forms.ModelForm):
             validate_ip(ip)
         return ip
 
-    def clean_mac_address(self):
-        mac = self.cleaned_data.get('mac_address')
-        if mac:
-            validate_mac(mac)
-        return mac
+
 
     def clean_url(self):
         url = self.cleaned_data.get('url')
@@ -123,25 +118,17 @@ validate_url = RegexValidator(
     regex=r'^(https?://)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*/?$',
     message='Entrez une URL valide.'
 )
+from django import forms
+from .models import Scan
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 class ScanForm(forms.ModelForm):
     class Meta:
         model = Scan
-        fields = ['name', 'scan_type', 'project', 'target_url', 'next_scan']
+        fields = ['name', 'project', 'tool']
         widgets = {
-            'next_scan': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'project': forms.Select(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom du scan'}),
+            'project': forms.Select(attrs={'class': 'form-select'}),
+            'tool': forms.Select(attrs={'class': 'form-select'}),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.update({'class': 'form-control'})
-        # Populate target_url based on project
-        if 'project' in self.data:
-            try:
-                project_id = int(self.data.get('project'))
-                project = Project.objects.get(id=project_id)
-                self.fields['target_url'].initial = project.url or project.domain
-            except (ValueError, Project.DoesNotExist):
-                pass

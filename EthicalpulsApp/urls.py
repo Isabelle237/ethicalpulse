@@ -17,18 +17,15 @@ urlpatterns = [
     path('projets/chart/trend/', views.projects_chart_trend, name='projects_chart_trend'),
     
     # Scans
-    path('scans/', views.admin_scans, name='admin_scans'),
-    path('scans/get/<int:scan_id>/', views.get_scan_details, name='get_scan_details'),
-    path('scans/progress/<int:scan_id>/', views.get_scan_progress, name='get_scan_progress'),
-    path('scans/complete/<int:scan_id>/', views.admin_scans, name='complete_scan'),
+    path('scans/launch/', views.launch_scan, name='launch_scan'),  # Lancer un scan
+    #relancer un scan
+    path('scans/<int:scan_id>/delete/', views.delete_scan, name='delete_scan'),
+    path('generate_scan_report/<int:scan_id>/', views.generate_scan_report, name='generate_scan_report'),
+    path('vulnerabilities/filter/', views.vulnerabilities_filter, name='vulnerabilities_filter'),
 
-    # Vulnérabilités
-    path('vulnerabilities/', views.vulnerabilities, name='vulnerabilities'),
-    path('vulnerabilities_admin/', views.vulnerabilities_admin, name='vulnerabilities_admin'),
-    path('vulnerabilities/create/', views.vulnerabilities_create, name='vulnerabilities_create'),
-    path('vulnerabilities/<int:vuln_id>/edit/', views.vulnerabilities_edit, name='vulnerabilities_edit'),
-    path('vulnerabilities/<int:vuln_id>/delete/', views.vulnerabilities_delete, name='vulnerabilities_delete'),
-
+    path('vulnerabilities/', views.vulnerabilities_view, name='vulnerabilities'),  # Liste des vulnérabilités
+    path('scans/<int:scan_id>/relaunch/', views.relaunch_scan, name='relaunch_scan'),
+    path('scans/schedule/', views.schedule_scan, name='schedule_scan'),
     # Outils
     path('tools/', views.tools, name='tools'),
     path('tools_admin/', views.tools_admin, name='tools_admin'),

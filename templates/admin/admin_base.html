@@ -31,12 +31,9 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if '/admin/projects' in request.path %}active{% endif %}" href="{% url 'admin_projets'%}">Projets</a>
-                    </li>
+                    </li>               
                     <li class="nav-item">
-                        <a class="nav-link {% if '/admin/scans' in request.path %}active{% endif %}" href="{% url 'scans_admin' %}">Scans</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'vulnerabilities_admin' %}">Vulnérabilités</a>
+                        <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'vulnerabilities' %}">Vulnérabilités</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'remediations_admin' %}">remediations</a>
