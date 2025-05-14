@@ -22,10 +22,11 @@ urlpatterns = [
     path('scans/<int:scan_id>/delete/', views.delete_scan, name='delete_scan'),
     path('generate_scan_report/<int:scan_id>/', views.generate_scan_report, name='generate_scan_report'),
     path('vulnerabilities/filter/', views.vulnerabilities_filter, name='vulnerabilities_filter'),
+    path('export_vulnerabilities/', views.export_vulnerabilities, name='export_vulnerabilities'),
 
     path('vulnerabilities/', views.vulnerabilities_view, name='vulnerabilities'),  # Liste des vulnérabilités
     path('scans/<int:scan_id>/relaunch/', views.relaunch_scan, name='relaunch_scan'),
-    path('scans/schedule/', views.schedule_scan, name='schedule_scan'),
+    path('scans/schedule/', views.ScheduledScan, name='schedule_scan'),
     # Outils
     path('tools/', views.tools, name='tools'),
     path('tools_admin/', views.tools_admin, name='tools_admin'),
