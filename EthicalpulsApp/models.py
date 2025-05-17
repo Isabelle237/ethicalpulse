@@ -146,16 +146,19 @@ class Vulnerability(models.Model):
     # Champs spécifiques à SQLMap
     parameter = models.CharField(max_length=255, blank=True, null=True, verbose_name="Paramètre vulnérable")
     technique = models.CharField(max_length=255, blank=True, null=True, verbose_name="Technique utilisée")
+    dbms = models.CharField(max_length=255, blank=True, null=True, verbose_name="SGBD détecté")
+    request_type = models.CharField(max_length=50, blank=True, null=True, verbose_name="Type de requête")
 
     # Champs spécifiques à Nmap
     port = models.IntegerField(blank=True, null=True, verbose_name="Port")
     protocol = models.CharField(max_length=50, blank=True, null=True, verbose_name="Protocole")
     state = models.CharField(max_length=50, blank=True, null=True, verbose_name="État")
     service = models.CharField(max_length=255, blank=True, null=True, verbose_name="Service")
+    version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Version du service")
 
     def __str__(self):
         return self.name
-
+    
 class ScheduledScan(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     tool = models.CharField(max_length=50)

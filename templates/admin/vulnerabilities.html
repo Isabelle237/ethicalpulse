@@ -180,20 +180,25 @@
                             <td>{{ scan.id }}</td>
                             <td>{{ scan.name }}</td>
                             <td>{{ scan.project.name }}</td>
-                          <td>
-                                {% for severity, count in scan.severities.items %}
-                                    {% if count > 0 %}
-                                        <span class="badge 
-                                            {% if severity == 'critical' %}bg-danger
-                                            {% elif severity == 'high' %}bg-warning text-dark
-                                            {% elif severity == 'medium' %}bg-primary
-                                            {% elif severity == 'low' %}bg-success
-                                            {% else %}bg-secondary
-                                            {% endif %}">
-                                            {{ severity|title }}: {{ count }}
-                                        </span>
-                                    {% endif %}
-                                {% endfor %}
+                            <td>
+                                {% if scan.severities.items %}
+                                    {% for severity, count in scan.severities.items %}
+                                        {% if count > 0 %}
+                                            <span class="badge 
+                                                {% if severity == 'critical' %}bg-danger
+                                                {% elif severity == 'high' %}bg-warning text-dark
+                                                {% elif severity == 'medium' %}bg-primary
+                                                {% elif severity == 'low' %}bg-success
+                                                {% else %}bg-secondary
+                                                {% endif %}">
+                                                {{ severity|title }}: {{ count }}
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Aucune sévérité</span>
+                                {% endif %}
+
                             </td>
                             <td>
                                 <span class="badge 
