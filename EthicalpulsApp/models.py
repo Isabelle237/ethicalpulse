@@ -26,6 +26,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
         return self.create_user(email, password, **extra_fields)
+    
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
@@ -172,3 +173,263 @@ class ScheduledScan(models.Model):
 
     def __str__(self):
         return f"Scan planifié pour {self.project.name} à {self.scheduled_time}"
+    
+    # Fichier regroupant toutes les options disponibles pour chaque outil de scan
+
+from django.db import models
+
+# Options pour chaque outil
+NMAP_OPTIONS = (
+    ('-sS', 'Scan SYN - Scan furtif TCP'),
+    ('-sT', 'Scan TCP - Établit connexions complètes'),
+    ('-sU', 'Scan UDP - Détecte services UDP'),
+    ('-sV', 'Détection Version - Identifie services/versions'),
+    ('-O', "OS Detection - Identifie systèmes d'exploitation"),
+    ('-A', 'Scan Agressif - OS, version, scripts, traceroute'),
+    ('-p-', 'Tous Ports - Scanne tous les ports TCP'),
+)
+
+ZAP_OPTIONS = (
+    ('-quickurl', 'Scan rapide - Analyse de base'),
+    ('-ajax', 'Scan Ajax - Analyse des applications Ajax'),
+    ('-full', 'Scan complet - Analyse approfondie'),
+    ('-xss', 'XSS - Test des vulnérabilités XSS uniquement'),
+    ('-sqli', 'SQL Injection - Test des vulnérabilités SQLi uniquement'),
+)
+
+SQLMAP_OPTIONS = (
+    ('-u', 'URL cible'),
+    ('--dbs', 'Liste les bases de données disponibles'),
+    ('--tables', 'Liste les tables dans une base de données'),
+    ('--columns', 'Liste les colonnes dans une table'),
+    ('--dump', "Extrait les données d'une table"),
+    ('--level', "Niveau d'agressivité du scan (1 à 5)"),
+    ('--risk', "Niveau de risque du scan (1 à 3)"),
+)
+
+AIRCRACK_OPTIONS = (
+    ('airmon-ng start', 'Active le mode moniteur'),
+    ('airodump-ng', 'Capture les paquets WiFi'),
+    ('aireplay-ng -0', 'Effectue une attaque de désauthentification'),
+    ('aircrack-ng -w', 'Cracker une clé WPA avec une wordlist'),
+    ('aircrack-ng -K', 'Attaque PTW (WEP)'),
+)
+
+BEEF_OPTIONS = (
+    ('-x', 'Active les consoles XSS'),
+    ('--host', "Spécifie l'hôte d'écoute"),
+    ('--port', "Spécifie le port d'écoute"),
+    ('--password', 'Définit un mot de passe'),
+    ('--hook-url', "URL du hook pour exploiter les navigateurs"),
+)
+
+NIKTO_OPTIONS = (
+    ('-h', "Scan standard d'un hôte"),
+    ('-Tuning 9', "Tests d'injection SQL"),
+    ('-Tuning 4', 'Tests XSS'),
+    ('-ssl', "Force l'utilisation de SSL/HTTPS"),
+    ('-nossl', "Force l'utilisation de HTTP"),
+    ('-Cgidirs all', 'Teste tous les dossiers CGI'),
+)
+
+METASPLOIT_OPTIONS = (
+    ('use exploit/multi/handler', 'Configure un handler'),
+    ('use auxiliary/scanner/smb/smb_version', 'Scanner SMB'),
+    ('use auxiliary/scanner/http/dir_scanner', 'Scanner les répertoires HTTP'),
+    ('use exploit/windows/smb/ms17_010_eternalblue', 'Exploit MS17-010 (EternalBlue)'),
+    ('use exploit/multi/http/wp_admin_shell_upload', 'Upload de shell admin WordPress'),
+)
+
+HASHCAT_OPTIONS = (
+    ('-a 0', 'Attaque par dictionnaire'),
+    ('-a 1', 'Attaque par combinaison'),
+    ('-a 3', 'Attaque par brute-force'),
+    ('-a 6', 'Attaque hybride (dictionnaire + masque)'),
+    ('-a 7', 'Attaque hybride (masque + dictionnaire)'),
+    ('-m 0', 'Hash MD5'),
+)
+
+JOHN_OPTIONS = (
+    ('--wordlist', 'Attaque par dictionnaire'),
+    ('--rules', 'Utilise des règles de mutation'),
+    ('--incremental', 'Mode brute-force'),
+    ('--format=md5', 'Hash MD5'),
+    ('--format=sha1', 'Hash SHA1'),
+    ('--show', 'Affiche les mots de passe craqués'),
+)
+
+RECONNG_OPTIONS = (
+    ('modules load recon/domains-hosts/brute_hosts', 'Brute force DNS'),
+    ('modules load recon/hosts-hosts/resolve', 'Résolution DNS'),
+    ('modules load recon/domains-contacts/whois_pocs', 'Contacts WHOIS'),
+    ('modules load recon/domains-vulnerabilities/xssed', 'Archives XSSed'),
+    ('modules load recon/domains-hosts/google_site_web', 'Recherche Google Site Web'),
+)
+
+WIRESHARK_OPTIONS = (
+    ('-i', 'Capture sur une interface'),
+    ('-r', 'Ouvre un fichier de capture'),
+    ('-f', 'Applique un filtre BPF'),
+    ('-Y', "Applique un filtre d'affichage"),
+    ('-w', 'Écrit dans un fichier'),
+)
+
+WIFITE_OPTIONS = (
+    ('-all', 'Attaque tous les réseaux'),
+    ('-wpa', 'Cible uniquement WPA/WPA2'),
+    ('-wep', 'Cible uniquement WEP'),
+    ('-wps', 'Cible uniquement WPS'),
+    ('-dict', 'Spécifie un dictionnaire'),
+)
+
+GHIDRA_OPTIONS = (
+    ('analyzeHeadless', 'Analyse en ligne de commande'),
+    ('launch', "Lance l'interface graphique"),
+    ('analyzeHeadless -import', 'Importe un fichier binaire'),
+    ('analyzeHeadless -process', 'Traite un fichier binaire'),
+    ('analyzeHeadless -export', 'Exporte les résultats'),
+)
+
+SNORT_OPTIONS = (
+    ('-T', 'Teste la configuration'),
+    ('-c', 'Spécifie un fichier de configuration'),
+    ('-i', 'Spécifie une interface'),
+    ('-A', "Mode d'alerte"),
+    ('-l', 'Dossier de logs'),
+)
+
+
+# Modèle principal Scan
+class Scan(models.Model):
+    target = models.CharField(max_length=255)
+    date = models.DateTimeField(auto_now_add=True)
+    tool_used = models.CharField(max_length=50)
+    status = models.CharField(max_length=50, default="Pending")
+
+
+# Modèles des résultats avec champ option
+
+class NmapResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=5, choices=NMAP_OPTIONS)
+    port = models.IntegerField()
+    state = models.CharField(max_length=20)
+    service = models.CharField(max_length=100)
+    version = models.CharField(max_length=100, null=True, blank=True)
+    os = models.CharField(max_length=100, null=True, blank=True)
+
+
+class OwaspZapResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=10, choices=ZAP_OPTIONS)
+    url = models.URLField()
+    risk = models.CharField(max_length=50)
+    vulnerability = models.CharField(max_length=255)
+    description = models.TextField()
+    evidence = models.TextField(null=True, blank=True)
+    recommendation = models.TextField()
+
+
+class SqlmapResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=10, choices=SQLMAP_OPTIONS)
+    dbms = models.CharField(max_length=100)
+    db_name = models.CharField(max_length=100)
+    table_name = models.CharField(max_length=100)
+    column_name = models.CharField(max_length=100)
+    dumped_data = models.TextField(null=True, blank=True)
+
+
+class AircrackngResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=20, choices=AIRCRACK_OPTIONS)
+    ssid = models.CharField(max_length=100)
+    mac_address = models.CharField(max_length=17)
+    channel = models.IntegerField()
+    signal_strength = models.IntegerField()
+    encryption = models.CharField(max_length=20)
+    key = models.CharField(max_length=100, null=True, blank=True)
+
+
+class BeefResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=15, choices=BEEF_OPTIONS)
+    victim_ip = models.GenericIPAddressField()
+    browser = models.CharField(max_length=100)
+    os = models.CharField(max_length=100)
+    hook_time = models.DateTimeField()
+    executed_modules = models.TextField()
+
+
+class NiktoResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=20, choices=NIKTO_OPTIONS)
+    vulnerability = models.CharField(max_length=255)
+    description = models.TextField()
+    uri = models.CharField(max_length=255)
+    ssl_info = models.TextField(null=True, blank=True)
+
+
+class MetasploitResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=40, choices=METASPLOIT_OPTIONS)
+    vulnerability = models.CharField(max_length=255)
+    exploited = models.BooleanField(default=False)
+    payload = models.CharField(max_length=255, null=True, blank=True)
+    session_info = models.TextField(null=True, blank=True)
+
+
+class HashcatResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=10, choices=HASHCAT_OPTIONS)
+    hash_type = models.CharField(max_length=100)
+    original_hash = models.TextField()
+    cracked_password = models.CharField(max_length=255, null=True, blank=True)
+    time_taken = models.FloatField()
+
+
+class JohntheripperResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=20, choices=JOHN_OPTIONS)
+    hash = models.TextField()
+    cracked_password = models.CharField(max_length=255)
+    method_used = models.CharField(max_length=100)
+
+
+class ReconngResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=50, choices=RECONNG_OPTIONS)
+    subdomain = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField()
+    email_found = models.EmailField(null=True, blank=True)
+    whois_info = models.TextField(null=True, blank=True)
+
+class WiresharkResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=5, choices=WIRESHARK_OPTIONS)
+    protocol = models.CharField(max_length=50)
+    src_ip = models.GenericIPAddressField()
+    dst_ip = models.GenericIPAddressField()
+    length = models.IntegerField()
+    info = models.TextField()
+
+class WifiteResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=10, choices=WIFITE_OPTIONS)
+    target_ssid = models.CharField(max_length=100)
+    mac_address = models.CharField(max_length=17)
+    encryption_type = models.CharField(max_length=20)
+    attack_status = models.CharField(max_length=50)
+
+class GhidraResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=20, choices=GHIDRA_OPTIONS)
+    binary_name = models.CharField(max_length=255)
+    analysis_report = models.TextField()
+
+class SnortResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=5, choices=SNORT_OPTIONS)
+    alert_message = models.TextField()
+    packet_info = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
