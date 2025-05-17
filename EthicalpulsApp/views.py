@@ -200,7 +200,6 @@ def admin_projets(request):
     }
     return render(request, 'admin/projects.html', context)
 
-@login_required
 def projects_chart_type(request):
     """
     API view to provide data for the project type doughnut chart.
@@ -219,7 +218,7 @@ def projects_chart_type(request):
     ]
     return JsonResponse({'data': chart_data})
 
-@login_required
+
 def projects_chart_trend(request):
     """
     API view to provide data for the project trend line chart (projects created per month).
@@ -340,13 +339,25 @@ def get_project_details(request, project_id):
     }
     return JsonResponse(data)
 
+from collections import Counter
+
+from collections import Counter
+from django.shortcuts import render, get_object_or_404
+from .models import Project, Scan, Vulnerability
+from .forms import ScanForm
+
+from collections import Counter
+from django.shortcuts import render
+from .models import Project, Scan, Vulnerability
+from .forms import ScanForm
 
 def vulnerabilities_view(request):
     projects = Project.objects.all()
-    scans = Scan.objects.prefetch_related('vulnerabilities').all()
+    scans = Scan.objects.prefetch_related('vulnerabilities').select_related('project').all()
     vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
     form = ScanForm()
 
+    # Filtres GET
     project_filter = request.GET.get('project')
     severity_filter = request.GET.get('severity')
     status_filter = request.GET.get('status')
@@ -358,35 +369,34 @@ def vulnerabilities_view(request):
     if status_filter:
         vulnerabilities = vulnerabilities.filter(status__iexact=status_filter)
 
-    # Ajouter les sévérités pour chaque scan
-    for scan in scans:
-        severities = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
-        for vuln in scan.vulnerabilities.all():
-            severity_key = vuln.severity.lower()  # Convertir en minuscules
-            if severity_key in severities:
-                severities[severity_key] += 1
-            else:
-                severities["info"] += 1  # Ajouter à "info" si la sévérité est inconnue
+    # Sévérités valides
+    valid_severities = ['critical', 'high', 'medium', 'low', 'info']
 
-        # Ajouter la durée du scan
+    # Ajouter les sévérités et durées à chaque scan
+    for scan in scans:
+        vuln_qs = scan.vulnerabilities.all()
+        try:
+            scan.severities = dict(Counter(
+                v.severity for v in vuln_qs if v.severity in valid_severities
+            ))
+        except Exception as e:
+            scan.severities = {}
+            print(f"[Erreur] Scan ID {scan.id} – problème lors du comptage des sévérités : {e}")
+
         if scan.start_time and scan.end_time:
             scan.duration = scan.end_time - scan.start_time
         else:
             scan.duration = None
-        
-        
-   # Statistiques dynamiques
-    critical_vulns = Vulnerability.objects.filter(severity='critical').count()
-    high_vulns = Vulnerability.objects.filter(severity='high').count()
-    medium_vulns = Vulnerability.objects.filter(severity='medium').count()
-    low_vulns = Vulnerability.objects.filter(severity='low').count()
 
+    # Statistiques dynamiques globales
+    critical_vulns = vulnerabilities.filter(severity='critical').count()
+    high_vulns = vulnerabilities.filter(severity='high').count()
+    medium_vulns = vulnerabilities.filter(severity='medium').count()
+    low_vulns = vulnerabilities.filter(severity='low').count()
     total_vulns = critical_vulns + high_vulns + medium_vulns + low_vulns
-     # Pourcentage
+
     def percent(count):
         return (count / total_vulns) * 100 if total_vulns > 0 else 0
-
-
 
     context = {
         'projects': projects,
@@ -402,8 +412,8 @@ def vulnerabilities_view(request):
         'medium_percentage': percent(medium_vulns),
         'low_percentage': percent(low_vulns),
     }
-    return render(request, 'admin/vulnerabilities.html', context)
 
+    return render(request, 'admin/vulnerabilities.html', context)
 
 def vulnerabilities_filter(request):
     if request.method == 'POST':
@@ -503,65 +513,65 @@ def classify_scan_findings(scan_results):
         else:
             return 'info'
 
-    for result in scan_results.get("nmap", []):
-        for port_info in result.get("protocols", []):
-            severity = get_nmap_severity(port_info['service'], port_info['port'])
+    def get_sqlmap_severity(vulnerability):
+        """
+        Détermine la sévérité en fonction des vulnérabilités SQLMap.
+        """
+        if "boolean-based blind" in vulnerability.lower():
+            return 'high'
+        elif "time-based blind" in vulnerability.lower():
+            return 'medium'
+        elif "error-based" in vulnerability.lower():
+            return 'critical'
+        else:
+            return 'info'
+
+    def get_zap_severity(risk):
+        """
+        Récupère directement la sévérité à partir des résultats ZAP.
+        """
+        risk = risk.lower()
+        if risk == 'high':
+            return 'critical'
+        elif risk == 'medium':
+            return 'high'
+        elif risk == 'low':
+            return 'medium'
+        else:
+            return 'info'
+
+    # Parcourir les résultats des différents outils
+    for tool, results in scan_results.items():
+        for result in results:
+            if tool == "nmap":
+                severity = get_nmap_severity(result.get('service', ''), result.get('port', 0))
+            elif tool == "sqlmap":
+                severity = get_sqlmap_severity(result.get('description', ''))
+            elif tool == "zap":
+                severity = get_zap_severity(result.get('risk', ''))
+            else:
+                severity = 'info'
+
+            if severity not in severity_map:
+                severity_map[severity] = []  # Initialiser une liste si elle n'existe pas
             severity_map[severity].append({
-                "tool": "Nmap",
-                "description": f"{port_info['port']}/{port_info['protocol']} - {port_info['service']}",
-                "state": port_info['state']
+                "tool": tool,
+                "description": result.get('description', 'Aucune description disponible'),
+                "state": result.get('state', 'N/A'),
+                "service": result.get('service', 'N/A'),
+                "port": result.get('port', 'N/A'),
+                "url": result.get('url', 'N/A'),
+                "evidence": result.get('evidence', 'N/A'),
+                "remediation": result.get('remediation', 'N/A'),
+                "cve_id": result.get('cve_id', None)
             })
 
-    for alert in scan_results.get("zap", []):
-        zap_sev = alert.get("risk", "Informational").lower()
-        severity = {
-            "high": "high",
-            "medium": "medium",
-            "low": "low",
-            "informational": "info"
-        }.get(zap_sev, "info")
-        severity_map[severity].append({
-            "tool": "ZAP",
-            "description": alert.get("alert", "Unknown issue"),
-            "url": alert.get("url", "")
-        })
-
-    for vuln in scan_results.get("sqlmap", []):
-        sql_sev = vuln.get("risk", "info").lower()
-        if "high" in sql_sev:
-            severity = "high"
-        elif "medium" in sql_sev:
-            severity = "medium"
-        elif "low" in sql_sev:
-            severity = "low"
-        else:
-            severity = "info"
-        severity_map[severity].append({
-            "tool": "SQLMap",
-            "description": vuln.get("description", "Injection détectée"),
-            "parameter": vuln.get("parameter", "")
-        })
-
-    for issue in scan_results.get("apisec", []):
-        risk = issue.get("risk", "info").lower()
-        if "critical" in risk:
-            severity = "critical"
-        elif "high" in risk:
-            severity = "high"
-        elif "medium" in risk:
-            severity = "medium"
-        elif "low" in risk:
-            severity = "low"
-        else:
-            severity = "info"
-        severity_map[severity].append({
-            "tool": "API Security Scanner",
-            "description": issue.get("issue", "API issue"),
-            "endpoint": issue.get("endpoint", "")
-        })
+    # Vérifiez que toutes les entrées de severity_map sont des listes
+    for key, value in severity_map.items():
+        if not isinstance(value, list):
+            severity_map[key] = []
 
     return severity_map
-
 
 def parse_scan_results(output, tool):
     results = {
@@ -594,11 +604,15 @@ def parse_scan_results(output, tool):
 
     elif tool == 'SQLMAP':
         if "vulnerable" in output.lower():
-            results["sqlmap"].append({
-                "risk": "high",
-                "description": "Injection SQL détectée.",
-                "parameter": "non précisé"
-            })
+            vulnerabilities = output.split("vulnerable")[1:]
+            for vuln in vulnerabilities:
+                results["sqlmap"].append({
+                    "risk": "high",
+                    "description": vuln.strip(),
+                    "parameter": "non précisé",
+                    "evidence": "Payload détecté dans la requête",
+                    "remediation": "Utilisez des requêtes préparées et échappez les entrées utilisateur."
+                })
 
     elif tool == 'ZAP':
         lines = output.lower().splitlines()
@@ -607,18 +621,23 @@ def parse_scan_results(output, tool):
                 results["zap"].append({
                     "risk": "high",
                     "alert": "XSS détectée",
-                    "url": "inconnue"
+                    "url": "inconnue",
+                    "evidence": "Payload détecté dans la réponse",
+                    "remediation": "Validez et échappez les entrées utilisateur."
                 })
 
-    return results
+    # Vérifiez que chaque clé contient une liste
+    for key, value in results.items():
+        if not isinstance(value, list):
+            results[key] = []
 
+    return results
 
 
 def launch_scan(request):
     if request.method == 'POST':
         form = ScanForm(request.POST)
         if form.is_valid():
-            # Créer un scan avec le statut "in_progress"
             scan = form.save(commit=False)
             scan.status = 'in_progress'
             scan.start_time = now()
@@ -630,72 +649,104 @@ def launch_scan(request):
 
             if not target_url:
                 messages.error(request, "Le projet sélectionné n'a pas d'URL définie.")
-                return JsonResponse({'error': "Le projet sélectionné n'a pas d'URL définie."}, status=400)
+                return redirect('vulnerabilities')
 
             try:
-                # Lancer le scan en fonction de l'outil
                 if tool == 'ZAP':
-                    zap = ZAPv2(apikey='620tjnb5od0ef8tep7n78usun', proxies={'http': 'http://zap:8086'})
+                    zap = ZAPv2(
+                        apikey='620tjnb5od0ef8tep7n78usun',
+                        proxies={'http': 'http://zap:8086', 'https': 'http://zap:8086'}
+                    )
+
+                    # Vérifier la disponibilité de l'API ZAP
+                    for i in range(30):
+                        try:
+                            if zap.core.version:
+                                break
+                        except:
+                            time.sleep(2)
+                    else:
+                        raise Exception("L'API ZAP n'est pas disponible.")
+
+                    # Lancer le scan ZAP
                     zap.urlopen(target_url)
-                    zap.spider.scan(target_url)
-                    while int(zap.spider.status()) < 100:
-                        time.sleep(2)
-                    zap.ascan.scan(target_url)
-                    while int(zap.ascan.status()) < 100:
+                    time.sleep(2)
+                    scan_id = zap.ascan.scan(target_url)
+                    while int(zap.ascan.status(scan_id)) < 100:
                         time.sleep(5)
+
+                    # Récupérer les alertes ZAP
                     alerts = zap.core.alerts(baseurl=target_url)
                     for alert in alerts:
+                        name = alert.get('alert', 'Vulnérabilité détectée')
+                        description = alert.get('description', 'Aucune description disponible.')
+                        severity = alert.get('risk', 'Medium')
+                        remediation = alert.get('solution', 'Aucune solution disponible.')
+                        parameter = alert.get('param', 'Non spécifié')
+                        evidence = alert.get('evidence', 'Aucune preuve disponible.')
+
                         Vulnerability.objects.create(
                             scan=scan,
-                            name=alert.get('alert', 'Vulnérabilité détectée'),
-                            description=alert.get('description', ''),
-                            severity=alert.get('risk', 'Medium'),
+                            name=name,
+                            description=description,
+                            severity=severity,
                             target_url=alert.get('url', target_url),
-                            remediation=alert.get('solution', ''),
-                            cve_id=alert.get('cweid', None),
-                            alert=alert.get('alert', ''),
-                            risk=alert.get('risk', ''),
-                            confidence=alert.get('confidence', ''),
-                            parameter=alert.get('param', ''),
-                            evidence=alert.get('evidence', ''),
-                            reference=alert.get('reference', ''),
+                            remediation=remediation,
+                            parameter=parameter,
+                            evidence=evidence,
+                            cve_id=alert.get('cweid', ''),
                             status='open',
                             discovered_at=now()
                         )
 
                 elif tool == 'SQLMAP':
+                    # Lancer SQLMap
                     command = ['sqlmap', '-u', target_url, '--batch', '--output-dir=/tmp', '--flush-session']
                     result = subprocess.run(command, capture_output=True, text=True)
                     output = result.stdout.lower()
+
+                    # Analyser les résultats SQLMap
                     if "is vulnerable" in output:
                         parameter = None
                         technique = None
+                        dbms = None
+                        request_type = None
+
                         if "parameter:" in output:
-                            parameter_start = output.find("parameter:") + len("parameter:")
-                            parameter_end = output.find("\n", parameter_start)
-                            parameter = output[parameter_start:parameter_end].strip()
+                            parameter = output.split("parameter:")[1].split("\n")[0].strip()
                         if "technique:" in output:
-                            technique_start = output.find("technique:") + len("technique:")
-                            technique_end = output.find("\n", technique_start)
-                            technique = output[technique_start:technique_end].strip()
+                            technique = output.split("technique:")[1].split("\n")[0].strip()
+                        if "dbms:" in output:
+                            dbms = output.split("dbms:")[1].split("\n")[0].strip()
+                        if "type:" in output:
+                            request_type = output.split("type:")[1].split("\n")[0].strip()
+
+                        name = "SQL Injection"
+                        description = f"SQL Injection détectée sur le paramètre '{parameter}' en utilisant la technique '{technique}'. SGBD détecté : {dbms}."
+                        remediation = "Utilisez des requêtes préparées et échappez les entrées utilisateur."
+
                         Vulnerability.objects.create(
                             scan=scan,
-                            name="SQL Injection",
-                            description="SQLMap a détecté une injection SQL.",
+                            name=name,
+                            description=description,
                             severity="High",
                             target_url=target_url,
-                            remediation="Utiliser des requêtes préparées et échapper les entrées.",
                             parameter=parameter,
-                            technique=technique,
+                            remediation=remediation,
+                            evidence=f"Technique: {technique}, SGBD: {dbms}, Type de requête: {request_type}",
+                            cve_id=None,
                             status='open',
                             discovered_at=now()
                         )
 
                 elif tool == 'NMAP':
-                    command = ['nmap', '-sT', '-Pn', '-T4', '-F', target_url]
-                    result = subprocess.run(command, capture_output=True, text=True)
+                    # Lancer Nmap
+                    command = ['nmap', '-sV', '-O', '-Pn', '-T4', project.ip_address]
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=400)
                     output = result.stdout
                     lines = output.splitlines()
+
+                    # Analyser les résultats Nmap
                     for line in lines:
                         if "open" in line and "/" in line:
                             parts = line.split()
@@ -705,15 +756,22 @@ def launch_scan(request):
                                 protocol = port_protocol[1]
                                 state = parts[1]
                                 service = parts[2]
+                                version = " ".join(parts[3:]) if len(parts) > 3 else None
+
+                                name = f"Port {port} - {service}"
+                                description = f"Port {port} ({service}) est {state}."
+                                remediation = "Vérifiez la configuration du service."
+
                                 Vulnerability.objects.create(
                                     scan=scan,
-                                    name=f"{port}/{protocol} - {service}",
-                                    description=f"Port {port} ({service}) est ouvert.",
+                                    name=name,
+                                    description=description,
                                     severity="Medium",
-                                    port=port,
-                                    protocol=protocol,
-                                    state=state,
-                                    service=service,
+                                    target_url=project.url,
+                                    parameter=None,
+                                    remediation=remediation,
+                                    evidence=f"Protocole: {protocol}, État: {state}, Service: {service}, Version: {version}",
+                                    cve_id=None,
                                     status='open',
                                     discovered_at=now()
                                 )
@@ -723,15 +781,16 @@ def launch_scan(request):
                 scan.end_time = now()
                 scan.duration = (scan.end_time - scan.start_time).total_seconds()
                 scan.save()
-                return JsonResponse({'message': 'Scan terminé avec succès.', 'scan_id': scan.id})
+                messages.success(request, f"Scan {tool} terminé avec succès.")
+
             except Exception as e:
+                # Gestion des erreurs
                 scan.status = 'failed'
                 scan.save()
-                return JsonResponse({'error': f"Erreur lors de l'exécution du scan : {str(e)}"}, status=500)
+                messages.error(request, f"Erreur lors de l'exécution du scan {tool} : {str(e)}")
         else:
-             messages.error(request, "Le formulaire est invalide.")
+            messages.error(request, "Le formulaire est invalide.")
     return redirect('vulnerabilities')
-
 
 def export_vulnerabilities(request):
     format = request.GET.get('format', 'json')
@@ -757,137 +816,120 @@ def export_vulnerabilities(request):
         return JsonResponse({'error': 'Format non pris en charge'}, status=400)
 
 
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from django.utils.timezone import now
 
 def generate_scan_report(request, scan_id):
     scan = get_object_or_404(Scan, id=scan_id)
+    project = scan.project
+    vulnerabilities = scan.vulnerabilities.all()
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="rapport_scan_{scan.id}.pdf"'
 
-    doc = SimpleDocTemplate(response, pagesize=letter)
+    doc = SimpleDocTemplate(response, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=72, bottomMargin=36)
     elements = []
     styles = getSampleStyleSheet()
 
-    # Styles personnalisés
-    title_style = ParagraphStyle(
-        name='TitleStyle',
-        fontSize=24,
-        leading=28,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#003366"),
-        spaceAfter=20
-    )
-    subtitle_style = ParagraphStyle(
-        name='SubtitleStyle',
-        fontSize=14,
-        leading=18,
-        alignment=TA_LEFT,
-        textColor=colors.HexColor("#003366"),
-        spaceAfter=10
-    )
-    footer_style = ParagraphStyle(
-        name='FooterStyle',
-        fontSize=10,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#FFFFFF"),
-        backColor=colors.HexColor("#003366"),
-        spaceBefore=10
-    )
+    # Style personnalisé pour le titre
+    title_style = ParagraphStyle(name='TitleStyle', fontSize=24, leading=28, alignment=1, textColor=colors.HexColor("#FFFFFF"), spaceAfter=20)
+    subtitle_style = ParagraphStyle(name='SubtitleStyle', fontSize=14, leading=18, alignment=0, textColor=colors.HexColor("#003366"), spaceAfter=10)
+    body_style = ParagraphStyle(name='BodyText', parent=styles['Normal'], fontSize=10, leading=14)
+    footer_style = ParagraphStyle(name='FooterStyle', fontSize=9, alignment=1, textColor=colors.HexColor("#FFFFFF"), backColor=colors.HexColor("#003366"), spaceBefore=10)
 
-    # Logo
-    logo_path = os.path.join('static', 'logo.png')
-    if os.path.exists(logo_path):
-        elements.append(Image(logo_path, width=1.5 * inch, height=1.5 * inch))
-
-    # Titre principal
-    elements.append(Paragraph(f"Rapport de Scan #{scan.id}", title_style))
+    # Fond bleu
     elements.append(Spacer(1, 12))
 
-    # Détails du scan
-    elements.append(Paragraph("Détails du Scan", subtitle_style))
-    details = [
-        ["Nom du Scan", scan.name],
-        ["Projet", scan.project.name],
-        ["Adresse IP", scan.project.ip_address or 'N/A'],
-        ["URL", scan.project.url or 'N/A'],
-        ["Outil utilisé", scan.tool],
-        ["Durée", f"{scan.duration} secondes" if scan.duration else "N/A"],
-        ["Statut", scan.status]
-    ]
-    table_details = Table(details, hAlign='LEFT', colWidths=[2.5 * inch, 4 * inch])
-    table_details.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#D3D3D3')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-    ]))
-    elements.append(table_details)
-    elements.append(Spacer(1, 24))
+    # Informations du scan
+    scan_info = f"""
+    <b>Nom du Scan :</b> {scan.name}<br/>
+    <b>Projet :</b> {project.name}<br/>
+    <b>Outil utilisé :</b> {scan.tool}<br/>
+    <b>Statut :</b> {scan.status}<br/>
+    <b>Durée :</b> {f"{scan.duration:.2f} secondes" if scan.duration else "N/A"}<br/>
+    """
+    elements.append(Paragraph(scan_info, body_style))
+    elements.append(Spacer(1, 12))
 
-    # Résultats des vulnérabilités
-    elements.append(Paragraph("<b>Vulnérabilités détectées :</b>", styles['Heading2']))
+    # Titre principal centré et souligné
+    title = Paragraph("<u>Rapport de Scan</u>", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 12))
 
-    # Générer le tableau des vulnérabilités en fonction de l'outil
-    data = []
-    if scan.tool.lower() == "nmap":
-        data = [["Port", "Protocole", "État", "Service", "Description"]]
-        for vuln in scan.vulnerabilities.all():
-            data.append([
-                vuln.port or "-",
-                vuln.protocol or "-",
-                vuln.state or "-",
-                vuln.service or "-",
-                vuln.description or "-"
-            ])
+    # Résultats du Scan en fonction de l'outil
+    if scan.tool == 'NMAP':
+        elements.append(Paragraph("Résultats du Scan NMAP", subtitle_style))
+        nmap_details = f"""
+        <b>Adresse IP cible :</b> {project.ip_address}<br/>
+        <b>Ports ouverts :</b> Liste des ports ouverts et services sur {project.ip_address}.<br/>
+        """
+        elements.append(Paragraph(nmap_details, body_style))
 
-    elif scan.tool.lower() == "zap":
-        data = [["Nom", "Risque", "Confiance", "Paramètre", "Preuve", "CWE", "Autres Infos"]]
-        for vuln in scan.vulnerabilities.all():
-            data.append([
-                vuln.name or "-",
-                vuln.risk or "-",
-                vuln.confidence or "-",
-                vuln.parameter or "-",
-                vuln.evidence or "-",
-                vuln.cve_id or "-",  # CWE ID
-                vuln.description or "-"
-            ])
+        # Ajouter les vulnérabilités de Nmap
+        for vuln in vulnerabilities:
+            if vuln.port:
+                nmap_vuln_details = f"""
+                <b>Port :</b> {vuln.port}<br/>
+                <b>Protocole :</b> {vuln.protocol}<br/>
+                <b>Service :</b> {vuln.service}<br/>
+                <b>Version :</b> {vuln.version}<br/>
+                <b>Gravité :</b> {vuln.severity}<br/>
+                """
+                elements.append(Paragraph(nmap_vuln_details, body_style))
 
-    elif scan.tool.lower() == "sqlmap":
-        data = [["Nom", "Paramètre", "Technique", "Description", "Remédiation"]]
-        for vuln in scan.vulnerabilities.all():
-            data.append([
-                vuln.name or "-",
-                vuln.parameter or "-",
-                vuln.technique or "-",
-                vuln.description or "-",
-                vuln.remediation or "-"
-            ])
+    elif scan.tool == 'SQLMAP':
+        elements.append(Paragraph("Résultats du Scan SQLMAP", subtitle_style))
+        sqlmap_details = f"""
+        <b>Paramètre vulnérable :</b> {', '.join([vuln.parameter for vuln in vulnerabilities if vuln.parameter])}<br/>
+        <b>DBMS détecté :</b> {', '.join([vuln.dbms for vuln in vulnerabilities if vuln.dbms])}<br/>
+        <b>Technique utilisée :</b> {', '.join([vuln.technique for vuln in vulnerabilities if vuln.technique])}<br/>
+        """
+        elements.append(Paragraph(sqlmap_details, body_style))
 
-    # Vérifier si des données sont disponibles
-    if len(data) > 1:  # Si le tableau contient des données (en plus de l'en-tête)
-        table_vulns = Table(data, hAlign='LEFT', repeatRows=1, colWidths=[1.5 * inch] * len(data[0]))
-        table_vulns.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#003366")),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.25, colors.black),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F5F5F5')),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
-        elements.append(table_vulns)
+        # Ajouter les vulnérabilités spécifiques à SQLMap
+        for vuln in vulnerabilities:
+            sqlmap_vuln_details = f"""
+            <b>Paramètre :</b> {vuln.parameter or 'Non spécifié'}<br/>
+            <b>Technique :</b> {vuln.technique or 'Non spécifiée'}<br/>
+            <b>SGBD détecté :</b> {vuln.dbms or 'Non spécifié'}<br/>
+            """
+            elements.append(Paragraph(sqlmap_vuln_details, body_style))
+
+    elif scan.tool == 'ZAP':
+        elements.append(Paragraph("Résultats du Scan ZAP", subtitle_style))
+        zap_details = f"""
+        <b>Alertes :</b><br/>
+        <i>Liste des vulnérabilités détectées par ZAP.</i><br/>
+        """
+        elements.append(Paragraph(zap_details, body_style))
+
+        # Ajouter les vulnérabilités de ZAP
+        for vuln in vulnerabilities:
+            zap_vuln_details = f"""
+            <b>Alerte :</b> {vuln.alert or 'Non spécifiée'}<br/>
+            <b>Risque :</b> {vuln.risk or 'Non spécifié'}<br/>
+            <b>Confiance :</b> {vuln.confidence or 'Non spécifiée'}<br/>
+            <b>Preuve :</b> {vuln.evidence or 'Non spécifiée'}<br/>
+            """
+            elements.append(Paragraph(zap_vuln_details, body_style))
+
     else:
-        elements.append(Paragraph("Aucune vulnérabilité détectée.", styles['Normal']))
-
-    elements.append(Spacer(1, 24))
+        elements.append(Paragraph("Aucun outil de scan spécifié.", body_style))
 
     # Pied de page
-    footer = Paragraph("EthicalPulse &copy; 2025 - Rapport généré par EthicalPulseShield.", footer_style)
-    elements.append(Spacer(1, 24))
-    elements.append(footer)
+    elements.append(PageBreak())
+    footer = f"""
+    <b>EthicalPulse</b> - Rapport généré automatiquement<br/>
+    <b>Date :</b> {now().strftime('%d/%m/%Y %H:%M:%S')}<br/>
+    """
+    elements.append(Paragraph(footer, footer_style))
 
+    # Générer le PDF
     doc.build(elements)
     return response
 

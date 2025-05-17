@@ -7,4 +7,5 @@ python-nmap==0.7.1
 zaproxy==0.2.0
 gvm-tools==23.11.0
 reportlab==4.2.2
-
+celery==5.3.1 
+redis==5.0.7
