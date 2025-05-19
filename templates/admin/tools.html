@@ -58,13 +58,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="nmap">
-                            <option value="-sS">Scan SYN (-sS) - Scan furtif TCP</option>
-                            <option value="-sT">Scan TCP (-sT) - Établit connexions complètes</option>
-                            <option value="-sU">Scan UDP (-sU) - Détecte services UDP</option>
-                            <option value="-sV">Détection Version (-sV) - Identifie services/versions</option>
-                            <option value="-O">OS Detection (-O) - Identifie systèmes d'exploitation</option>
-                            <option value="-A">Scan Agressif (-A) - OS, version, scripts, traceroute</option>
-                            <option value="-p-">Tous Ports (-p-) - Scanne tous les ports TCP</option>
+                            {% for value, label in nmap_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -97,56 +93,63 @@
         </div>
 
         <!-- Nikto Tool -->
-        <div class="col tool-item" data-category="web">
-            <div class="card h-100">
-                <div class="card-header bg-dark text-white d-flex justify-content-between">
-                    <div>
-                        <i class="bi bi-globe me-2"></i>
-                        <strong>Nikto</strong>
-                    </div>
-                    <span class="badge bg-primary">Web</span>
-                </div>
-                <div class="card-body">
-                    <p class="card-text small">Scanner de vulnérabilités web qui effectue des tests complets contre des serveurs web.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Options:</label>
-                        <select class="form-select form-select-sm tool-option" data-tool="nikto">
-                            <option value="-h">Scan Host (-h) - Scan standard</option>
-                            <option value="-Tuning 9">Injection SQL (-Tuning 9) - Tests d'injection SQL</option>
-                            <option value="-Tuning 4">Tests XSS (-Tuning 4) - Tests Cross Site Scripting</option>
-                            <option value="-ssl">SSL (-ssl) - Force SSL/HTTPS</option>
-                            <option value="-nossl">No SSL (-nossl) - Force HTTP</option>
-                            <option value="-Cgidirs all">CGI Dirs (-Cgidirs all) - Test tous les dossiers CGI</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Cible:</label>
-                        <input type="text" class="form-control form-control-sm tool-target" placeholder="URL ou IP (ex: https://example.com)" data-tool="nikto">
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-sm run-tool" data-tool="nikto">
-                            <i class="bi bi-play-fill me-1"></i>Exécuter
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#niktoDoc" aria-expanded="false">
-                            <i class="bi bi-file-text me-1"></i>Documentation
-                        </button>
-                    </div>
-                    <div class="collapse mt-3" id="niktoDoc">
-                        <div class="card card-body bg-light small">
-                            <h6>Documentation Nikto</h6>
-                            <p>Nikto est un scanner de vulnérabilités open source qui effectue des tests complets contre des serveurs web.</p>
-                            <p><strong>Fonctionnalités:</strong></p>
-                            <ul>
-                                <li>Détection de fichiers/CGI vulnérables</li>
-                                <li>Vérification des serveurs obsolètes</li>
-                                <li>Scans de configuration</li>
-                                <li>Tests d'injection</li>
-                            </ul>
+            <div class="col tool-item" data-category="web">
+                <div class="card h-100">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between">
+                        <div>
+                            <i class="bi bi-globe me-2"></i>
+                            <strong>Nikto</strong>
                         </div>
+                        <span class="badge bg-primary">Web</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text small">Scanner de vulnérabilités web qui effectue des tests complets contre des serveurs web.</p>
+                        <form method="post" action="{% url 'tools_admin' %}" class="mb-3">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Options:</label>
+                                <select class="form-select form-select-sm" name="option" required>
+                                    {% for value, label in nikto_options %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Cible:</label>
+                                <select class="form-select form-select-sm" name="project_id" required>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">
+                                        {{ project.name }} — 
+                                        {% if project.url %}{{ project.url }}{% else %}{{ project.ip_address }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play-fill me-1"></i>Exécuter
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#niktoDoc" aria-expanded="false">
+                                    <i class="bi bi-file-text me-1"></i>Documentation
+                                </button>
+                            </div>
+                            <div class="collapse mt-3" id="niktoDoc">
+                                <div class="card card-body bg-light small">
+                                    <h6>Documentation Nikto</h6>
+                                    <p>Nikto est un scanner de vulnérabilités open source qui effectue des tests complets contre des serveurs web.</p>
+                                    <p><strong>Fonctionnalités:</strong></p>
+                                    <ul>
+                                        <li>Détection de fichiers/CGI vulnérables</li>
+                                        <li>Vérification des serveurs obsolètes</li>
+                                        <li>Scans de configuration</li>
+                                        <li>Tests d'injection</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- SQLMap Tool -->
         <div class="col tool-item" data-category="web">
@@ -163,12 +166,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="sqlmap">
-                            <option value="-u">URL (-u) - Test URL basique</option>
-                            <option value="-u --forms">Formulaires (-u --forms) - Test des formulaires</option>
-                            <option value="-u --dbs">Bases de données (-u --dbs) - Énumérer les BDDs</option>
-                            <option value="-u --tables">Tables (-u --tables) - Énumérer les tables</option>
-                            <option value="-u --dump">Dump (-u --dump) - Extraire les données</option>
-                            <option value="-u --os-shell">OS Shell (-u --os-shell) - Obtenir un shell</option>
+                            {% for value, label in sqlmap_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -215,11 +215,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="netcat">
-                            <option value="-lvp">Listener (-lvp) - Écoute sur un port</option>
-                            <option value="-v">Connexion (-v) - Connecter à un port</option>
-                            <option value="-z">Scanner Port (-z) - Scanner ports sans envoi de données</option>
-                            <option value="-e">Exécution (-e) - Exécuter programme après connexion</option>
-                            <option value="-u">UDP (-u) - Utiliser UDP au lieu de TCP</option>
+                            {% for value, label in netcat_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -266,11 +264,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="reconng">
-                            <option value="modules load recon/domains-hosts/brute_hosts">Brute Force DNS</option>
-                            <option value="modules load recon/hosts-hosts/resolve">Résolution DNS</option>
-                            <option value="modules load recon/domains-contacts/whois_pocs">WHOIS Contacts</option>
-                            <option value="modules load recon/domains-vulnerabilities/xssed">XSSed Archives</option>
-                            <option value="modules load recon/domains-hosts/google_site_web">Google Site Web</option>
+                            {% for value, label in reconng_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -317,11 +313,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="owaspzap">
-                            <option value="-quickurl">Scan Rapide (-quickurl) - Analyse de base</option>
-                            <option value="-ajax">Scan Ajax (-ajax) - Analyse applications Ajax</option>
-                            <option value="-full">Scan Complet (-full) - Analyse complète</option>
-                            <option value="-xss">XSS (-xss) - Test XSS uniquement</option>
-                            <option value="-sqli">SQL Injection (-sqli) - Test SQLi uniquement</option>
+                            {% for value, label in zap_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -368,12 +362,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="john">
-                            <option value="--wordlist">Wordlist (--wordlist) - Attaque par dictionnaire</option>
-                            <option value="--rules">Rules (--rules) - Utilise règles de mutation</option>
-                            <option value="--incremental">Bruteforce (--incremental) - Mode brute force</option>
-                            <option value="--format=md5">Format MD5 (--format=md5) - Hash MD5</option>
-                            <option value="--format=sha1">Format SHA1 (--format=sha1) - Hash SHA1</option>
-                            <option value="--show">Show (--show) - Afficher mots passe craqués</option>
+                            {% for value, label in john_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -420,12 +411,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="hashcat">
-                            <option value="-a 0">Dictionnaire (-a 0) - Attaque par dictionnaire</option>
-                            <option value="-a 1">Combinaison (-a 1) - Combine plusieurs dictionnaires</option>
-                            <option value="-a 3">Brute-Force (-a 3) - Attaque par brute-force</option>
-                            <option value="-a 6">Hybride Dict+Mask (-a 6) - Dictionnaire puis masque</option>
-                            <option value="-a 7">Hybride Mask+Dict (-a 7) - Masque puis dictionnaire</option>
-                            <option value="-m 0">MD5 (-m 0) - Hash MD5</option>
+                            {% for value, label in hashcat_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -472,11 +460,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="aircrack">
-                            <option value="airmon-ng start">Monitor Mode - Activer mode moniteur</option>
-                            <option value="airodump-ng">Capture - Capture des paquets WiFi</option>
-                            <option value="aireplay-ng -0">Deauth - Attaque de désauthentification</option>
-                            <option value="aircrack-ng -w">Crack WPA - Cracker clé WPA avec wordlist</option>
-                            <option value="aircrack-ng -K">PTW Attack - Attaque PTW (WEP)</option>
+                            {% for value, label in aircrack_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -523,11 +509,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="wifite">
-                            <option value="-all">Tous Réseaux (-all) - Attaque tous réseaux</option>
-                            <option value="-wpa">WPA Only (-wpa) - Cible uniquement WPA/WPA2</option>
-                            <option value="-wep">WEP Only (-wep) - Cible uniquement WEP</option>
-                            <option value="-wps">WPS Only (-wps) - Cible uniquement WPS</option>
-                            <option value="-dict">Dictionary (-dict) - Spécifier un dictionnaire</option>
+                            {% for value, label in wifite_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -574,11 +558,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="metasploit">
-                            <option value="use exploit/multi/handler">Handler - Configure un handler</option>
-                            <option value="use auxiliary/scanner/smb/smb_version">SMB Scan - Scanner SMB</option>
-                            <option value="use auxiliary/scanner/http/dir_scanner">Dir Scan - Scan répertoire HTTP</option>
-                            <option value="use exploit/windows/smb/ms17_010_eternalblue">EternalBlue - Exploit MS17-010</option>
-                            <option value="use exploit/multi/http/wp_admin_shell_upload">WordPress - Upload shell admin WP</option>
+                            {% for value, label in metasploit_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -625,11 +607,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="wireshark">
-                            <option value="-i">Interface (-i) - Capturer sur interface</option>
-                            <option value="-r">Lire Fichier (-r) - Ouvrir fichier de capture</option>
-                            <option value="-f">Filtre BPF (-f) - Appliquer filtre BPF</option>
-                            <option value="-Y">Display Filter (-Y) - Filtre d'affichage</option>
-                            <option value="-w">Write (-w) - Écrire dans un fichier</option>
+                             {% for value, label in wireshark_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -676,11 +656,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="ghidra">
-                            <option value="analyzeHeadless">Analyse CLI - Analyse en ligne de commande</option>
-                            <option value="launch">GUI - Interface graphique</option>
-                            <option value="analyzeHeadless -import">Import - Importer fichier binaire</option>
-                            <option value="analyzeHeadless -process">Process - Traiter fichier binaire</option>
-                            <option value="analyzeHeadless -export">Export - Exporter résultats</option>
+                            {% for value, label in ghidra_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -727,11 +705,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="beef">
-                            <option value="-x">XSS Consoles (-x) - Activer les consoles XSS</option>
-                            <option value="--host">Host (--host) - Spécifier hôte d'écoute</option>
-                            <option value="--port">Port (--port) - Spécifier port d'écoute</option>
-                            <option value="--password">Password (--password) - Définir mot de passe</option>
-                            <option value="--hook-url">Hook URL (--hook-url) - URL du hook</option>
+                             {% for value, label in beef_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -778,11 +754,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Options:</label>
                         <select class="form-select form-select-sm tool-option" data-tool="snort">
-                            <option value="-T">Test Config (-T) - Tester la configuration</option>
-                            <option value="-c">Config File (-c) - Spécifier fichier config</option>
-                            <option value="-i">Interface (-i) - Spécifier interface</option>
-                            <option value="-A">Alert Mode (-A) - Mode d'alerte</option>
-                            <option value="-l">Log Dir (-l) - Dossier de logs</option>
+                             {% for value, label in snort_options %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -834,8 +808,13 @@
                     <div class="row">
                         <div class="col-lg-8">
                             <div class="terminal bg-dark text-light p-3 rounded mb-3" id="terminalOutput" style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace;">
-                                <div class="text-success">Terminal prêt. Sélectionnez un outil et cliquez sur Exécuter pour commencer.</div>
+                                {% if nikto_raw_output %}
+                                    <div class="text-success">{{ nikto_raw_output|linebreaksbr }}</div>
+                                {% else %}
+                                    <div class="text-success">Terminal prêt. Sélectionnez un outil et cliquez sur Exécuter pour commencer.</div>
+                                {% endif %}
                             </div>
+
                             <div class="input-group mb-3">
                                 <input type="text" class="form-control font-monospace" id="commandInput" placeholder="Entrez une commande personnalisée...">
                                 <button class="btn btn-primary" type="button" id="runCommandBtn">
@@ -864,16 +843,48 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted">Aucun résultat disponible</td>
-                                            </tr>
+                                            {% if structured_results %}
+                                                {% for result in structured_results %}
+                                                    <tr>
+                                                        <td>{{ result.option }}</td> <!-- Ou un champ spécifique comme 'type' si tu en as un -->
+                                                        <td>{{ result.target_hostname }}:{{ result.target_port }}</td>
+                                                        <td>
+                                                            {% if 'critical' in result.vulnerability|lower %}
+                                                                <span class="badge bg-danger">Critique</span>
+                                                            {% elif 'medium' in result.vulnerability|lower %}
+                                                                <span class="badge bg-warning text-dark">Moyenne</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">Faible</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-secondary"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#resultDetailModal"
+                                                                    onclick="showResultDetails('{{ result.id }}')">
+                                                                Voir
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted">Aucun résultat disponible</td>
+                                                </tr>
+                                            {% endif %}
                                         </tbody>
                                     </table>
                                 </div>
+
                                 <div class="tab-pane fade" id="rawResults" role="tabpanel">
                                     <div class="small" id="rawResultsContent">
-                                        <div class="text-muted fst-italic">Exécutez un outil pour voir les résultats bruts</div>
+                                        {% if nikto_raw_output %}
+                                            <pre>{{ nikto_raw_output }}</pre>
+                                        {% else %}
+                                            <div class="text-muted fst-italic">Exécutez un outil pour voir les résultats bruts</div>
+                                        {% endif %}
                                     </div>
+
                                 </div>
                             </div>
                         </div>
@@ -883,62 +894,172 @@
         </div>
     </div>
 
-    <!-- Result History -->
-    <div class="row mt-4">
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-header bg-dark text-white">
-                    <i class="bi bi-clock-history me-2"></i>
-                    <span>Historique des Analyses</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover" id="historyTable">
-                            <thead>
-                                <tr>
-                                    <th>Date/Heure</th>
-                                    <th>Outil</th>
-                                    <th>Commande</th>
-                                    <th>Cible</th>
-                                    <th>Résultats</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+ <!-- Historique des Analyses -->
+<div class="row mt-4">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-clock-history me-2"></i>
+                <span>Historique des Analyses</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Date/Heure</th>
+                                <th>Outil</th>
+                                <th>Commande</th>
+                                <th>Cible</th>
+                                <th>Résultats</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if scans_history %}
+                                {% for scan in scans_history %}
+                                    <tr>
+                                        <td>{{ scan.start_time|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ scan.tool }}</td>
+                                        <td>
+                                            {% if scan.tool == 'NIKTO' %}
+                                                nikto -h {{ scan.project.target_url|default:scan.project.target_ip }}
+                                            {% else %}
+                                                Commande personnalisée
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ scan.project.target_url|default:scan.project.target_ip }}</td>
+                                        <td>
+                                            {% if scan.status == "completed" %}
+                                                Terminé
+                                            {% elif scan.status == "running" %}
+                                                En cours...
+                                            {% else %}
+                                                {{ scan.status }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalScan{{ scan.id }}">
+                                                <i class="bi bi-eye"></i> Voir
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Modal Détails du Scan -->
+                                    <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-dark text-white">
+                                                    <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
+                                                        Détails du scan - {{ scan.tool }} ({{ scan.start_time|date:"d/m/Y H:i" }})
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    {% with result=scan.niktoresult_set.first %}
+                                                        {% if result %}
+                                                            <p><strong>Cible :</strong> {{ result.uri }}</p>
+                                                            <p><strong>Serveur :</strong> {{ result.server }}</p>
+                                                            <p><strong>SSL Subject :</strong> {{ result.ssl_subject }}</p>
+                                                            <p><strong>SSL Issuer :</strong> {{ result.ssl_issuer }}</p>
+                                                            <p><strong>SSL AltNames :</strong> {{ result.ssl_altnames }}</p>
+                                                            <p><strong>SSL Cipher :</strong> {{ result.ssl_cipher }}</p>
+                                                            <p><strong>Powered By :</strong> {{ result.x_powered_by }}</p>
+                                                            <p><strong>Frame Options :</strong> {{ result.x_frame_options }}</p>
+                                                            <p><strong>robots.txt :</strong><br><pre>{{ result.robots_txt_entries }}</pre></p>
+                                                            <p><strong>Fichiers index :</strong><br><pre>{{ result.index_files }}</pre></p>
+                                                            <hr>
+                                                            <h6>Sortie brute :</h6>
+                                                            <pre style="white-space: pre-wrap;">{{ result.description }}</pre>
+                                                        {% else %}
+                                                            <p class="text-muted">Aucun résultat détaillé trouvé pour ce scan.</p>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                </div>
+                                                <div class="modal-footer">
+                                                    {% with result=scan.niktoresult_set.first %}
+                                                        {% if result and result.id %}
+                                                            <a href="{% url 'nikto_report_pdf' result.id %}" class="btn btn-success" target="_blank">
+                                                                <i class="bi bi-file-earmark-pdf"></i> Générer le rapport
+                                                            </a>
+                                                        {% else %}
+                                                            <span class="text-muted">Aucun rapport disponible</span>
+                                                        {% endif %}
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                    {% endwith %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
                                 <tr>
                                     <td colspan="6" class="text-center text-muted">Aucun historique disponible</td>
                                 </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal pour visualiser les détails -->
+
+</div>
+
+<!-- Modal pour visualiser les détails du scan (actuellement spécifique à Nikto) -->
 <div class="modal fade" id="resultDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Détails du résultat</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-shield-check me-2"></i> Rapport de Scan - Nikto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-2">Détails</h6>
-                <p class="result-details mb-4"></p>
-                
-                <h6 class="fw-bold mb-2">Sortie brute</h6>
+                <p class="result-details mb-4 text-muted">Ce rapport affiche les détails spécifiques au scan effectué avec l'outil <strong>Nikto</strong>.</p>
+
+                <!-- Section : Détails du scan Nikto -->
+                <h6 class="fw-bold">Détails du scan</h6>
+                <table class="table table-bordered table-sm mb-4">
+                    <tr><th>Hostname</th><td id="modal-hostname"></td></tr>
+                    <tr><th>Port</th><td id="modal-port"></td></tr>
+                    <tr><th>Serveur</th><td id="modal-server"></td></tr>
+                    <tr><th>SSL Subject</th><td id="modal-ssl-subject"></td></tr>
+                    <tr><th>SSL Issuer</th><td id="modal-ssl-issuer"></td></tr>
+                    <tr><th>SSL AltNames</th><td id="modal-ssl-altnames"></td></tr>
+                    <tr><th>SSL Cipher</th><td id="modal-ssl-cipher"></td></tr>
+                    <tr><th>Début du scan</th><td id="modal-start-time"></td></tr>
+                    <tr><th>Private IPs Disclosed</th><td id="modal-private-ips"></td></tr>
+                    <tr><th>Uncommon Headers</th><td id="modal-uncommon-headers"></td></tr>
+                    <tr><th>Alt Svc</th><td id="modal-alt-svc"></td></tr>
+                    <tr><th>IP in Cookie</th><td id="modal-ip-in-cookie"></td></tr>
+                    <tr><th>Redirection root</th><td id="modal-redirected-root"></td></tr>
+                    <tr><th>X-Powered-By</th><td id="modal-x-powered-by"></td></tr>
+                    <tr><th>X-Frame-Options</th><td id="modal-x-frame-options"></td></tr>
+                    <tr><th>Link Headers</th><td id="modal-link-headers"></td></tr>
+                    <tr><th>Robots.txt</th><td id="modal-robots-txt"></td></tr>
+                    <tr><th>Index Files</th><td id="modal-index-files"></td></tr>
+                    <tr><th>Scan terminé</th><td id="modal-scan-completed"></td></tr>
+                    <tr><th>Total requêtes</th><td id="modal-total-requests"></td></tr>
+                    <tr><th>% Complété</th><td id="modal-percent-complete"></td></tr>
+                    <tr><th>Temps estimé restant</th><td id="modal-estimated-time"></td></tr>
+                    <tr><th>Date création</th><td id="modal-created-at"></td></tr>
+                </table>
+
+                <!-- Section : Sortie brute -->
+                <h6 class="fw-bold">Sortie brute</h6>
                 <pre class="bg-dark text-light p-3 rounded result-output" style="max-height: 400px; overflow: auto;"></pre>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn btn-primary export-result">Exporter</button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1009,40 +1130,6 @@ document.addEventListener('DOMContentLoaded', function() {
         terminalOutput.innerHTML = '<div class="text-success">Terminal effacé.</div>';
     });
     
-    // Fonction pour exécuter les outils sélectionnés
-    document.querySelectorAll('.run-tool').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const toolId = this.getAttribute('data-tool');
-            const optionSelect = document.querySelector(`.tool-option[data-tool="${toolId}"]`);
-            const targetInput = document.querySelector(`.tool-target[data-tool="${toolId}"]`);
-            
-            const option = optionSelect ? optionSelect.value : '';
-            const target = targetInput ? targetInput.value.trim() : '';
-            
-            if (!target && toolId !== 'help') {
-                appendToTerminal('Erreur: Veuillez spécifier une cible', 'text-danger');
-                return;
-            }
-            
-            // Mise à jour du nom d'outil actif
-            const toolName = this.closest('.card').querySelector('strong').textContent;
-            activeTool.textContent = toolName;
-            
-            // Construction de la commande
-            let command = `${toolId} ${option} ${target}`;
-            executeCommand(command);
-            
-            // Ajout à l'historique
-            addToHistory(toolName, command, target);
-        });
-    });
-    
-    // Désactiver la soumission du formulaire sur Entrée
-    document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-        });
-    });
     
     // Permettre d'utiliser Entrée dans la zone de commande
     commandInput.addEventListener('keypress', function(e) {
@@ -1050,252 +1137,37 @@ document.addEventListener('DOMContentLoaded', function() {
             runCommandBtn.click();
         }
     });
-    
-    // Fonction pour exécuter une commande
-    function executeCommand(command) {
-        appendToTerminal(`> ${command}`, 'text-white fw-bold');
-        
-        // Simuler l'exécution de la commande (temps de traitement simulé)
-        appendToTerminal('Exécution de la commande...', 'text-info');
-        
-        setTimeout(() => {
-            // Générer des résultats simulés basés sur la commande
-            generateResults(command);
-        }, 1000);
-    }
-    
-    // Fonction pour ajouter du texte au terminal
-    function appendToTerminal(text, classes = '') {
-        const line = document.createElement('div');
-        line.className = classes;
-        line.textContent = text;
-        terminalOutput.appendChild(line);
-        terminalOutput.scrollTop = terminalOutput.scrollHeight;
-    }
-    
-    // Fonction pour générer des résultats simulés
-    function generateResults(command) {
-        const cmd = command.toLowerCase();
-        let results = [];
-        let rawOutput = '';
-        
-        // Extraire l'outil et la cible
-        const parts = cmd.split(' ');
-        const tool = parts[0];
-        
-        // Simuler différents types de résultats selon l'outil
-        if (cmd.includes('nmap')) {
-            appendToTerminal('Scan en cours...', 'text-info');
-            rawOutput = `Starting Nmap 7.92 ( https://nmap.org ) at ${new Date().toLocaleString()}\n`;
-            rawOutput += `Nmap scan report for ${parts[parts.length-1]}\n`;
-            rawOutput += 'Host is up (0.0076s latency).\n';
-            rawOutput += 'Not shown: 995 closed ports\n';
-            rawOutput += 'PORT     STATE SERVICE VERSION\n';
-            rawOutput += '22/tcp   open  ssh     OpenSSH 8.4p1\n';
-            rawOutput += '80/tcp   open  http    Apache httpd 2.4.46\n';
-            rawOutput += '443/tcp  open  https   Apache httpd 2.4.46\n';
-            rawOutput += '3306/tcp open  mysql   MySQL 5.7.33\n';
-            rawOutput += '8080/tcp open  http    Jetty 9.4.39\n';
-            
-            results = [
-                { type: 'Port ouvert', target: '22/tcp (SSH)', severity: 'info', details: 'OpenSSH 8.4p1' },
-                { type: 'Port ouvert', target: '80/tcp (HTTP)', severity: 'info', details: 'Apache httpd 2.4.46' },
-                { type: 'Port ouvert', target: '443/tcp (HTTPS)', severity: 'info', details: 'Apache httpd 2.4.46' },
-                { type: 'Port ouvert', target: '3306/tcp (MySQL)', severity: 'warning', details: 'MySQL 5.7.33 - Base de données exposée' },
-                { type: 'Port ouvert', target: '8080/tcp (HTTP)', severity: 'warning', details: 'Jetty 9.4.39 - Interface d\'admin potentielle' }
-            ];
-        } else if (cmd.includes('sqlmap')) {
-            appendToTerminal('Test d\'injection SQL...', 'text-info');
-            rawOutput = `sqlmap identified the following injection point(s) with a total of 42 HTTP(s) requests:\n`;
-            rawOutput += `Parameter: id (GET)\n`;
-            rawOutput += `    Type: boolean-based blind\n`;
-            rawOutput += `    Title: AND boolean-based blind - WHERE or HAVING clause\n`;
-            rawOutput += `    Payload: id=1 AND 5374=5374\n\n`;
-            rawOutput += `    Type: time-based blind\n`;
-            rawOutput += `    Title: MySQL >= 5.0.12 AND time-based blind\n`;
-            rawOutput += `    Payload: id=1 AND SLEEP(5)\n\n`;
-            rawOutput += `    Type: UNION query\n`;
-            rawOutput += `    Title: Generic UNION query (NULL) - 3 columns\n`;
-            rawOutput += `    Payload: id=1 UNION ALL SELECT NULL,NULL,CONCAT(0x7176787671,0x5953594e584b456c4341,0x7178717671)-- -\n`;
-            
-            results = [
-                { type: 'Injection SQL', target: 'id (GET)', severity: 'critical', details: 'Boolean-based blind' },
-                { type: 'Injection SQL', target: 'id (GET)', severity: 'critical', details: 'Time-based blind' },
-                { type: 'Injection SQL', target: 'id (GET)', severity: 'critical', details: 'UNION query' }
-            ];
-        } else if (cmd.includes('nikto')) {
-            appendToTerminal('Scan web en cours...', 'text-info');
-            rawOutput = `- Nikto v2.1.6\n`;
-            rawOutput += `+ Target IP:          ${parts[parts.length-1]}\n`;
-            rawOutput += `+ Target Hostname:    example.com\n`;
-            rawOutput += `+ Target Port:        80\n`;
-            rawOutput += `+ Start Time:         ${new Date().toLocaleString()}\n\n`;
-            rawOutput += `+ Server: Apache/2.4.46 (Unix) OpenSSL/1.1.1g\n`;
-            rawOutput += `+ The anti-clickjacking X-Frame-Options header is not present.\n`;
-            rawOutput += `+ The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS\n`;
-            rawOutput += `+ The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type\n`;
-            rawOutput += `+ No CGI Directories found (use '-C all' to force check all possible dirs)\n`;
-            rawOutput += `+ Apache/2.4.46 appears to be outdated (current is at least Apache/2.4.46). Apache 2.2.34 is the EOL for the 2.x branch.\n`;
-            rawOutput += `+ Web Server returns a valid response with junk HTTP methods, this may cause false positives.\n`;
-            rawOutput += `+ OSVDB-3268: /admin/: Directory indexing found.\n`;
-            rawOutput += `+ OSVDB-3233: /icons/README: Apache default file found.\n`;
-            
-            results = [
-                { type: 'Sécurité Headers', target: 'X-Frame-Options', severity: 'warning', details: 'En-tête anti-clickjacking absent' },
-                { type: 'Sécurité Headers', target: 'X-XSS-Protection', severity: 'warning', details: 'En-tête de protection XSS absent' },
-                { type: 'Sécurité Headers', target: 'X-Content-Type-Options', severity: 'warning', details: 'En-tête type de contenu absent' },
-                { type: 'Version Serveur', target: 'Apache/2.4.46', severity: 'info', details: 'Potentiellement obsolète' },
-                { type: 'Dossier Exposé', target: '/admin/', severity: 'high', details: 'Indexation de répertoire trouvée' }
-            ];
-        } else {
-            // Résultats génériques pour les autres commandes
-            appendToTerminal('Exécution terminée.', 'text-success');
-            rawOutput = `Commande exécutée: ${command}\n`;
-            rawOutput += `Résultat générique pour démonstration.\n`;
-            rawOutput += `Date d'exécution: ${new Date().toLocaleString()}\n`;
-            
-            results = [
-                { type: 'Info', target: command, severity: 'info', details: 'Exécution terminée sans résultat spécifique' }
-            ];
-        }
-        
-        // Afficher les résultats dans la section terminale
-        appendToTerminal('Exécution terminée !', 'text-success');
-        
-        // Mise à jour des résultats structurés
-        updateStructuredResults(results);
-        
-        // Mise à jour des résultats bruts
-        updateRawResults(rawOutput);
-    }
-    
-    // Fonction pour mettre à jour les résultats structurés
-    function updateStructuredResults(results) {
-        resultsTable.innerHTML = '';
-        
-        if (results.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="4" class="text-center text-muted">Aucun résultat disponible</td>`;
-            resultsTable.appendChild(row);
-            return;
-        }
-        
-        results.forEach(result => {
-            const row = document.createElement('tr');
-            
-            // Déterminer la classe de la ligne selon la sévérité
-            switch(result.severity) {
-                case 'critical':
-                    row.classList.add('table-danger');
-                    break;
-                case 'high':
-                    row.classList.add('table-warning');
-                    break;
-                case 'warning':
-                    row.classList.add('table-warning');
-                    break;
-                case 'info':
-                    row.classList.add('table-info');
-                    break;
-            }
-            
-            row.innerHTML = `
-                <td>${result.type}</td>
-                <td>${result.target}</td>
-                <td>
-                    <span class="badge ${getSeverityClass(result.severity)}">${result.severity}</span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary view-detail" data-details="${escapeHtml(result.details)}">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                </td>
-            `;
-            resultsTable.appendChild(row);
-        });
-        
-        // Ajouter les écouteurs pour les boutons de détail
-        document.querySelectorAll('.view-detail').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const details = this.getAttribute('data-details');
-                document.querySelector('.result-details').textContent = details;
-                document.querySelector('.result-output').textContent = rawResultsContent.textContent;
-                new bootstrap.Modal(document.getElementById('resultDetailModal')).show();
-            });
-        });
-    }
-    
-    // Fonction pour mettre à jour les résultats bruts
-    function updateRawResults(output) {
-        rawResultsContent.innerHTML = '';
-        const pre = document.createElement('pre');
-        pre.className = 'mb-0';
-        pre.textContent = output;
-        rawResultsContent.appendChild(pre);
-    }
-    
-    // Fonction pour ajouter à l'historique
-    function addToHistory(tool, command, target) {
-        // Supprimer le message "Aucun historique disponible" s'il existe
-        const noHistoryRow = historyTable.querySelector('td[colspan="6"]');
-        if (noHistoryRow) {
-            historyTable.innerHTML = '';
-        }
-        
-        const row = document.createElement('tr');
-        const now = new Date();
-        const formattedDate = now.toLocaleString();
-        const resultCount = Math.floor(Math.random() * 10) + 1; // Nombre de résultats aléatoire pour la démonstration
-        
-        row.innerHTML = `
-            <td>${formattedDate}</td>
-            <td>${tool}</td>
-            <td><code>${command}</code></td>
-            <td>${target}</td>
-            <td>${resultCount} trouvés</td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-download"></i>
-                </button>
-            </td>
-        `;
-        
-        // Insérer au début du tableau
-        if (historyTable.firstChild) {
-            historyTable.insertBefore(row, historyTable.firstChild);
-        } else {
-            historyTable.appendChild(row);
-        }
-    }
-    
-    // Helper pour échapper HTML
-    function escapeHtml(unsafe) {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-    
-    // Helper pour obtenir la classe de la sévérité
-    function getSeverityClass(severity) {
-        switch(severity) {
-            case 'critical':
-                return 'bg-danger';
-            case 'high':
-                return 'bg-danger';
-            case 'warning':
-                return 'bg-warning text-dark';
-            case 'info':
-                return 'bg-info text-dark';
-            default:
-                return 'bg-secondary';
-        }
-    }
+
 });
+function showResultDetails(scanId) {
+    const niktoScans = JSON.parse(document.getElementById('nikto-results-data').textContent);
+    const scan = niktoScans.find(s => s.id == scanId);
+    if (!scan) return;
+
+    document.getElementById('modal-hostname').textContent = scan.target_hostname || '';
+    document.getElementById('modal-port').textContent = scan.target_port || '';
+    document.getElementById('modal-server').textContent = scan.server || '';
+    document.getElementById('modal-ssl-subject').textContent = scan.ssl_subject || '';
+    document.getElementById('modal-ssl-issuer').textContent = scan.ssl_issuer || '';
+    document.getElementById('modal-ssl-altnames').textContent = scan.ssl_altnames || '';
+    document.getElementById('modal-ssl-cipher').textContent = scan.ssl_cipher || '';
+    document.getElementById('modal-start-time').textContent = scan.start_time || '';
+    document.getElementById('modal-private-ips').textContent = scan.private_ips_disclosed || '';
+    document.getElementById('modal-uncommon-headers').textContent = scan.uncommon_headers || '';
+    document.getElementById('modal-alt-svc').textContent = scan.alt_svc || '';
+    document.getElementById('modal-ip-in-cookie').textContent = scan.ip_in_cookie || '';
+    document.getElementById('modal-redirected-root').textContent = scan.redirected_root || '';
+    document.getElementById('modal-x-powered-by').textContent = scan.x_powered_by || '';
+    document.getElementById('modal-x-frame-options').textContent = scan.x_frame_options || '';
+    document.getElementById('modal-link-headers').textContent = scan.link_headers || '';
+    document.getElementById('modal-robots-txt').textContent = scan.robots_txt_entries || '';
+    document.getElementById('modal-index-files').textContent = scan.index_files || '';
+    document.getElementById('modal-scan-completed').textContent = scan.scan_completed ? "Oui" : "Non";
+    document.getElementById('modal-total-requests').textContent = scan.total_requests || '';
+    document.getElementById('modal-percent-complete').textContent = scan.percent_complete || '';
+    document.getElementById('modal-estimated-time').textContent = scan.estimated_time_left || '';
+    document.getElementById('modal-created-at').textContent = scan.created_at || '';
+    document.getElementById('modal-description').textContent = scan.description || '';
+}
 </script>
 {% endblock %}

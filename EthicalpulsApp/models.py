@@ -189,6 +189,14 @@ NMAP_OPTIONS = (
     ('-p-', 'Tous Ports - Scanne tous les ports TCP'),
 )
 
+NETCAT_OPTIONS = (
+    ('-lvp', 'Listener (-lvp) - Écoute sur un port'),
+    ('-v', 'Connexion (-v) - Connecter à un port'),
+    ('-z', 'Scanner Port (-z) - Scanner ports sans envoi de données'),
+    ('-e', 'Exécution (-e) - Exécuter programme après connexion'),
+    ('-u', 'UDP (-u) - Utiliser UDP au lieu de TCP'),
+)
+
 ZAP_OPTIONS = (
     ('-quickurl', 'Scan rapide - Analyse de base'),
     ('-ajax', 'Scan Ajax - Analyse des applications Ajax'),
@@ -299,14 +307,6 @@ SNORT_OPTIONS = (
 )
 
 
-# Modèle principal Scan
-class Scan(models.Model):
-    target = models.CharField(max_length=255)
-    date = models.DateTimeField(auto_now_add=True)
-    tool_used = models.CharField(max_length=50)
-    status = models.CharField(max_length=50, default="Pending")
-
-
 # Modèles des résultats avec champ option
 
 class NmapResult(models.Model):
@@ -360,19 +360,76 @@ class BeefResult(models.Model):
     hook_time = models.DateTimeField()
     executed_modules = models.TextField()
 
+from django.db import models
 
 class NiktoResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey('Scan', on_delete=models.CASCADE)
     option = models.CharField(max_length=20, choices=NIKTO_OPTIONS)
+
+    # Cible
+    target_hostname = models.CharField(max_length=255, null=True, blank=True)
+    target_ip = models.GenericIPAddressField(null=True, blank=True)
+    target_port = models.IntegerField(default=80)
+    multiple_ips = models.TextField(null=True, blank=True)  # Pour stocker plusieurs IPs (via DNS)
+
+    # Vulnérabilités et URI associées
     vulnerability = models.CharField(max_length=255)
     description = models.TextField()
     uri = models.CharField(max_length=255)
+
+    # Informations SSL
     ssl_info = models.TextField(null=True, blank=True)
+    ssl_subject = models.TextField(null=True, blank=True)
+    ssl_issuer = models.TextField(null=True, blank=True)
+    ssl_altnames = models.TextField(null=True, blank=True)
+    ssl_cipher = models.CharField(max_length=255, null=True, blank=True)
+
+    # Serveur et headers
+    server = models.CharField(max_length=255, null=True, blank=True)
+    x_powered_by = models.CharField(max_length=255, null=True, blank=True)
+    x_frame_options = models.CharField(max_length=255, null=True, blank=True)
+    deprecated_headers = models.TextField(null=True, blank=True)
+    missing_security_headers = models.TextField(null=True, blank=True)
+    uncommon_headers = models.TextField(null=True, blank=True)
+    alt_svc = models.TextField(null=True, blank=True)
+    link_headers = models.TextField(null=True, blank=True)
+    refresh_headers = models.TextField(null=True, blank=True)
+
+    # Informations sensibles dans les en-têtes ou cookies
+    private_ips_disclosed = models.TextField(null=True, blank=True)
+    external_ip_headers = models.TextField(null=True, blank=True)
+    ip_in_cookie = models.GenericIPAddressField(null=True, blank=True)
+
+    # Redirection
+    redirected_root = models.CharField(max_length=255, null=True, blank=True)
+
+    # Fichiers index / robots.txt
+    robots_txt_entries = models.TextField(null=True, blank=True)
+    robots_issues = models.TextField(null=True, blank=True)
+    index_files = models.TextField(null=True, blank=True)
+
+    # Timing et état
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    estimated_time_left = models.CharField(max_length=100, null=True, blank=True)
+    percent_complete = models.FloatField(default=0.0)
+    total_requests = models.IntegerField(default=0)
+    scan_completed = models.BooleanField(default=False)
+    parsed_vulnerabilities = models.TextField(null=True, blank=True)
+
+
+    # Résumé / erreurs / notes
+    errors_count = models.IntegerField(default=0)
+    items_reported = models.IntegerField(default=0)
+    notes = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"NiktoResult: {self.target_hostname}:{self.target_port} - {self.vulnerability}"
 
 
 class MetasploitResult(models.Model):
     scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
-    option = models.CharField(max_length=40, choices=METASPLOIT_OPTIONS)
+    option = models.CharField(max_length=44, choices=METASPLOIT_OPTIONS)
     vulnerability = models.CharField(max_length=255)
     exploited = models.BooleanField(default=False)
     payload = models.CharField(max_length=255, null=True, blank=True)
@@ -423,7 +480,7 @@ class WifiteResult(models.Model):
 
 class GhidraResult(models.Model):
     scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
-    option = models.CharField(max_length=20, choices=GHIDRA_OPTIONS)
+    option = models.CharField(max_length=24, choices=GHIDRA_OPTIONS)
     binary_name = models.CharField(max_length=255)
     analysis_report = models.TextField()
 
@@ -433,3 +490,12 @@ class SnortResult(models.Model):
     alert_message = models.TextField()
     packet_info = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    
+class NetcatResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    option = models.CharField(max_length=4, choices=NETCAT_OPTIONS)
+    port = models.IntegerField()
+    state = models.CharField(max_length=20)
+    protocol = models.CharField(max_length=10, default="TCP")
+    banner = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
