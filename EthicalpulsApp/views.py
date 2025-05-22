@@ -2,19 +2,27 @@
 from optparse import Option
 import random
 import re
+import tempfile
 import time
 import json
 import os
 from datetime import timedelta, datetime
+from EthicalpulsApp.utils import run_aircrack_scan, run_beef_scan, run_ghidra_analysis, run_hashcat_scan, run_john_scan, run_metasploit_scan, run_nmap_scan, run_reconng_scan, run_snort_scan, run_sqlmap_scan, run_wifite_scan, run_wireshark_capture, run_zap_scan
+from EthicalpulsApp.utils.netcat_scan import run_netcat_scan
+from EthicalpulsApp.utils.nikto_scan import run_nikto_scan
 from zapv2 import ZAPv2
 import subprocess
 import logging
 import pyotp
+
+# Configure logger
+logger = logging.getLogger(__name__)
+from django.db import transaction
 import nmap
 from reportlab.lib import colors
 # =================== Imports Django ===================
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import FileResponse, JsonResponse, HttpResponse
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
@@ -1117,205 +1125,487 @@ def analytics(request):
     return render(request, 'analytics.html')
 
 
-import threading
-import subprocess
-from django.shortcuts import render, get_object_or_404, redirect
-from django.views.decorators.csrf import csrf_protect
-from django.utils import timezone
-from django.http import HttpResponse
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from .models import (
-    Project, Scan, NiktoResult,
-    NmapResult, OwaspZapResult, SqlmapResult, AircrackngResult, BeefResult,
-    MetasploitResult, HashcatResult, JohntheripperResult, ReconngResult,
-    WiresharkResult, GhidraResult, SnortResult, WifiteResult, NetcatResult,
-)
-import logging
-import re
-import subprocess
-from django.shortcuts import render
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_protect
+logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)  # Pour journaliser les erreurs
+def handle_netcat_scan(project, option, target_port, request):
+    """Gère le lancement d'un scan Netcat"""
+    try:
+        # Validation des options
+        valid_options = [opt[0] for opt in NetcatResult._meta.get_field('option').choices]
+        if option and option not in valid_options:
+            raise ValueError(f"Option invalide pour Netcat : '{option}'")
+
+        # Validation du port pour l'option -lvp
+        if option == '-lvp' and not target_port.isdigit():
+            raise ValueError("Port invalide pour l'écoute Netcat.")
+
+        # Création du scan
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='NETCAT',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        # Lancement du scan en arrière-plan
+        transaction.on_commit(lambda: run_netcat_scan.delay(
+            scan_instance.id, 
+            option,
+            target_port=target_port if target_port else None
+        ))
+
+        return True, f"Scan Netcat lancé pour le projet '{project.name}' avec l'option '{option}'"
+    except ValueError as e:
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan Netcat : {e}")
+        return False, f"Erreur inattendue : {str(e)}"
+
+def handle_nikto_scan(project, option, request):
+    """Gère le lancement d'un scan Nikto"""
+    try:
+        # Validation de l'URL du projet
+        if not project.url:
+            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
+
+        # Validation des options
+        valid_options = [opt[0] for opt in NiktoResult._meta.get_field('option').choices]
+        if option and option not in valid_options:
+            raise ValueError(f"Option invalide pour Nikto : '{option}'")
+
+        # Création du scan
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='NIKTO',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        # Lancement du scan en arrière-plan
+        transaction.on_commit(lambda: run_nikto_scan.delay(scan_instance.id, option))
+
+        return True, f"Scan Nikto lancé pour le projet '{project.name}' avec l'option '{option}'"
+    except ValueError as e:
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan Nikto : {e}")
+        return False, f"Erreur inattendue : {str(e)}"
+
+def handle_wifite_scan(project, option, request):
+    """Gère le lancement d'un scan Wifite"""
+    try:
+        if not project.mac_address:
+            raise ValueError(f"Aucune adresse MAC définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='WIFITE',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_wifite_scan.delay(scan_instance.id, option))
+        return True, f"Scan Wifite lancé pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan Wifite : {e}")
+        return False, str(e)
+
+def handle_snort_scan(project, option, request):
+    """Gère le lancement d'un scan Snort"""
+    try:
+        if not project.ip_address:
+            raise ValueError(f"Aucune adresse IP définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='SNORT',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_snort_scan.delay(scan_instance.id, option))
+        return True, f"Analyse Snort lancée pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Snort : {e}")
+        return False, str(e)
+
+def handle_ghidra_scan(project, option, request):
+    """Gère l'analyse avec Ghidra"""
+    try:
+        if not project.binary_file:
+            raise ValueError(f"Aucun fichier binaire défini pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='GHIDRA',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_ghidra_analysis.delay(scan_instance.id, option))
+        return True, f"Analyse Ghidra lancée pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Ghidra : {e}")
+        return False, str(e)
+
+def handle_wireshark_scan(project, option, request):
+    """Gère la capture Wireshark"""
+    try:
+        if not project.interface:
+            raise ValueError(f"Aucune interface réseau définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='WIRESHARK',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_wireshark_capture.delay(scan_instance.id, option))
+        return True, f"Capture Wireshark lancée pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Wireshark : {e}")
+        return False, str(e)
+
+def handle_reconng_scan(project, option, request):
+    """Gère le scan Recon-ng"""
+    try:
+        if not project.domain:
+            raise ValueError(f"Aucun domaine défini pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='RECONNG',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_reconng_scan.delay(scan_instance.id, option))
+        return True, f"Scan Recon-ng lancé pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Recon-ng : {e}")
+        return False, str(e)
+
+def handle_john_scan(project, option, request):
+    """Gère l'analyse John The Ripper"""
+    try:
+        if not project.hash_file:
+            raise ValueError(f"Aucun fichier de hash défini pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='JOHN',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_john_scan.delay(scan_instance.id, option))
+        return True, f"Analyse John The Ripper lancée pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de John The Ripper : {e}")
+        return False, str(e)
+
+def handle_hashcat_scan(project, option, request):
+    """Gère l'analyse Hashcat"""
+    try:
+        if not project.hash_file:
+            raise ValueError(f"Aucun fichier de hash défini pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='HASHCAT',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_hashcat_scan.delay(scan_instance.id, option))
+        return True, f"Analyse Hashcat lancée pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Hashcat : {e}")
+        return False, str(e)
+
+def handle_metasploit_scan(project, option, request):
+    """Gère le scan Metasploit"""
+    try:
+        if not project.ip_address and not project.url:
+            raise ValueError(f"Aucune cible (IP ou URL) définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='METASPLOIT',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_metasploit_scan.delay(scan_instance.id, option))
+        return True, f"Scan Metasploit lancé pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de Metasploit : {e}")
+        return False, str(e)
+
+def handle_beef_scan(project, option, request):
+    """Gère le scan BeEF"""
+    try:
+        if not project.url:
+            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='BEEF',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_beef_scan.delay(scan_instance.id, option))
+        return True, f"Hook BeEF lancé pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement de BeEF : {e}")
+        return False, str(e)
+
+def handle_aircrack_scan(project, option, request):
+    """Gère le scan Aircrack-ng"""
+    try:
+        if not project.mac_address:
+            raise ValueError(f"Aucune adresse MAC définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='AIRCRACK',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_aircrack_scan.delay(scan_instance.id, option))
+        return True, f"Scan Aircrack-ng lancé pour le projet '{project.name}'"
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement d'Aircrack-ng : {e}")
+        return False, str(e)
+def handle_nmap_scan(project, option, request):
+    """Gère le lancement d'un scan Nmap"""
+    try:
+        valid_options = [opt[0] for opt in NmapResult._meta.get_field('option').choices]
+        if option and option not in valid_options:
+            raise ValueError(f"Option invalide pour Nmap : '{option}'")
+
+        if not project.ip_address:
+            raise ValueError(f"Aucune adresse IP définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='NMAP',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_nmap_scan.delay(scan_instance.id, option))
+        return True, f"Scan Nmap lancé pour le projet '{project.name}'"
+    except ValueError as e:
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan Nmap : {e}")
+        return False, f"Erreur inattendue : {str(e)}"
+
+def handle_zap_scan(project, option, request):
+    """Gère le lancement d'un scan OWASP ZAP"""
+    try:
+        valid_options = [opt[0] for opt in OwaspZapResult._meta.get_field('option').choices]
+        if option and option not in valid_options:
+            raise ValueError(f"Option invalide pour ZAP : '{option}'")
+
+        if not project.url:
+            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='ZAP',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_zap_scan.delay(scan_instance.id, option))
+        return True, f"Scan ZAP lancé pour le projet '{project.name}'"
+    except ValueError as e:
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan ZAP : {e}")
+        return False, f"Erreur inattendue : {str(e)}"
+
+def handle_sqlmap_scan(project, option, request):
+    """Gère le lancement d'un scan SQLMap"""
+    try:
+        valid_options = [opt[0] for opt in SqlmapResult._meta.get_field('option').choices]
+        if option and option not in valid_options:
+            raise ValueError(f"Option invalide pour SQLMap : '{option}'")
+
+        if not project.url:
+            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
+
+        scan_instance = Scan.objects.create(
+            project=project,
+            tool='SQLMAP',
+            status='in_progress',
+            start_time=timezone.now(),
+            created_by=request.user
+        )
+
+        transaction.on_commit(lambda: run_sqlmap_scan.delay(scan_instance.id, option))
+        return True, f"Scan SQLMap lancé pour le projet '{project.name}'"
+    except ValueError as e:
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Erreur lors du lancement du scan SQLMap : {e}")
+        return False, f"Erreur inattendue : {str(e)}"
+
+# Mettre à jour la vue tools_admin pour utiliser tous les handlers
+@csrf_protect
+def tools_admin(request):
+    if request.method == "POST":
+        tool_name = request.POST.get("tool", "").strip().upper()
+        project_id = request.POST.get("project_id", "").strip()
+        option = request.POST.get("option", "").strip()
+        target_port = request.POST.get("target_port", "").strip()
+
+        if not project_id.isdigit():
+            messages.error(request, "ID de projet invalide.")
+            return redirect('tools_admin')
+
+        project = get_object_or_404(Project, id=int(project_id))
+
+        # Dictionnaire des handlers pour chaque outil
+        tool_handlers = {
+            'NMAP': lambda: handle_nmap_scan(project, option, request),
+            'ZAP': lambda: handle_zap_scan(project, option, request),
+            'SQLMAP': lambda: handle_sqlmap_scan(project, option, request),
+            'NIKTO': lambda: handle_nikto_scan(project, option, request),
+            'NETCAT': lambda: handle_netcat_scan(project, option, target_port, request),
+            'AIRCRACK': lambda: handle_aircrack_scan(project, option, request),
+            'BEEF': lambda: handle_beef_scan(project, option, request),
+            'METASPLOIT': lambda: handle_metasploit_scan(project, option, request),
+            'HASHCAT': lambda: handle_hashcat_scan(project, option, request),
+            'JOHN': lambda: handle_john_scan(project, option, request),
+            'RECONNG': lambda: handle_reconng_scan(project, option, request),
+            'WIRESHARK': lambda: handle_wireshark_scan(project, option, request),
+            'GHIDRA': lambda: handle_ghidra_scan(project, option, request),
+            'SNORT': lambda: handle_snort_scan(project, option, request),
+            'WIFITE': lambda: handle_wifite_scan(project, option, request),
+        }
+
+        handler = tool_handlers.get(tool_name)
+        if handler:
+            success, message = handler()
+            if success:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+        else:
+            messages.error(request, f"Outil '{tool_name}' non pris en charge.")
+
+        return redirect('tools_admin')
+
+    context = prepare_tools_context()
+    return render(request, 'admin/tools.html', context)
 
 @csrf_protect
 def tools_admin(request):
-    projects = Project.objects.all()
-    scans_history = []  # On initialise toujours la variable
+    if request.method == "POST":
+        # Récupération des données du formulaire
+        tool_name = request.POST.get("tool", "").strip().upper()
+        project_id = request.POST.get("project_id", "").strip()
+        option = request.POST.get("option", "").strip()
+        target_port = request.POST.get("target_port", "").strip()
+
+        if not project_id.isdigit():
+            messages.error(request, "ID de projet invalide.")
+            return redirect('tools_admin')
+
+        project = get_object_or_404(Project, id=int(project_id))
+
+        # Mapping des outils vers leurs handlers
+        tool_handlers = {
+            'NETCAT': lambda: handle_netcat_scan(project, option, target_port, request),
+            'NIKTO': lambda: handle_nikto_scan(project, option, request),
+            'NMAP': lambda: handle_nmap_scan(project, option, request),
+            'ZAP': lambda: handle_zap_scan(project, option, request),
+            'SQLMAP': lambda: handle_sqlmap_scan(project, option, request),
+            'AIRCRACK': lambda: handle_aircrack_scan(project, option, request),
+            'BEEF': lambda: handle_beef_scan(project, option, request),
+            'METASPLOIT': lambda: handle_metasploit_scan(project, option, request),
+            'HASHCAT': lambda: handle_hashcat_scan(project, option, request),
+            'JOHN': lambda: handle_john_scan(project, option, request),
+            'RECONNG': lambda: handle_reconng_scan(project, option, request),
+            'WIRESHARK': lambda: handle_wireshark_scan(project, option, request),
+            'WIFITE': lambda: handle_wifite_scan(project, option, request),
+            'GHIDRA': lambda: handle_ghidra_scan(project, option, request),
+            'SNORT': lambda: handle_snort_scan(project, option, request),
+        }
+
+        handler = tool_handlers.get(tool_name)
+        if handler:
+            success, message = handler()
+            if success:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+        else:
+            messages.error(request, f"Outil '{tool_name}' non pris en charge.")
+
+        return redirect('tools_admin')
+
+    # Préparation du contexte pour l'affichage
+    context = prepare_tools_context()
+    return render(request, 'admin/tools.html', context)
 
 
+def prepare_tools_context():
+    """Prépare le contexte pour la vue tools_admin"""
     def get_options(model):
         try:
             return model._meta.get_field('option').choices
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des options pour {model}: {e}")
+            logger.error(f"Erreur options pour {model.__name__}: {e}")
             return []
 
-    nmap_options = get_options(NmapResult)
-    zap_options = get_options(OwaspZapResult)
-    sqlmap_options = get_options(SqlmapResult)
-    aircrack_options = get_options(AircrackngResult)
-    beef_options = get_options(BeefResult)
-    metasploit_options = get_options(MetasploitResult)
-    hashcat_options = get_options(HashcatResult)
-    john_options = get_options(JohntheripperResult)
-    reconng_options = get_options(ReconngResult)
-    wireshark_options = get_options(WiresharkResult)
-    ghidra_options = get_options(GhidraResult)
-    snort_options = get_options(SnortResult)
-    wifite_options = get_options(WifiteResult)
-    netcat_options = get_options(NetcatResult)
-    nikto_options = get_options(NiktoResult)
-
-    nikto_raw_output = ""
-    nikto_results = []
-
-    if request.method == "POST":
-        try:
-            project_id = request.POST.get("project_id")
-            option = request.POST.get("option", "")  # Valeur d'option choisie
-            project = Project.objects.get(id=project_id)
-
-            target = project.url or project.ip_address
-            if not target:
-                logger.warning("Aucune cible définie pour le projet.")
-                return render(request, 'admin/tools.html', {"error": "Aucune cible définie."})
-
-            command = ['nikto', '-h', target]
-
-            # Gestion des options
-            if option in ['-Tuning 9', '-Tuning 4']:
-                tuning_value = option.split()[1]
-                command += ['-Tuning', tuning_value]
-            elif option in ['-ssl', '-nossl']:
-                command.append(option)
-            elif option == '-Cgidirs all':
-                command += ['-Cgidirs', 'all']
-            elif option != '-h':
-                command.append(option)
-
-            # Création du scan
-            scan_instance = Scan.objects.create(
-                project=project,
-                tool='NIKTO',
-                status='running',
-                start_time=timezone.now(),
-            )
-
-            # Exécution du scan
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            nikto_raw_output, error = process.communicate()
-
-            # Initialisation des champs
-            server = ssl_subject = ssl_issuer = ssl_altnames = ssl_cipher = ""
-            x_powered_by = x_frame_options = link_headers = ""
-            robots_txt_entries = index_files = private_ips_disclosed = ""
-            uncommon_headers = ip_in_cookie = alt_svc = redirected_root = ""
-            vulnerabilities = []
-
-            # Parsing de chaque ligne
-            for line in nikto_raw_output.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-
-                if "Server:" in line and not server:
-                    server = line.split("Server:", 1)[1].strip()
-                elif "SSL Info:" in line:
-                    ssl_subject = re.search(r"Subject:([^;]+)", line)
-                    ssl_issuer = re.search(r"Issuer:([^;]+)", line)
-                    ssl_altnames = re.search(r"AltNames:([^;]+)", line)
-                    ssl_cipher = re.search(r"Cipher:([^;]+)", line)
-                    ssl_subject = ssl_subject.group(1).strip() if ssl_subject else ""
-                    ssl_issuer = ssl_issuer.group(1).strip() if ssl_issuer else ""
-                    ssl_altnames = ssl_altnames.group(1).strip() if ssl_altnames else ""
-                    ssl_cipher = ssl_cipher.group(1).strip() if ssl_cipher else ""
-                elif "X-Powered-By:" in line:
-                    x_powered_by = line.split("X-Powered-By:", 1)[1].strip()
-                elif "X-Frame-Options:" in line:
-                    x_frame_options = line.split("X-Frame-Options:", 1)[1].strip()
-                elif "robots.txt" in line.lower():
-                    robots_txt_entries += line + "\n"
-                elif "index file found" in line.lower():
-                    index_files += line + "\n"
-                elif "Private IP" in line:
-                    private_ips_disclosed += line + "\n"
-                elif "Uncommon header" in line:
-                    uncommon_headers += line + "\n"
-                elif "IP address in cookie" in line:
-                    ip_in_cookie += line + "\n"
-                elif "Alt-Svc header" in line:
-                    alt_svc += line + "\n"
-                elif "Link header" in line:
-                    link_headers += line + "\n"
-                elif "Redirected" in line:
-                    redirected_root += line + "\n"
-                elif line.startswith('+') and not line.lower().startswith('+ server') and "Nikto" not in line:
-                    vulnerabilities.append(line[1:].strip())
-
-                    # Sauvegarde dans la base
-                    nikto_result = NiktoResult.objects.create(
-                        scan=scan_instance,
-                        option=option,
-                        vulnerability="Voir rapport",
-                        description=nikto_raw_output,
-                        uri=target,
-                        target_hostname=target,
-                        target_port=443 if '-ssl' in command else 80,
-                        server=server or "Inconnu",
-                        ssl_subject=ssl_subject or "Inconnu",
-                        ssl_issuer=ssl_issuer or "Inconnu",
-                        ssl_altnames=ssl_altnames or "Inconnu",
-                        ssl_cipher=ssl_cipher or "Inconnu",
-                        start_time=scan_instance.start_time,
-                        private_ips_disclosed=private_ips_disclosed or None,
-                        uncommon_headers=uncommon_headers or None,
-                        alt_svc=alt_svc or None,
-                        ip_in_cookie=ip_in_cookie or None,
-                        redirected_root=redirected_root or None,
-                        x_powered_by=x_powered_by or "Inconnu",
-                        x_frame_options=x_frame_options or "Inconnu",
-                        link_headers=link_headers or None,
-                        robots_txt_entries=robots_txt_entries or "Aucun",
-                        index_files=index_files or "Aucun",
-                        scan_completed=True,
-                        total_requests=0,
-                        percent_complete=100.0,
-                        estimated_time_left=None,
-                        parsed_vulnerabilities="\n".join(vulnerabilities)
-                    )
-
-        except Exception as e:
-            logger.exception("Erreur lors du scan Nikto")
-        
-
-    context = {
-        "projects": projects,
-        "nikto_options": nikto_options,
-        "nmap_options": nmap_options,
-        "zap_options": zap_options,
-        "sqlmap_options": sqlmap_options,
-        "aircrack_options": aircrack_options,
-        "beef_options": beef_options,
-        "metasploit_options": metasploit_options,
-        "hashcat_options": hashcat_options,
-        "john_options": john_options,
-        "reconng_options": reconng_options,
-        "wireshark_options": wireshark_options,
-        "ghidra_options": ghidra_options,
-        "snort_options": snort_options,
-        "wifite_options": wifite_options,
-        "netcat_options": netcat_options,
-        "nikto_raw_output": nikto_raw_output,
-        "nikto_results": nikto_results,
-        "scans_history": scans_history,
-        
+    options = {
+        "nmap_options": get_options(NmapResult),
+        "zap_options": get_options(OwaspZapResult),
+        "sqlmap_options": get_options(SqlmapResult),
+        "aircrack_options": get_options(AircrackngResult),
+        "beef_options": get_options(BeefResult),
+        "metasploit_options": get_options(MetasploitResult),
+        "hashcat_options": get_options(HashcatResult),
+        "john_options": get_options(JohntheripperResult),
+        "reconng_options": get_options(ReconngResult),
+        "wireshark_options": get_options(WiresharkResult),
+        "ghidra_options": get_options(GhidraResult),
+        "snort_options": get_options(SnortResult),
+        "wifite_options": get_options(WifiteResult),
+        "netcat_options": get_options(NetcatResult),
+        "nikto_options": get_options(NiktoResult),
     }
-    return render(request, 'admin/tools.html', context)
 
+    nikto_results = NiktoResult.objects.select_related('scan').order_by('-scan__start_time')[:10]
+
+    return {
+        "projects": Project.objects.all(),
+        "scans_history": Scan.objects.all().order_by('-start_time')[:20],
+        "nikto_results": nikto_results,
+        "nikto_raw_output": nikto_results.first().nikto_raw_output if nikto_results.exists() else "",
+        **options,
+    }
 
 def scan_result_detail(request, scan_id):
     scan = get_object_or_404(Scan, id=scan_id)
@@ -1324,213 +1614,140 @@ def scan_result_detail(request, scan_id):
         'scan': scan,
         'result': result
     })
-
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-
-from .models import NiktoResult  # Assure-toi que ce modèle est bien importé
-
-def nikto_report_pdf(request, result_id):
-    nikto_result = get_object_or_404(NiktoResult, id=result_id)
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="nikto_report_{result_id}.pdf"'
-
-    doc = SimpleDocTemplate(response, pagesize=letter)
+def generate_nikto_report(scan_data, filename):
+    """Génère un rapport PDF pour un scan Nikto"""
+    doc = SimpleDocTemplate(filename, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
 
-    def format_bool(val):
-        if val is None:
-            return ""
-        return "Oui" if val else "Non"
+    # Styles personnalisés
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        alignment=1
+    )
+    header_style = ParagraphStyle(
+        'CustomHeader',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=12,
+        textColor=colors.HexColor('#2E5090')
+    )
 
-    def format_date(dt):
-        if not dt:
-            return ""
-        if isinstance(dt, str):
-            return dt
-        return dt.strftime('%d/%m/%Y %H:%M:%S')
-
-    data = [
-        ["Champ", "Valeur"],
-        ["Hostname", nikto_result.target_hostname or ""],
-        ["Port", str(nikto_result.target_port or "")],
-        ["Serveur", nikto_result.server or ""],
-        ["SSL Subject", nikto_result.ssl_subject or ""],
-        ["SSL Issuer", nikto_result.ssl_issuer or ""],
-        ["SSL Alt Names", nikto_result.ssl_altnames or ""],
-        ["SSL Cipher", nikto_result.ssl_cipher or ""],
-        ["X-Powered-By", nikto_result.x_powered_by or ""],
-        ["X-Frame-Options", nikto_result.x_frame_options or ""],
-        ["Robots.txt Entries", nikto_result.robots_txt_entries or ""],
-        ["Index Files", nikto_result.index_files or ""],
-        ["Scan Terminé", format_bool(nikto_result.scan_completed)],
-        ["Nombre de Requêtes", str(nikto_result.total_requests or 0)],
-        ["Pourcentage complété", f"{nikto_result.percent_complete or 0:.2f}%"],
-        ["Début du scan", format_date(nikto_result.start_time)],
-        ["Description", nikto_result.description or ""],
-    ]
-
-    table = Table(data, colWidths=[150, 350])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-
-    elements.append(Paragraph("Rapport de scan Nikto", styles['Title']))
+    # Titre
+    elements.append(Paragraph("Rapport de Scan Nikto", title_style))
     elements.append(Spacer(1, 12))
-    elements.append(table)
 
+    # Informations de base
+    elements.append(Paragraph("Informations de la Cible", header_style))
+    target_info = f"""
+    <para>
+    <b>URI :</b> {scan_data['url']}<br/>
+    <b>Hostname :</b> {scan_data['host']}<br/>
+    <b>Port :</b> {scan_data['port']}<br/>
+    <b>Option utilisée :</b> {scan_data['option_used']}<br/>
+    </para>
+    """
+    elements.append(Paragraph(target_info, styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # Informations serveur
+    elements.append(Paragraph("Informations Serveur", header_style))
+    server_info = f"""
+    <para>
+    <b>Serveur :</b> {scan_data['server_info']['server']}<br/>
+    <b>SSL Subject :</b> {scan_data['server_info']['ssl_info']['subject']}<br/>
+    <b>SSL Issuer :</b> {scan_data['server_info']['ssl_info']['issuer']}<br/>
+    <b>SSL Cipher :</b> {scan_data['server_info']['ssl_info']['cipher']}<br/>
+    </para>
+    """
+    elements.append(Paragraph(server_info, styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # En-têtes de sécurité
+    elements.append(Paragraph("En-têtes de Sécurité", header_style))
+    security_headers = f"""
+    <para>
+    <b>X-Powered-By :</b> {scan_data['server_info']['headers']['x_powered_by']}<br/>
+    <b>X-Frame-Options :</b> {scan_data['server_info']['headers']['x_frame_options']}<br/>
+    <b>Content-Security-Policy :</b> {scan_data['server_info']['headers']['content_security']}<br/>
+    <b>Strict-Transport-Security :</b> {scan_data['server_info']['headers']['transport_security']}<br/>
+    </para>
+    """
+    elements.append(Paragraph(security_headers, styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # Vulnérabilités
+    elements.append(Paragraph("Vulnérabilités Détectées", header_style))
+    if scan_data['vulnerabilities']:
+        for vuln in scan_data['vulnerabilities'].split('\n'):
+            if vuln.strip():
+                elements.append(Paragraph(f"• {vuln}", styles['Normal']))
+    else:
+        elements.append(Paragraph("Aucune vulnérabilité détectée", styles['Normal']))
+
+    # Description détaillée
+    elements.append(Paragraph("Description Détaillée", header_style))
+    elements.append(Paragraph(scan_data['description'], styles['Normal']))
+
+    # Sortie brute
+    elements.append(Paragraph("Sortie Brute", header_style))
+    elements.append(Paragraph(scan_data['output'], styles['Code']))
+
+    # Pied de page
+    elements.append(Spacer(1, 20))
+    footer = f"""
+    <para alignment="center">
+    <b>Rapport généré le :</b> {timezone.now().strftime('%d/%m/%Y %H:%M:%S')}<br/>
+    EthicalPulse Security Assessment
+    </para>
+    """
+    elements.append(Paragraph(footer, styles['Normal']))
+
+    # Génération du PDF
     doc.build(elements)
-    return response
 
-def run_nikto_scan_background(project_id, option):
-    try:
-        project = Project.objects.get(id=project_id)
-        target = project.url or project.ip_address
-        if not target:
-            return  # On pourrait logger l'erreur
+def download_nikto_report(request, scan_id):
+    nikto_result = NiktoResult.objects.get(scan__id=scan_id)
 
-        command = ['nikto', '-h', target]
-        if option in ['-Tuning 9', '-Tuning 4']:
-            tuning_value = option.split()[1]
-            command += ['-Tuning', tuning_value]
-        elif option in ['-ssl', '-nossl']:
-                    command.append(option)
-        elif option == '-Cgidirs all':
-                    command += ['-Cgidirs', 'all']
-        elif option != '-h':
-                    command.append(option)
+    scan_data = {
+        'url': nikto_result.uri,  # Utilise uri au lieu de target_url
+        'host': nikto_result.target_hostname,  # Utilise target_hostname au lieu de host
+        'port': nikto_result.target_port,  # Utilise target_port au lieu de port
+        'server_info': {
+            'server': nikto_result.server,
+            'ssl_info': {
+                'subject': nikto_result.ssl_subject,
+                'issuer': nikto_result.ssl_issuer,
+                'cipher': nikto_result.ssl_cipher
+            },
+            'headers': {
+                'x_powered_by': nikto_result.x_powered_by,
+                'x_frame_options': nikto_result.x_frame_options,
+                'content_security': nikto_result.content_security_policy,
+                'transport_security': nikto_result.strict_transport_security
+            }
+        },
+        'vulnerabilities': nikto_result.vulnerability,
+        'output': nikto_result.nikto_raw_output,
+        'description': nikto_result.description,
+        'option_used': nikto_result.option
+    }
 
-        scan_instance = Scan.objects.create(
-                    project=project,
-                    tool='NIKTO',
-                    status='running',
-                    start_time=timezone.now(),
-                )
-        result = subprocess.run(command, capture_output=True, text=True, timeout=600)
-        nikto_raw_output = result.stdout
-
-        # Parsing enrichi
-        for line in nikto_raw_output.splitlines():
-            line = line.strip()
-
-            # Server
-            if "Server:" in line and not server:
-                server = line.split("Server:", 1)[1].strip()
-
-            # SSL Infos
-            if "SSL Info:" in line:
-                if "Subject:" in line:
-                    match = re.search(r"Subject:([^;]+)", line)
-                    ssl_subject = match.group(1).strip() if match else ssl_subject
-                if "Issuer:" in line:
-                    match = re.search(r"Issuer:([^;]+)", line)
-                    ssl_issuer = match.group(1).strip() if match else ssl_issuer
-                if "AltNames:" in line:
-                    match = re.search(r"AltNames:([^;]+)", line)
-                    ssl_altnames = match.group(1).strip() if match else ssl_altnames
-                if "Cipher:" in line:
-                    match = re.search(r"Cipher:([^;]+)", line)
-                    ssl_cipher = match.group(1).strip() if match else ssl_cipher
-
-            # En-têtes HTTP
-            if "X-Powered-By:" in line:
-                x_powered_by = line.split("X-Powered-By:", 1)[1].strip()
-            if "X-Frame-Options:" in line:
-                x_frame_options = line.split("X-Frame-Options:", 1)[1].strip()
-
-            # robots.txt
-            if re.search(r"robots\.txt", line, re.IGNORECASE):
-                robots_txt_entries = (robots_txt_entries or "") + line + "\n"
-
-            # Fichiers index
-            if "index file found" in line.lower():
-                index_files = (index_files or "") + line + "\n"
-
-            # Private IPs, uncommon headers, cookies, etc.
-            if "Private IP" in line:
-                private_ips_disclosed = (private_ips_disclosed or "") + line + "\n"
-            if "Uncommon header" in line:
-                uncommon_headers = (uncommon_headers or "") + line + "\n"
-            if "IP address in cookie" in line:
-                ip_in_cookie = (ip_in_cookie or "") + line + "\n"
-            if "Alt-Svc header" in line:
-                alt_svc = (alt_svc or "") + line + "\n"
-            if "Link header" in line:
-                link_headers = (link_headers or "") + line + "\n"
-            if "Redirected" in line:
-                redirected_root = (redirected_root or "") + line + "\n"
-
-        end_time = timezone.now()
-        duration = (end_time - scan_instance.start_time).total_seconds()
-        scan_instance.status = 'completed'
-        scan_instance.end_time = end_time
-        scan_instance.duration = duration
-        scan_instance.save()
-
-        NiktoResult.objects.create(
-                    scan=scan_instance,
-                    option=option,
-                    vulnerability="Voir rapport",
-                    description=nikto_raw_output,
-                    uri=target,
-                    target_hostname=target,
-                    target_port=443 if '-ssl' in command else 80,
-                    server=server,
-                    ssl_subject=ssl_subject,
-                    ssl_issuer=ssl_issuer,
-                    ssl_altnames=ssl_altnames,
-                    ssl_cipher=ssl_cipher,
-                    start_time=scan_instance.start_time,
-                    private_ips_disclosed=None,
-                    uncommon_headers=None,
-                    alt_svc=None,
-                    ip_in_cookie=None,
-                    redirected_root=None,
-                    x_powered_by=x_powered_by,
-                    x_frame_options=x_frame_options,
-                    link_headers=None,
-                    robots_txt_entries=robots_txt_entries,
-                    index_files=index_files,
-                    scan_completed=True,
-                    total_requests=0,
-                    percent_complete=100.0,
-                    estimated_time_left=None,
-                )
-    except Exception as e:
-                # Log erreur ici (avec logging ou autre)
-                pass
-
-@csrf_protect
-def start_nikto_scan(request):
-    if request.method == 'POST':
-            project_id = request.POST.get('project_id')
-    option = request.POST.get('option')
-    if not project_id or not option:
-        # Gestion erreur
-            return redirect('tools_admin')
-    try:
-            threading.Thread(target=run_nikto_scan_background, args=(project_id, option)).start()
-    except Exception:
-        # Gestion erreur de thread
-            pass
-    return redirect('tools_admin')
-
-
-
-
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmpfile:
+        generate_nikto_report(scan_data, tmpfile.name)
+        tmpfile.seek(0)
+        response = FileResponse(
+            open(tmpfile.name, 'rb'),
+            content_type='application/pdf',
+            filename=f'nikto_report_{scan_id}.pdf'
+        )
+        
+        # Nettoyage du fichier temporaire après l'envoi
+        os.unlink(tmpfile.name)
+        return response
 def tools(request):
     return render(request, 'tools/index.html')
 

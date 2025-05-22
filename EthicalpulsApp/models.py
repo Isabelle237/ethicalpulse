@@ -87,7 +87,18 @@ TOOL_CHOICES = (
     ('ZAP', 'OWASP ZAP'),
     ('NMAP', 'Nmap'),
     ('SQLMAP', 'SQLMap'),
-    ('APISEC', 'API Security Scanner'),
+    ('AIRCRACK', 'Aircrack-ng'),
+    ('BEEF', 'BeEF'),
+    ('METASPLOIT', 'Metasploit'),
+    ('HASHCAT', 'Hashcat'),
+    ('JOHN', 'John The Ripper'),
+    ('RECONNG', 'Recon-ng'),
+    ('WIRESHARK', 'Wireshark'),
+    ('WIFITE', 'Wifite'),
+    ('GHIDRA', 'Ghidra'),
+    ('SNORT', 'Snort'),
+    ('NETCAT', 'Netcat'),
+    ('NIKTO', 'Nikto'),
 )
 
 class Project(models.Model):
@@ -121,7 +132,14 @@ class Scan(models.Model):
     end_time = models.DateTimeField(blank=True, null=True, verbose_name="Heure de fin")
     duration = models.FloatField(blank=True, null=True, verbose_name="Durée (en secondes)")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
-
+    created_by = models.ForeignKey(
+        'CustomUser',  # Utilise le modèle CustomUser
+        on_delete=models.SET_NULL,  # Si l'utilisateur est supprimé, garde le scan
+        null=True,
+        blank=True,
+        verbose_name="Créé par",
+        related_name="scans_created"
+    )
     def __str__(self):
         return f"{self.name} ({self.tool})"
 
@@ -231,14 +249,6 @@ BEEF_OPTIONS = (
     ('--hook-url', "URL du hook pour exploiter les navigateurs"),
 )
 
-NIKTO_OPTIONS = (
-    ('-h', "Scan standard d'un hôte"),
-    ('-Tuning 9', "Tests d'injection SQL"),
-    ('-Tuning 4', 'Tests XSS'),
-    ('-ssl', "Force l'utilisation de SSL/HTTPS"),
-    ('-nossl', "Force l'utilisation de HTTP"),
-    ('-Cgidirs all', 'Teste tous les dossiers CGI'),
-)
 
 METASPLOIT_OPTIONS = (
     ('use exploit/multi/handler', 'Configure un handler'),
@@ -310,7 +320,7 @@ SNORT_OPTIONS = (
 # Modèles des résultats avec champ option
 
 class NmapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True,blank=True)
     option = models.CharField(max_length=5, choices=NMAP_OPTIONS)
     port = models.IntegerField()
     state = models.CharField(max_length=20)
@@ -320,7 +330,7 @@ class NmapResult(models.Model):
 
 
 class OwaspZapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=10, choices=ZAP_OPTIONS)
     url = models.URLField()
     risk = models.CharField(max_length=50)
@@ -331,7 +341,7 @@ class OwaspZapResult(models.Model):
 
 
 class SqlmapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=10, choices=SQLMAP_OPTIONS)
     dbms = models.CharField(max_length=100)
     db_name = models.CharField(max_length=100)
@@ -341,7 +351,7 @@ class SqlmapResult(models.Model):
 
 
 class AircrackngResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=20, choices=AIRCRACK_OPTIONS)
     ssid = models.CharField(max_length=100)
     mac_address = models.CharField(max_length=17)
@@ -352,7 +362,7 @@ class AircrackngResult(models.Model):
 
 
 class BeefResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=15, choices=BEEF_OPTIONS)
     victim_ip = models.GenericIPAddressField()
     browser = models.CharField(max_length=100)
@@ -361,74 +371,61 @@ class BeefResult(models.Model):
     executed_modules = models.TextField()
 
 from django.db import models
+from EthicalpulsApp.models import Scan
+
+# Options disponibles pour les scans Nikto
+NIKTO_OPTIONS = (
+    ('-h', "Scan standard d'un hôte"),
+    ('-Tuning 9', "Tests d'injection SQL"),
+    ('-Tuning 4', 'Tests XSS'),
+    ('-ssl', "Force l'utilisation de SSL/HTTPS"),
+    ('-nossl', "Force l'utilisation de HTTP"),
+    ('-Cgidirs all', 'Teste tous les dossiers CGI'),
+)
 
 class NiktoResult(models.Model):
-    scan = models.ForeignKey('Scan', on_delete=models.CASCADE)
-    option = models.CharField(max_length=20, choices=NIKTO_OPTIONS)
-
-    # Cible
-    target_hostname = models.CharField(max_length=255, null=True, blank=True)
-    target_ip = models.GenericIPAddressField(null=True, blank=True)
-    target_port = models.IntegerField(default=80)
-    multiple_ips = models.TextField(null=True, blank=True)  # Pour stocker plusieurs IPs (via DNS)
-
-    # Vulnérabilités et URI associées
-    vulnerability = models.CharField(max_length=255)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=44, choices=NIKTO_OPTIONS)
+    nikto_raw_output = models.TextField(blank=True, null=True)
+    vulnerability = models.TextField(blank=True, null=True)
     description = models.TextField()
-    uri = models.CharField(max_length=255)
+    uri = models.CharField(max_length=255, null=True, blank=True)
+    target_hostname = models.CharField(max_length=255, null=True, blank=True)
+    target_port = models.IntegerField()
 
-    # Informations SSL
-    ssl_info = models.TextField(null=True, blank=True)
-    ssl_subject = models.TextField(null=True, blank=True)
-    ssl_issuer = models.TextField(null=True, blank=True)
-    ssl_altnames = models.TextField(null=True, blank=True)
-    ssl_cipher = models.CharField(max_length=255, null=True, blank=True)
+    # Informations du serveur / SSL
+    server = models.CharField(max_length=255, blank=True, null=True)
+    ssl_subject = models.CharField(max_length=255, blank=True, null=True)
+    ssl_issuer = models.CharField(max_length=255, blank=True, null=True)
+    ssl_altnames = models.CharField(max_length=255, blank=True, null=True)
+    ssl_cipher = models.CharField(max_length=255, blank=True, null=True)
 
-    # Serveur et headers
-    server = models.CharField(max_length=255, null=True, blank=True)
-    x_powered_by = models.CharField(max_length=255, null=True, blank=True)
-    x_frame_options = models.CharField(max_length=255, null=True, blank=True)
-    deprecated_headers = models.TextField(null=True, blank=True)
-    missing_security_headers = models.TextField(null=True, blank=True)
-    uncommon_headers = models.TextField(null=True, blank=True)
-    alt_svc = models.TextField(null=True, blank=True)
-    link_headers = models.TextField(null=True, blank=True)
-    refresh_headers = models.TextField(null=True, blank=True)
+    # En-têtes HTTP
+    x_powered_by = models.CharField(max_length=255, blank=True, null=True)
+    x_frame_options = models.CharField(max_length=255, blank=True, null=True)
+    link_headers = models.TextField(blank=True, null=True)
+    via_header = models.CharField(max_length=255, blank=True, null=True)
+    content_security_policy = models.TextField(blank=True, null=True)
+    strict_transport_security = models.CharField(max_length=255, blank=True, null=True)
+    referrer_policy = models.CharField(max_length=255, blank=True, null=True)
+    content_type = models.CharField(max_length=255, blank=True, null=True)
+    cache_control = models.CharField(max_length=255, blank=True, null=True)
+    expires = models.CharField(max_length=255, blank=True, null=True)
+    pragma = models.CharField(max_length=255, blank=True, null=True)
+    set_cookie = models.TextField(blank=True, null=True)
+    location_header = models.CharField(max_length=255, blank=True, null=True)
 
-    # Informations sensibles dans les en-têtes ou cookies
-    private_ips_disclosed = models.TextField(null=True, blank=True)
-    external_ip_headers = models.TextField(null=True, blank=True)
-    ip_in_cookie = models.GenericIPAddressField(null=True, blank=True)
-
-    # Redirection
-    redirected_root = models.CharField(max_length=255, null=True, blank=True)
-
-    # Fichiers index / robots.txt
-    robots_txt_entries = models.TextField(null=True, blank=True)
-    robots_issues = models.TextField(null=True, blank=True)
-    index_files = models.TextField(null=True, blank=True)
-
-    # Timing et état
-    start_time = models.DateTimeField(null=True, blank=True)
-    end_time = models.DateTimeField(null=True, blank=True)
-    estimated_time_left = models.CharField(max_length=100, null=True, blank=True)
-    percent_complete = models.FloatField(default=0.0)
-    total_requests = models.IntegerField(default=0)
+    # Résultats et état du scan
+    parsed_vulnerabilities = models.TextField(blank=True)
     scan_completed = models.BooleanField(default=False)
-    parsed_vulnerabilities = models.TextField(null=True, blank=True)
-
-
-    # Résumé / erreurs / notes
-    errors_count = models.IntegerField(default=0)
-    items_reported = models.IntegerField(default=0)
-    notes = models.TextField(null=True, blank=True)
+    total_requests = models.IntegerField(default=0)
+    percent_complete = models.FloatField(default=0.0)
 
     def __str__(self):
-        return f"NiktoResult: {self.target_hostname}:{self.target_port} - {self.vulnerability}"
-
+        return f"Nikto Result for {self.target_hostname}:{self.target_port} - {self.get_option_display()}"
 
 class MetasploitResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=44, choices=METASPLOIT_OPTIONS)
     vulnerability = models.CharField(max_length=255)
     exploited = models.BooleanField(default=False)
@@ -437,7 +434,7 @@ class MetasploitResult(models.Model):
 
 
 class HashcatResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=10, choices=HASHCAT_OPTIONS)
     hash_type = models.CharField(max_length=100)
     original_hash = models.TextField()
@@ -446,7 +443,7 @@ class HashcatResult(models.Model):
 
 
 class JohntheripperResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=20, choices=JOHN_OPTIONS)
     hash = models.TextField()
     cracked_password = models.CharField(max_length=255)
@@ -454,7 +451,7 @@ class JohntheripperResult(models.Model):
 
 
 class ReconngResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=50, choices=RECONNG_OPTIONS)
     subdomain = models.CharField(max_length=255)
     ip_address = models.GenericIPAddressField()
@@ -462,7 +459,7 @@ class ReconngResult(models.Model):
     whois_info = models.TextField(null=True, blank=True)
 
 class WiresharkResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=5, choices=WIRESHARK_OPTIONS)
     protocol = models.CharField(max_length=50)
     src_ip = models.GenericIPAddressField()
@@ -471,7 +468,7 @@ class WiresharkResult(models.Model):
     info = models.TextField()
 
 class WifiteResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=10, choices=WIFITE_OPTIONS)
     target_ssid = models.CharField(max_length=100)
     mac_address = models.CharField(max_length=17)
@@ -479,20 +476,20 @@ class WifiteResult(models.Model):
     attack_status = models.CharField(max_length=50)
 
 class GhidraResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=24, choices=GHIDRA_OPTIONS)
     binary_name = models.CharField(max_length=255)
     analysis_report = models.TextField()
 
 class SnortResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=5, choices=SNORT_OPTIONS)
     alert_message = models.TextField()
     packet_info = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     
 class NetcatResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
     option = models.CharField(max_length=4, choices=NETCAT_OPTIONS)
     port = models.IntegerField()
     state = models.CharField(max_length=20)

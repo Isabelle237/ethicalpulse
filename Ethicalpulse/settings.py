@@ -29,7 +29,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'EthicalpulsApp',  # Ton application principale
     'widget_tweaks',
+    'channels',  # Pour les WebSockets
 ]
+
 
 # Middleware
 MIDDLEWARE = [
@@ -77,6 +79,7 @@ DATABASES = {
         },
     }
 }
+
 
 # Validation des mots de passe
 AUTH_PASSWORD_VALIDATORS = [
@@ -140,6 +143,15 @@ LOGGING = {
 
 AUTH_USER_MODEL = 'EthicalpulsApp.CustomUser'
 # Configuration Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL du broker Redis
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('redis', 6379)],
+        },
+    },
+}

@@ -54,7 +54,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if '/scans' in request.path %}active{% endif %}" href="{% url 'scan_dashboard' %}">
+                <a class="nav-link {% if '/scans' in request.path %}active{% endif %}" href="{% url 'launch_scan' %}">
                     <i class="bi bi-search"></i>
                     <span class="sidebar-text">Scans</span>
                 </a>
@@ -66,7 +66,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if '/tools' in request.path %}active{% endif %}" href="{% url 'tools' %}">
+                <a class="nav-link {% if '/tools' in request.path %}active{% endif %}" href="{% url 'tools_admin' %}">
                     <i class="bi bi-tools"></i>
                     <span class="sidebar-text">Outils</span>
                 </a>

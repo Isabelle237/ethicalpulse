@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Installer les dépendances système nécessaires, y compris les modules Perl SSL pour Nikto
+# Installer les dépendances système nécessaires
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
@@ -22,11 +22,11 @@ RUN apt-get update && apt-get install -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Installer sqlmap (via git car le paquet Debian est souvent obsolète)
+# Installer sqlmap
 RUN git clone --depth=1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
  && ln -s /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap
 
-# Cloner Nikto depuis le dépôt officiel et créer un lien vers le script
+# Installer Nikto
 RUN git clone https://github.com/sullo/Nikto /opt/nikto \
  && chmod +x /opt/nikto/program/nikto.pl \
  && ln -s /opt/nikto/program/nikto.pl /usr/local/bin/nikto
@@ -34,7 +34,7 @@ RUN git clone https://github.com/sullo/Nikto /opt/nikto \
 # Installer gvm-tools et zapcli
 RUN pip install --no-cache-dir gvm-tools zapcli
 
-# Télécharger et installer OWASP ZAP
+# Télécharger et installer ZAP
 RUN wget https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1_unix.sh \
  && sh ZAP_2_16_1_unix.sh -q \
  && ln -s /root/ZAP_2.16.1/zap.sh /usr/local/bin/zap \
@@ -46,7 +46,7 @@ COPY requirements.txt .
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier tout le reste de l'application
+# Copier tout le code de l'application
 COPY . .
 
 # Commande de démarrage
@@ -58,4 +58,5 @@ CMD ["sh", "-c", "\
     echo 'ZAP est prêt.' && \
     until nc -z -v -w30 db 3306; do echo 'Waiting for MySQL...'; sleep 5; done && \
     python manage.py migrate && \
+    celery -A Ethicalpulse worker --loglevel=info & \
     python manage.py runserver 0.0.0.0:8000"]

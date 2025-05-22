@@ -34,11 +34,8 @@ urlpatterns = [
    # path('tools/create/', views.tools_create, name='tools_create'),
     path('tools/<int:tool_id>/edit/', views.tools_edit, name='tools_edit'),
     path('admin/scan/<int:scan_id>/', views.scan_result_detail, name='scan_result_detail'),
-    path('admin/nikto_report/<int:nikto_result_id>/pdf/', views.nikto_report_pdf, name='generate_nikto_report'),
-    path('tools/<int:tool_id>/delete/', views.tools_delete, name='tools_delete'),
+    path('download-nikto-report/<int:scan_id>/', views.download_nikto_report, name='download_nikto_report'),    
     path('tools/<int:tool_id>/run/', views.tools_run, name='tools_run'),
-    path('tools/<int:tool_id>/run/background/', views.run_nikto_scan_background, name='run_nikto_scan_background'),
-    path('nikto-report/<int:result_id>/', views.nikto_report_pdf, name='nikto_report_pdf'),
 
 
     # Remédiations
