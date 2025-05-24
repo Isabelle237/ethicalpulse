@@ -140,6 +140,7 @@ class Scan(models.Model):
         verbose_name="Créé par",
         related_name="scans_created"
     )
+    error_log = models.TextField(null=True, blank=True)
     def __str__(self):
         return f"{self.name} ({self.tool})"
 
@@ -205,7 +206,9 @@ NMAP_OPTIONS = (
     ('-O', "OS Detection - Identifie systèmes d'exploitation"),
     ('-A', 'Scan Agressif - OS, version, scripts, traceroute'),
     ('-p-', 'Tous Ports - Scanne tous les ports TCP'),
+    ('-F', 'Scan rapide - Scan SYN des ports les plus courants'),
 )
+
 
 NETCAT_OPTIONS = (
     ('-lvp', 'Listener (-lvp) - Écoute sur un port'),
@@ -317,16 +320,36 @@ SNORT_OPTIONS = (
 )
 
 
-# Modèles des résultats avec champ option
 
 class NmapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True,blank=True)
-    option = models.CharField(max_length=5, choices=NMAP_OPTIONS)
-    port = models.IntegerField()
-    state = models.CharField(max_length=20)
-    service = models.CharField(max_length=100)
-    version = models.CharField(max_length=100, null=True, blank=True)
-    os = models.CharField(max_length=100, null=True, blank=True)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, related_name='nmap_results', null=True, blank=True)
+    target = models.CharField(max_length=255, blank=True, null=True)  # IP ou domaine
+    command_used = models.TextField(null=True, blank=True)            # Commande exacte exécutée
+    option = models.CharField(max_length=255, choices=NMAP_OPTIONS)  # Ex: -sS -sV -O
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    returncode = models.IntegerField(null=True, blank=True)
+    # Résumé global
+    os_detected = models.CharField(max_length=255, null=True, blank=True)
+    os_accuracy = models.CharField(max_length=100, null=True, blank=True)
+    traceroute = models.TextField(null=True, blank=True)
+    script_results = models.TextField(null=True, blank=True)  # Résultats des scripts NSE
+
+    # Résultats complets bruts (parse possible plus tard)
+    full_output = models.TextField(null=True, blank=True)  # Toute la sortie Nmap texte ou XML
+
+    # Liste de ports détectés (TCP/UDP)
+    open_tcp_ports = models.TextField(null=True, blank=True)  # Format: "80/http, 443/https"
+    open_udp_ports = models.TextField(null=True, blank=True)
+
+    # Services détectés
+    service_details = models.TextField(null=True, blank=True)  # nom, version, etc.
+    # Statut & logs
+    scan_status = models.CharField(max_length=50, default='pending', null=True, blank=True)  # pending, running, finished, error
+    error_log = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Scan Nmap - {self.target} ({self.start_time.date()})"
 
 
 class OwaspZapResult(models.Model):

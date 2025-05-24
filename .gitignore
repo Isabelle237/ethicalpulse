@@ -1,0 +1,63 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+/static/
+media/
+*.pot
+*.mo
+*.swp
+
+# Ignorer les fichiers de migration
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# Environnement virtuel
+venv/
+env/
+.venv/
+.env/
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# Pytest
+.cache/
+
+# Coverage reports
+.coverage
+.coverage.*
+
+# MySQL
+*.sql
+*.bak
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Secrets
+*.env
+*.key
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db

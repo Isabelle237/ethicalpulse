@@ -29,14 +29,11 @@ urlpatterns = [
     path('scans/schedule/', views.ScheduledScan, name='schedule_scan'),
 
     # Outils
-   # path('tools/', views.tools, name='tools'),
+
     path('tools_admin/', views.tools_admin, name='tools_admin'),
    # path('tools/create/', views.tools_create, name='tools_create'),
     path('tools/<int:tool_id>/edit/', views.tools_edit, name='tools_edit'),
-    path('admin/scan/<int:scan_id>/', views.scan_result_detail, name='scan_result_detail'),
-    path('download-nikto-report/<int:scan_id>/', views.download_nikto_report, name='download_nikto_report'),    
-    path('tools/<int:tool_id>/run/', views.tools_run, name='tools_run'),
-
+   path('tools/<int:tool_id>/run/', views.tools_run, name='tools_run'),
 
     # Remédiations
     path('remediation/', views.remediations, name='remediations'),

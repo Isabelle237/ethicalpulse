@@ -1,249 +1,1501 @@
+{% extends 'admin/admin_base.html' %}
 
-{% extends "admin/admin_base.html" %}
+{% block title %}Remédiation - Ethical Pulse Shield{% endblock %}
 
-{% block admin_title %}Gestion des Remédiations{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3"><i class="bi bi-bandaid me-2"></i>Remédiation</h1>
+            <p class="text-muted">Gestion des remèdes et corrections pour les vulnérabilités détectées</p>
+        </div>
+    </div>
 
-{% block admin_header_actions %}
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newRemediationModal">
-    <i class="bi bi-bandaid"></i> Nouvelle Remédiation
-</button>
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Remédiations Réussies</h6>
+                            <h3 class="mb-0">26</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-check-circle fs-3 text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">En cours</h6>
+                            <h3 class="mb-0">8</h3>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-hourglass-split fs-3 text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Échouées</h6>
+                            <h3 class="mb-0">3</h3>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-x-circle fs-3 text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">En attente</h6>
+                            <h3 class="mb-0">12</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-clock fs-3 text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres de remédiation -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Filtres de remédiation</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="vulnerabilityTypeFilter" class="form-label">Type de vulnérabilité</label>
+                    <select id="vulnerabilityTypeFilter" class="form-select">
+                        <option value="">Tous les types</option>
+                        <option value="injection">Injection SQL</option>
+                        <option value="xss">Cross-Site Scripting (XSS)</option>
+                        <option value="csrf">Cross-Site Request Forgery</option>
+                        <option value="auth">Authentification faible</option>
+                        <option value="ssl">Problèmes SSL/TLS</option>
+                        <option value="headers">En-têtes HTTP manquants</option>
+                        <option value="ports">Ports exposés</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="remediationTypeFilter" class="form-label">Type de remédiation</label>
+                    <select id="remediationTypeFilter" class="form-select">
+                        <option value="">Tous les types</option>
+                        <option value="patch">Correctif</option>
+                        <option value="configuration">Configuration</option>
+                        <option value="code_fix">Correction de code</option>
+                        <option value="update">Mise à jour</option>
+                        <option value="firewall">Règle de pare-feu</option>
+                        <option value="iptables">IPTables</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label">Statut</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">Tous les statuts</option>
+                        <option value="success">Réussie</option>
+                        <option value="in_progress">En cours</option>
+                        <option value="failed">Échouée</option>
+                        <option value="pending">En attente</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="searchRemediation" class="form-label">Recherche</label>
+                    <div class="input-group">
+                        <input type="text" id="searchRemediation" class="form-control" placeholder="Rechercher...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remédiations -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="card-title mb-0">Liste des remédiations</h5>
+                </div>
+                <div class="col-auto">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="remediationViewDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-layout-three-columns me-1"></i> Vue
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="remediationViewDropdown">
+                            <li><a class="dropdown-item active" href="#" data-view="table">Vue tableau</a></li>
+                            <li><a class="dropdown-item" href="#" data-view="cards">Vue cartes</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Vulnérabilité</th>
+                            <th>Statut</th>
+                            <th>Date appliquée</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Remediation 1: SQL Injection -->
+                        <tr>
+                            <td>
+                                <strong>Correctif de Vulnérabilité SQL</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="1">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">Correctif</span>
+                            </td>
+                            <td>
+                                Injection SQL
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Injection SQL">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Réussi</span>
+                            </td>
+                            <td>
+                                15/04/2023 10:30
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="1">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="1">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="1">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 2: Firewall Configuration -->
+                        <tr>
+                            <td>
+                                <strong>Configuration du Pare-feu</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="2">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">Pare-feu</span>
+                            </td>
+                            <td>
+                                Ports ouverts non sécurisés
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Ports ouverts non sécurisés">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">En cours</span>
+                            </td>
+                            <td>
+                                14/04/2023 14:20
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="2">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="2">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="2">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 3: Library Update -->
+                        <tr>
+                            <td>
+                                <strong>Mise à jour de Bibliothèque</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="3">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Mise à jour</span>
+                            </td>
+                            <td>
+                                XSS via bibliothèque obsolète
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="XSS Persistant">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">En attente</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">Non appliqué</span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="3">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="3">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="3">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 4: Authentication Hardening -->
+                        <tr>
+                            <td>
+                                <strong>Renforcement de l'Authentication</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="4">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">Correction de code</span>
+                            </td>
+                            <td>
+                                Faible mécanisme d'authentification
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Authentification faible">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Réussi</span>
+                            </td>
+                            <td>
+                                13/04/2023 09:15
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="4">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="4">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="4">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 5: HTTP Headers -->
+                        <tr>
+                            <td>
+                                <strong>Correction des en-têtes HTTP</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="5">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">Configuration</span>
+                            </td>
+                            <td>
+                                En-têtes de sécurité manquants
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="En-têtes de sécurité manquants">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-danger">Échoué</span>
+                            </td>
+                            <td>
+                                12/04/2023 16:45
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="5">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="5">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="5">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 6: DoS Protection -->
+                        <tr>
+                            <td>
+                                <strong>Règles IPTables pour bloquer les attaques DoS</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="6">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-dark">IPTables</span>
+                            </td>
+                            <td>
+                                Vulnérabilité DoS
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Attaque par déni de service">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Réussi</span>
+                            </td>
+                            <td>
+                                11/04/2023 11:30
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="6">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="6">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="6">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 7: XSS Protection -->
+                        <tr>
+                            <td>
+                                <strong>Validation d'entrées pour prévenir XSS</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="7">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">Correction de code</span>
+                            </td>
+                            <td>
+                                XSS Réfléchi
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="XSS Persistant">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">En attente</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">Non appliqué</span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="7">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="7">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="7">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Autres remédiations -->
+                        <!-- Remediation 8: SSL/TLS Configuration -->
+                        <tr>
+                            <td>
+                                <strong>Configuration SSL/TLS sécurisée</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="8">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">Configuration</span>
+                            </td>
+                            <td>
+                                Configuration SSL/TLS faible
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Chiffrement SSL obsolète">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Réussi</span>
+                            </td>
+                            <td>
+                                10/04/2023 13:25
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="8">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="8">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="8">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 9: CORS Configuration -->
+                        <tr>
+                            <td>
+                                <strong>Correction de la configuration CORS</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="9">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">Configuration</span>
+                            </td>
+                            <td>
+                                Configuration CORS trop permissive
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="Configuration CORS incorrecte">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">En cours</span>
+                            </td>
+                            <td>
+                                09/04/2023 10:15
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="9">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="9">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="9">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- Remediation 10: CSRF Protection -->
+                        <tr>
+                            <td>
+                                <strong>Protection contre les attaques CSRF</strong>
+                                <button class="btn btn-sm btn-link text-info ms-1 show-details" data-bs-toggle="tooltip" title="Voir détails" data-remediation-id="10">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">Correction de code</span>
+                            </td>
+                            <td>
+                                Vulnérabilité CSRF
+                                <button class="btn btn-sm text-primary ms-1 show-vuln-doc" data-bs-toggle="tooltip" title="Documentation" data-vuln-type="CSRF">
+                                    <i class="bi bi-book"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">En attente</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">Non appliqué</span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary view-remediation" data-remediation-id="10">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success apply-remediation" data-remediation-id="10">
+                                    <i class="bi bi-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-remediation" data-remediation-id="10">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white">
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">Précédent</a>
+                    </li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Suivant</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Modal Détails de la Remédiation -->
+    <div class="modal fade" id="remediationDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Détails de la remédiation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Informations générales</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Nom:</dt>
+                                <dd class="col-sm-8" id="detailName">Correctif de Vulnérabilité SQL</dd>
+                                
+                                <dt class="col-sm-4">Type:</dt>
+                                <dd class="col-sm-8" id="detailType">Correctif</dd>
+                                
+                                <dt class="col-sm-4">Date de création:</dt>
+                                <dd class="col-sm-8" id="detailCreated">15/04/2023</dd>
+                                
+                                <dt class="col-sm-4">Date d'application:</dt>
+                                <dd class="col-sm-8" id="detailApplied">15/04/2023 10:30</dd>
+                                
+                                <dt class="col-sm-4">Statut:</dt>
+                                <dd class="col-sm-8" id="detailStatus"><span class="badge bg-success">Réussi</span></dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Vulnérabilité associée</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Nom:</dt>
+                                <dd class="col-sm-8" id="detailVulnName">Injection SQL</dd>
+                                
+                                <dt class="col-sm-4">Type:</dt>
+                                <dd class="col-sm-8" id="detailVulnType">Injection SQL</dd>
+                                
+                                <dt class="col-sm-4">Sévérité:</dt>
+                                <dd class="col-sm-8" id="detailSeverity"><span class="badge bg-danger">Critique</span></dd>
+                                
+                                <dt class="col-sm-4">Cible:</dt>
+                                <dd class="col-sm-8" id="detailTarget">example.com/login.php</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6>Description</h6>
+                        <p id="detailDescription" class="border rounded p-3 bg-light">Paramétrage des requêtes SQL pour éviter les injections</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6>Méthode de remédiation</h6>
+                        <div id="detailMethod" class="border rounded p-3 bg-light">
+                            Remplacer les concaténations de chaînes par des requêtes paramétrées. Utiliser des ORM pour gérer automatiquement l'échappement.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4" id="detailCommandSection">
+                        <h6>Commande à exécuter</h6>
+                        <pre id="detailCommand" class="border rounded p-3 bg-dark text-light" style="max-height: 200px; overflow: auto; font-family: monospace;">sed -i 's/query = "SELECT * FROM users WHERE username=\'" + username + "\'"]/query = "SELECT * FROM users WHERE username=?"; preparedStatement.setString(1, username)/g' /var/www/html/login.php</pre>
+                    </div>
+                    
+                    <div class="mb-4" id="detailResultSection">
+                        <h6>Résultats d'exécution</h6>
+                        <pre id="detailResultContent" class="border rounded p-3 bg-dark text-light" style="max-height: 200px; overflow: auto; font-family: monospace;">[+] Sauvegarde du fichier original: login.php.bak
+[+] Application du correctif...
+[+] Vérification de l'application...
+[+] Le paramétrage des requêtes SQL a été correctement implémenté
+[+] Test de sécurité: OK - Les injections SQL sont bloquées
+[+] Opération terminée avec succès</pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-primary" id="applyFromDetails">Appliquer</button>
+                    <button type="button" class="btn btn-success" id="exportDetails">Exporter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentation des vulnérabilités (popups) -->
+    <div class="modal fade" id="vulnDocModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="vulnDocTitle">Documentation: Injection SQL</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h5 id="vulnName">Injection SQL</h5>
+                        <p id="vulnDescription" class="mb-4">Une injection SQL est une technique permettant d'injecter du code SQL malveillant dans les requêtes qui sont envoyées à une base de données.</p>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Impact potentiel</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="vulnImpact" class="mb-0">Accès non autorisé aux données, modification ou suppression de données, contournement de l'authentification, exécution de commandes sur le serveur.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Outils de détection</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="vulnDetectionTools" class="mb-0">
+                                            <span class="badge bg-primary me-1 mb-1">SQLMap</span>
+                                            <span class="badge bg-primary me-1 mb-1">OWASP ZAP</span>
+                                            <span class="badge bg-primary me-1 mb-1">Nikto</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h6>Méthodes de prévention</h6>
+                        <ul id="vulnPrevention" class="mb-4">
+                            <li>Utiliser des requêtes paramétrées ou préparées au lieu de concaténer les entrées utilisateur.</li>
+                            <li>Valider strictement toutes les entrées utilisateur avant de les utiliser dans des requêtes SQL.</li>
+                            <li>Passer à un ORM (Object-Relational Mapping) qui gère automatiquement l'échappement et le paramétrage.</li>
+                            <li>Mettre en place un Web Application Firewall pour filtrer les tentatives d'injection.</li>
+                        </ul>
+                        
+                        <h6>Options de remédiation</h6>
+                        <div class="accordion mb-4" id="vulnRemediationAccordion">
+                            <!-- Option de remédiation 1 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading1">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="true" aria-controls="collapse1">
+                                        Utilisation de requêtes paramétrées <span class="badge bg-warning ms-2">code_fix</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse1" class="accordion-collapse collapse show" aria-labelledby="heading1" data-bs-parent="#vulnRemediationAccordion">
+                                    <div class="accordion-body">
+                                        <p>Utiliser des requêtes paramétrées ou préparées au lieu de concaténer les entrées utilisateur.</p>
+                                        <div class="d-flex justify-content-end">
+                                            <button class="btn btn-sm btn-primary apply-vuln-rem">Appliquer cette remédiation</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Option de remédiation 2 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading2">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2" aria-expanded="false" aria-controls="collapse2">
+                                        Validation des entrées <span class="badge bg-warning ms-2">code_fix</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse2" class="accordion-collapse collapse" aria-labelledby="heading2" data-bs-parent="#vulnRemediationAccordion">
+                                    <div class="accordion-body">
+                                        <p>Valider strictement toutes les entrées utilisateur avant de les utiliser dans des requêtes SQL.</p>
+                                        <div class="d-flex justify-content-end">
+                                            <button class="btn btn-sm btn-primary apply-vuln-rem">Appliquer cette remédiation</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Option de remédiation 3 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading3">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3" aria-expanded="false" aria-controls="collapse3">
+                                        Utilisation d'ORM <span class="badge bg-success ms-2">update</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse3" class="accordion-collapse collapse" aria-labelledby="heading3" data-bs-parent="#vulnRemediationAccordion">
+                                    <div class="accordion-body">
+                                        <p>Passer à un ORM (Object-Relational Mapping) qui gère automatiquement l'échappement et le paramétrage.</p>
+                                        <div class="d-flex justify-content-end">
+                                            <button class="btn btn-sm btn-primary apply-vuln-rem">Appliquer cette remédiation</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Option de remédiation 4 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading4">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4" aria-expanded="false" aria-controls="collapse4">
+                                        WAF pour SQL <span class="badge bg-primary ms-2">configuration</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse4" class="accordion-collapse collapse" aria-labelledby="heading4" data-bs-parent="#vulnRemediationAccordion">
+                                    <div class="accordion-body">
+                                        <p>Mettre en place un Web Application Firewall pour filtrer les tentatives d'injection.</p>
+                                        <div class="d-flex justify-content-end">
+                                            <button class="btn btn-sm btn-primary apply-vuln-rem">Appliquer cette remédiation</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'exécution de remédiation -->
+    <div class="modal fade" id="executeRemediationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Exécuter la remédiation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <div class="d-flex">
+                            <i class="bi bi-exclamation-triangle-fill fs-4 me-2"></i>
+                            <div>
+                                <h5 class="alert-heading">Attention</h5>
+                                <p class="mb-0">Vous êtes sur le point d'appliquer une remédiation qui pourrait modifier la configuration de votre système. Assurez-vous de comprendre les changements qui seront effectués.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">Détails de la remédiation</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Nom:</strong> <span id="execName">Correction d'injection SQL</span></p>
+                                    <p><strong>Type:</strong> <span id="execType">Correction de code</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Vulnérabilité:</strong> <span id="execVuln">Injection SQL</span></p>
+                                    <p><strong>Cible:</strong> <span id="execTarget">example.com/login.php</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">Commande à exécuter</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <pre id="execCommand" class="bg-dark text-light p-3 mb-0">sed -i 's/query = "SELECT * FROM users WHERE username=\'" + username + "\'"]/query = "SELECT * FROM users WHERE username=?"; preparedStatement.setString(1, username)/g' /var/www/html/login.php</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="backupSwitch" checked>
+                        <label class="form-check-label" for="backupSwitch">Créer une sauvegarde avant d'appliquer la remédiation</label>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="restartServiceSwitch">
+                        <label class="form-check-label" for="restartServiceSwitch">Redémarrer les services après application</label>
+                    </div>
+                    
+                    <div class="progress mb-3" id="execProgress" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div id="execResult" class="d-none">
+                        <div class="alert alert-success">
+                            <div class="d-flex">
+                                <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+                                <div>
+                                    <h5 class="alert-heading">Remédiation appliquée avec succès</h5>
+                                    <p class="mb-0">La remédiation a été appliquée avec succès. Vérifiez les résultats ci-dessous.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <pre id="execOutput" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow: auto;">[+] Création d'une sauvegarde...
+[+] Sauvegarde créée: /var/www/html/login.php.bak
+[+] Application de la correction...
+[+] Correction appliquée avec succès
+[+] Vérification de l'intégrité du fichier...
+[+] Intégrité vérifiée: OK</pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-primary" id="startExecBtn">Exécuter</button>
+                    <button type="button" class="btn btn-success d-none" id="viewResultsBtn">Voir les résultats</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block admin_content %}
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nom</th>
-                <th>Vulnérabilité</th>
-                <th>Projet</th>
-                <th>Type</th>
-                <th>Statut</th>
-                <th>Exécuté le</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for remediation in remediations %}
-            <tr>
-                <td>{{ remediation.id }}</td>
-                <td>{{ remediation.name }}</td>
-                <td>{{ remediation.vulnerability.name }}</td>
-                <td>{{ remediation.project.name }}</td>
-                <td>
-                    <span class="badge bg-info">{{ remediation.get_remediation_type_display }}</span>
-                </td>
-                <td>
-                    <span class="badge 
-                    {% if remediation.status == 'success' %}bg-success
-                    {% elif remediation.status == 'in_progress' %}bg-primary
-                    {% elif remediation.status == 'pending' %}bg-warning text-dark
-                    {% elif remediation.status == 'failed' %}bg-danger
-                    {% else %}bg-secondary{% endif %}">
-                        {{ remediation.get_status_display }}
-                    </span>
-                </td>
-                <td>{{ remediation.executed_at|default:'-'|date:"d/m/Y H:i" }}</td>
-                <td>
-                    <div class="btn-group">
-                        <a href="{% url 'admin:remediation_detail' remediation.id %}" class="btn btn-sm btn-outline-info">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editRemediationModal{{ remediation.id }}">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        {% if remediation.status == 'pending' %}
-                        <form method="post" action="{% url 'admin:remediations_execute' remediation.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-success">
-                                <i class="bi bi-play"></i>
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialiser les tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Gestionnaire pour afficher les détails de vulnérabilité
+        const vulnDocButtons = document.querySelectorAll('.show-vuln-doc');
+        vulnDocButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const vulnType = this.getAttribute('data-vuln-type') || 'unknown';
+                showVulnerabilityDoc(vulnType);
+            });
+        });
+
+        // Gestionnaire pour afficher les détails de remédiation
+        const detailButtons = document.querySelectorAll('.view-remediation, .show-details');
+        detailButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const remediationId = this.getAttribute('data-remediation-id');
+                showRemediationDetails(remediationId);
+            });
+        });
+
+        // Gestionnaire pour appliquer une remédiation
+        const applyButtons = document.querySelectorAll('.apply-remediation');
+        applyButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const remediationId = this.getAttribute('data-remediation-id');
+                showExecuteRemediation(remediationId);
+            });
+        });
+
+        // Gestionnaire pour le bouton d'exécution dans le modal d'exécution
+        document.getElementById('startExecBtn').addEventListener('click', function() {
+            simulateExecution();
+        });
+
+        // Fonction pour simuler l'exécution d'une remédiation
+        function simulateExecution() {
+            const progressBar = document.getElementById('execProgress');
+            const progressBarInner = progressBar.querySelector('.progress-bar');
+            const startBtn = document.getElementById('startExecBtn');
+            const viewResultsBtn = document.getElementById('viewResultsBtn');
+            const execResult = document.getElementById('execResult');
+            
+            // Afficher la barre de progression et désactiver le bouton
+            progressBar.style.display = 'block';
+            startBtn.disabled = true;
+            progressBarInner.style.width = '0%';
+            execResult.classList.add('d-none');
+            
+            // Simuler la progression
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBarInner.style.width = progress + '%';
+                progressBarInner.setAttribute('aria-valuenow', progress);
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // Afficher les résultats après un court délai
+                    setTimeout(() => {
+                        progressBar.style.display = 'none';
+                        execResult.classList.remove('d-none');
+                        startBtn.classList.add('d-none');
+                        viewResultsBtn.classList.remove('d-none');
+                    }, 500);
+                }
+            }, 200);
+        }
+
+        // Fonction pour afficher la documentation d'une vulnérabilité
+        function showVulnerabilityDoc(vulnType) {
+            const modal = new bootstrap.Modal(document.getElementById('vulnDocModal'));
+            
+            // Configurations pour les types de vulnérabilités
+            const vulnerabilityInfo = {
+                "Injection SQL": {
+                    description: "Une injection SQL est une technique permettant d'injecter du code SQL malveillant dans les requêtes qui sont envoyées à une base de données.",
+                    impact: "Accès non autorisé aux données, modification ou suppression de données, contournement de l'authentification, exécution de commandes sur le serveur.",
+                    detection_tools: ["SQLMap", "OWASP ZAP", "Nikto"],
+                    prevention: [
+                        "Utiliser des requêtes paramétrées ou préparées au lieu de concaténer les entrées utilisateur.",
+                        "Valider strictement toutes les entrées utilisateur avant de les utiliser dans des requêtes SQL.",
+                        "Passer à un ORM (Object-Relational Mapping) qui gère automatiquement l'échappement et le paramétrage.",
+                        "Mettre en place un Web Application Firewall pour filtrer les tentatives d'injection."
+                    ],
+                    remediations: [
+                        {name: "Utilisation de requêtes paramétrées", description: "Utiliser des requêtes paramétrées ou préparées au lieu de concaténer les entrées utilisateur.", type: "code_fix"},
+                        {name: "Validation des entrées", description: "Valider strictement toutes les entrées utilisateur avant de les utiliser dans des requêtes SQL.", type: "code_fix"},
+                        {name: "Utilisation d'ORM", description: "Passer à un ORM (Object-Relational Mapping) qui gère automatiquement l'échappement et le paramétrage.", type: "update"},
+                        {name: "WAF pour SQL", description: "Mettre en place un Web Application Firewall pour filtrer les tentatives d'injection.", type: "configuration"}
+                    ]
+                },
+                "XSS Persistant": {
+                    description: "Le XSS persistant permet à un attaquant d'injecter du code JavaScript malveillant qui est stocké sur le serveur et exécuté lorsque d'autres utilisateurs accèdent à la page.",
+                    impact: "Vol de cookies de session, détournement de compte, modification du contenu de la page, hameçonnage, exécution de code arbitraire dans le navigateur de la victime.",
+                    detection_tools: ["OWASP ZAP", "Nikto", "XSSer"],
+                    prevention: [
+                        "Mettre en place un échappement HTML systématique pour toutes les données affichées.",
+                        "Configurer une politique CSP stricte pour limiter les sources de scripts exécutables.",
+                        "Utiliser des bibliothèques de sanitization comme DOMPurify pour nettoyer les entrées HTML."
+                    ],
+                    remediations: [
+                        {name: "Échappement HTML", description: "Mettre en place un échappement HTML systématique pour toutes les données affichées.", type: "code_fix"},
+                        {name: "Content Security Policy", description: "Configurer une politique CSP stricte pour limiter les sources de scripts exécutables.", type: "configuration"},
+                        {name: "Sanitization des entrées", description: "Utiliser des bibliothèques de sanitization comme DOMPurify pour nettoyer les entrées HTML.", type: "code_fix"},
+                        {name: "WAF pour XSS", description: "Configurer un WAF pour détecter et bloquer les attaques XSS.", type: "configuration"}
+                    ]
+                },
+                "CSRF": {
+                    description: "Cross-Site Request Forgery force un utilisateur connecté à exécuter des actions non désirées sur une application web dans laquelle il est authentifié.",
+                    impact: "Exécution d'actions non autorisées au nom de l'utilisateur, modification de données, élévation de privilèges.",
+                    detection_tools: ["OWASP ZAP", "Burp Suite", "CSRFTester"],
+                    prevention: [
+                        "Implémenter des jetons anti-CSRF dans tous les formulaires et requêtes modifiant l'état.",
+                        "Configurer les cookies avec l'attribut SameSite pour limiter les requêtes cross-origin.",
+                        "Vérifier l'en-tête Referer ou Origin pour s'assurer que la requête provient du site légitime."
+                    ],
+                    remediations: [
+                        {name: "Jetons anti-CSRF", description: "Implémenter des jetons anti-CSRF dans tous les formulaires et requêtes modifiant l'état.", type: "code_fix"},
+                        {name: "En-tête SameSite", description: "Configurer les cookies avec l'attribut SameSite pour limiter les requêtes cross-origin.", type: "configuration"},
+                        {name: "Vérification du Referer", description: "Vérifier l'en-tête Referer ou Origin pour s'assurer que la requête provient du site légitime.", type: "code_fix"}
+                    ]
+                },
+                "Ports ouverts non sécurisés": {
+                    description: "Des ports réseau inutilement ouverts ou mal configurés peuvent créer des points d'entrée pour les attaquants.",
+                    impact: "Accès non autorisé aux services, exploitation de vulnérabilités dans les services exposés, escalade de privilèges, contournement du pare-feu.",
+                    detection_tools: ["Nmap", "Nikto", "Masscan"],
+                    prevention: [
+                        "Configurer des règles restrictives de pare-feu pour limiter l'accès aux ports nécessaires.",
+                        "Mettre en place des règles IPTables pour contrôler le trafic entrant et sortant.",
+                        "Désactiver tous les services non essentiels qui exposent des ports.",
+                        "Implémenter une segmentation réseau pour isoler les services critiques."
+                    ],
+                    remediations: [
+                        {name: "Règles de pare-feu", description: "Configurer des règles restrictives de pare-feu pour limiter l'accès aux ports nécessaires.", type: "firewall"},
+                        {name: "Règles IPTables", description: "Mettre en place des règles IPTables pour contrôler le trafic entrant et sortant.", type: "iptables"},
+                        {name: "Désactivation de services", description: "Désactiver tous les services non essentiels qui exposent des ports.", type: "configuration"},
+                        {name: "Isolation de réseau", description: "Implémenter une segmentation réseau pour isoler les services critiques.", type: "configuration"}
+                    ]
+                },
+                "Attaque par déni de service": {
+                    description: "Une attaque par déni de service (DoS) vise à rendre un service ou une ressource inaccessible aux utilisateurs légitimes.",
+                    impact: "Indisponibilité du service, performances dégradées, consommation excessive de ressources, coûts d'infrastructure accrus.",
+                    detection_tools: ["Snort IDS", "Wireshark", "Netflow"],
+                    prevention: [
+                        "Configurer des règles IPTables pour limiter le nombre de requêtes et bloquer les attaques DoS.",
+                        "Utiliser fail2ban pour détecter et bloquer automatiquement les activités suspectes.",
+                        "Utiliser un CDN ou WAF capable d'absorber et de filtrer le trafic malveillant."
+                    ],
+                    remediations: [
+                        {name: "Règles IPTables anti-DoS", description: "Configurer des règles IPTables pour limiter le nombre de requêtes et bloquer les attaques DoS.", type: "iptables"},
+                        {name: "Configuration fail2ban", description: "Utiliser fail2ban pour détecter et bloquer automatiquement les activités suspectes.", type: "configuration"},
+                        {name: "CDN/WAF", description: "Utiliser un CDN ou WAF capable d'absorber et de filtrer le trafic malveillant.", type: "configuration"}
+                    ]
+                },
+                "Authentification faible": {
+                    description: "Les mécanismes d'authentification faibles peuvent être facilement contournés ou exploités par des attaquants.",
+                    impact: "Accès non autorisé aux comptes, usurpation d'identité, vol de données sensibles, compromission du système.",
+                    detection_tools: ["OWASP ZAP", "Burp Suite", "Hydra"],
+                    prevention: [
+                        "Implémenter une authentification forte (multi-facteurs).",
+                        "Utiliser des algorithmes de hachage sécurisés avec salage pour stocker les mots de passe.",
+                        "Mettre en place des politiques de mots de passe robustes."
+                    ],
+                    remediations: [
+                        {name: "Authentification multi-facteurs", description: "Ajouter une authentification à deux facteurs ou multi-facteurs.", type: "code_fix"},
+                        {name: "Hachage sécurisé", description: "Utiliser des algorithmes de hachage modernes comme bcrypt, Argon2 avec salage.", type: "code_fix"},
+                        {name: "Politique de mots de passe", description: "Renforcer les exigences de complexité des mots de passe.", type: "configuration"}
+                    ]
+                },
+                "Chiffrement SSL obsolète": {
+                    description: "L'utilisation de versions obsolètes de SSL/TLS ou de suites de chiffrement faibles expose les communications à des risques d'interception.",
+                    impact: "Interception des communications, vol de données sensibles, attaques de type 'homme du milieu'.",
+                    detection_tools: ["SSLScan", "Nmap", "Qualys SSL Labs"],
+                    prevention: [
+                        "Utiliser uniquement TLS 1.2+ et désactiver les protocoles obsolètes.",
+                        "Configurer uniquement des suites de chiffrement fortes.",
+                        "Mettre en place HSTS et OCSP Stapling."
+                    ],
+                    remediations: [
+                        {name: "Désactivation de protocoles obsolètes", description: "Désactiver SSL 2.0, SSL 3.0, TLS 1.0 et TLS 1.1 dans la configuration du serveur.", type: "configuration"},
+                        {name: "Configuration de suites de chiffrement", description: "Configurer uniquement des suites de chiffrement fortes et modernes.", type: "configuration"},
+                        {name: "Mise en place HSTS", description: "Implémenter HTTP Strict Transport Security pour forcer les connexions HTTPS.", type: "configuration"}
+                    ]
+                },
+                "En-têtes de sécurité manquants": {
+                    description: "L'absence d'en-têtes HTTP de sécurité essentiels peut exposer l'application à diverses attaques.",
+                    impact: "Vulnérabilité accrue aux attaques XSS, Click-jacking, MIME-sniffing, etc.",
+                    detection_tools: ["OWASP ZAP", "Security Headers", "Observatory"],
+                    prevention: [
+                        "Configurer tous les en-têtes de sécurité HTTP recommandés.",
+                        "Mettre en place une politique CSP restrictive.",
+                        "Activer X-XSS-Protection, X-Content-Type-Options, et X-Frame-Options."
+                    ],
+                    remediations: [
+                        {name: "Configuration des en-têtes HTTP", description: "Ajouter tous les en-têtes de sécurité HTTP recommandés dans la configuration du serveur.", type: "configuration"},
+                        {name: "Politique CSP", description: "Mettre en place une politique de sécurité du contenu (CSP) restrictive.", type: "configuration"},
+                        {name: "En-têtes anti-XSS", description: "Activer X-XSS-Protection et configurer le mode block.", type: "configuration"}
+                    ]
+                },
+                "Configuration CORS incorrecte": {
+                    description: "Une configuration CORS (Cross-Origin Resource Sharing) trop permissive permet à des sites malveillants d'accéder à des ressources sensibles.",
+                    impact: "Accès non autorisé aux données, vol de tokens d'authentification, exfiltration de données sensibles.",
+                    detection_tools: ["OWASP ZAP", "Burp Suite", "CORS Scanner"],
+                    prevention: [
+                        "Limiter précisément les domaines autorisés dans Access-Control-Allow-Origin.",
+                        "Ne pas utiliser de caractère générique * pour les ressources sensibles.",
+                        "Configurer correctement les en-têtes CORS associés."
+                    ],
+                    remediations: [
+                        {name: "Restriction des origines", description: "Limiter précisément les domaines autorisés dans Access-Control-Allow-Origin.", type: "configuration"},
+                        {name: "Configuration des méthodes", description: "Spécifier uniquement les méthodes HTTP nécessaires dans Access-Control-Allow-Methods.", type: "configuration"},
+                        {name: "Gestion des credentials", description: "Configurer correctement Access-Control-Allow-Credentials pour les ressources qui nécessitent l'authentification.", type: "configuration"}
+                    ]
+                }
+            };
+            
+            // Récupérer les informations pour le type de vulnérabilité spécifié
+            const vulnData = vulnerabilityInfo[vulnType] || {
+                description: "La documentation pour cette vulnérabilité n'est pas disponible.",
+                impact: "Non spécifié",
+                detection_tools: [],
+                prevention: ["Documentation non disponible."],
+                remediations: []
+            };
+            
+            // Remplir le contenu du modal
+            document.getElementById('vulnDocTitle').textContent = 'Documentation: ' + vulnType;
+            document.getElementById('vulnName').textContent = vulnType;
+            document.getElementById('vulnDescription').textContent = vulnData.description;
+            document.getElementById('vulnImpact').textContent = vulnData.impact;
+            
+            // Remplir les outils de détection
+            const toolsContainer = document.getElementById('vulnDetectionTools');
+            toolsContainer.innerHTML = '';
+            if (vulnData.detection_tools && vulnData.detection_tools.length > 0) {
+                vulnData.detection_tools.forEach(tool => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-primary me-1 mb-1';
+                    badge.textContent = tool;
+                    toolsContainer.appendChild(badge);
+                });
+            } else {
+                toolsContainer.textContent = 'Aucun outil spécifique défini.';
+            }
+            
+            // Remplir la liste de prévention
+            const preventionList = document.getElementById('vulnPrevention');
+            preventionList.innerHTML = '';
+            if (vulnData.prevention && vulnData.prevention.length > 0) {
+                vulnData.prevention.forEach(prevention => {
+                    const li = document.createElement('li');
+                    li.textContent = prevention;
+                    preventionList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Aucune méthode de prévention spécifique définie.';
+                preventionList.appendChild(li);
+            }
+            
+            // Remplir l'accordéon des options de remédiation
+            const accordionContainer = document.getElementById('vulnRemediationAccordion');
+            accordionContainer.innerHTML = '';
+            
+            if (vulnData.remediations && vulnData.remediations.length > 0) {
+                vulnData.remediations.forEach((rem, index) => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'accordion-item';
+                    
+                    const badgeClass = 
+                        rem.type === 'code_fix' ? 'bg-warning' : 
+                        rem.type === 'configuration' ? 'bg-primary' : 
+                        rem.type === 'iptables' ? 'bg-dark' : 
+                        rem.type === 'patch' ? 'bg-info' : 
+                        rem.type === 'update' ? 'bg-success' : 'bg-secondary';
+                    
+                    accordionItem.innerHTML = `
+                        <h2 class="accordion-header" id="heading${index}">
+                            <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="${index === 0}" aria-controls="collapse${index}">
+                                ${rem.name} <span class="badge ${badgeClass} ms-2">${rem.type}</span>
                             </button>
-                        </form>
-                        {% endif %}
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRemediationModal{{ remediation.id }}">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Pagination -->
-<nav>
-    <ul class="pagination justify-content-center">
-        {% if remediations.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page=1">&laquo; Premier</a>
-        </li>
-        <li class="page-item">
-            <a class="page-link" href="?page={{ remediations.previous_page_number }}">Précédent</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <span class="page-link">&laquo; Premier</span>
-        </li>
-        <li class="page-item disabled">
-            <span class="page-link">Précédent</span>
-        </li>
-        {% endif %}
+                        </h2>
+                        <div id="collapse${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading${index}" data-bs-parent="#vulnRemediationAccordion">
+                            <div class="accordion-body">
+                                <p>${rem.description}</p>
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-sm btn-primary apply-vuln-rem">Appliquer cette remédiation</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    accordionContainer.appendChild(accordionItem);
+                });
+                
+                // Ajouter des gestionnaires d'événements pour les boutons d'application
+                document.querySelectorAll('.apply-vuln-rem').forEach((btn, index) => {
+                    btn.addEventListener('click', function() {
+                        const remediation = vulnData.remediations[index];
+                        modal.hide();
+                        
+                        // Simuler l'application de la remédiation
+                        setTimeout(() => {
+                            const executeModal = new bootstrap.Modal(document.getElementById('executeRemediationModal'));
+                            document.getElementById('execName').textContent = remediation.name;
+                            document.getElementById('execType').textContent = remediation.type;
+                            document.getElementById('execVuln').textContent = vulnType;
+                            document.getElementById('execTarget').textContent = getVulnerabilityTarget(vulnType);
+                            
+                            // Générer une commande en fonction du type
+                            let command = '';
+                            if (remediation.type === 'code_fix') {
+                                command = generateCodeFixCommand(vulnType, remediation.name);
+                            } else if (remediation.type === 'iptables') {
+                                command = generateIPTablesCommand(vulnType);
+                            } else if (remediation.type === 'configuration') {
+                                command = generateConfigCommand(vulnType, remediation.name);
+                            } else {
+                                command = '# Commande générée automatiquement pour ' + remediation.name;
+                            }
+                            
+                            document.getElementById('execCommand').textContent = command;
+                            executeModal.show();
+                        }, 300);
+                    });
+                });
+            } else {
+                accordionContainer.innerHTML = '<div class="alert alert-warning mb-0">Aucune option de remédiation disponible.</div>';
+            }
+            
+            modal.show();
+        }
         
-        <li class="page-item active">
-            <span class="page-link">
-                Page {{ remediations.number }} sur {{ remediations.paginator.num_pages }}
-            </span>
-        </li>
+        // Fonction pour afficher les détails d'une remédiation
+        function showRemediationDetails(id) {
+            const modal = new bootstrap.Modal(document.getElementById('remediationDetailsModal'));
+            
+            // Récupérer l'objet de remédiation depuis les données (pour la démo, on utilise un exemple fixe)
+            const remediations = {
+                "1": {
+                    id: "1",
+                    name: "Correctif de Vulnérabilité SQL",
+                    status: "success",
+                    type: "patch",
+                    vulnerability: "Injection SQL",
+                    vulnerability_type: "Injection SQL",
+                    applied_at: "2023-04-15T10:30:00Z",
+                    details: "Paramétrage des requêtes SQL pour éviter les injections",
+                    method: "Remplacer les concaténations de chaînes par des requêtes paramétrées. Utiliser des ORM pour gérer automatiquement l'échappement.",
+                    command: "sed -i 's/query = \"SELECT * FROM users WHERE username='\" + username + \"'\"]/query = \"SELECT * FROM users WHERE username=?\"; preparedStatement.setString(1, username)/g' /var/www/html/login.php"
+                },
+                "2": {
+                    id: "2",
+                    name: "Configuration du Pare-feu",
+                    status: "in_progress",
+                    type: "firewall",
+                    vulnerability: "Ports ouverts non sécurisés",
+                    vulnerability_type: "Ports ouverts non sécurisés",
+                    applied_at: "2023-04-14T14:20:00Z",
+                    details: "Configuration des règles de pare-feu pour limiter l'accès aux ports exposés",
+                    method: "Configurer les règles IPTables pour bloquer tout le trafic non essentiel",
+                    command: "iptables -A INPUT -p tcp --dport 22 -j ACCEPT\niptables -A INPUT -p tcp --dport 80 -j ACCEPT\niptables -A INPUT -p tcp --dport 443 -j ACCEPT\niptables -A INPUT -j DROP"
+                },
+                "3": {
+                    id: "3",
+                    name: "Mise à jour de Bibliothèque",
+                    status: "pending",
+                    type: "update",
+                    vulnerability: "XSS via bibliothèque obsolète",
+                    vulnerability_type: "XSS Persistant",
+                    applied_at: null,
+                    details: "Mise à jour de bibliothèque JavaScript obsolète avec vulnérabilités XSS connues",
+                    method: "Mettre à jour la bibliothèque et implémenter un échappement HTML systématique",
+                    command: "npm update vulnerable-library@latest && sed -i 's/innerHTML/textContent/g' /var/www/html/js/main.js"
+                }
+            };
+            
+            const remediation = remediations[id] || remediations["1"];
+            
+            // Remplir les détails
+            document.getElementById('detailName').textContent = remediation.name;
+            document.getElementById('detailType').textContent = getTypeLabel(remediation.type);
+            document.getElementById('detailCreated').textContent = formatDate(new Date().toISOString());
+            document.getElementById('detailApplied').textContent = remediation.applied_at ? formatDate(remediation.applied_at) : 'Non appliqué';
+            
+            // Statut avec badge
+            const statusElement = document.getElementById('detailStatus');
+            statusElement.innerHTML = getStatusBadge(remediation.status);
+            
+            // Détails de la vulnérabilité
+            document.getElementById('detailVulnName').textContent = remediation.vulnerability;
+            document.getElementById('detailVulnType').textContent = remediation.vulnerability_type;
+            document.getElementById('detailSeverity').innerHTML = getSeverityBadge(getVulnerabilitySeverity(remediation.vulnerability_type));
+            document.getElementById('detailTarget').textContent = getVulnerabilityTarget(remediation.vulnerability_type);
+            
+            // Description et méthode
+            document.getElementById('detailDescription').textContent = remediation.details || 'Aucune description disponible.';
+            document.getElementById('detailMethod').innerHTML = formatMarkdownLike(remediation.method || 'Aucune méthode définie.');
+            
+            // Commande
+            const commandSection = document.getElementById('detailCommandSection');
+            const commandElement = document.getElementById('detailCommand');
+            if (remediation.command) {
+                commandSection.classList.remove('d-none');
+                commandElement.textContent = remediation.command;
+            } else {
+                commandSection.classList.add('d-none');
+            }
+            
+            // Résultats
+            const resultSection = document.getElementById('detailResultSection');
+            const resultContent = document.getElementById('detailResultContent');
+            
+            // Simuler des résultats d'exécution pour les remédiations déjà appliquées
+            if (remediation.status === 'success' || remediation.status === 'failed') {
+                resultSection.classList.remove('d-none');
+                resultContent.textContent = generateExecutionResult(remediation);
+            } else {
+                resultSection.classList.add('d-none');
+            }
+            
+            // Bouton d'application
+            const applyBtn = document.getElementById('applyFromDetails');
+            if (remediation.status === 'pending' || remediation.status === 'in_progress') {
+                applyBtn.classList.remove('d-none');
+                applyBtn.addEventListener('click', function() {
+                    modal.hide();
+                    showExecuteRemediation(id);
+                });
+            } else {
+                applyBtn.classList.add('d-none');
+            }
+            
+            modal.show();
+        }
         
-        {% if remediations.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ remediations.next_page_number }}">Suivant</a>
-        </li>
-        <li class="page-item">
-            <a class="page-link" href="?page={{ remediations.paginator.num_pages }}">Dernier &raquo;</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <span class="page-link">Suivant</span>
-        </li>
-        <li class="page-item disabled">
-            <span class="page-link">Dernier &raquo;</span>
-        </li>
-        {% endif %}
-    </ul>
-</nav>
-
-<!-- New Remediation Modal -->
-<div class="modal fade" id="newRemediationModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Créer une Nouvelle Remédiation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'admin:remediations_create' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="new-rem-name" class="form-label">Nom de la Remédiation</label>
-                            <input type="text" class="form-control" id="new-rem-name" name="name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="new-rem-vuln" class="form-label">Vulnérabilité</label>
-                            <select class="form-select" id="new-rem-vuln" name="vulnerability_id" required>
-                                {% for vuln in all_vulnerabilities %}
-                                <option value="{{ vuln.id }}">{{ vuln.name }} ({{ vuln.project.name }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="new-rem-type" class="form-label">Type de Remédiation</label>
-                        <select class="form-select" id="new-rem-type" name="remediation_type" required>
-                            <option value="patch">Patch</option>
-                            <option value="configuration">Configuration</option>
-                            <option value="code_fix">Correction de code</option>
-                            <option value="workaround">Contournement</option>
-                            <option value="other">Autre</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="new-rem-method" class="form-label">Méthode de Remédiation</label>
-                        <textarea class="form-control" id="new-rem-method" name="method" rows="5" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Créer Remédiation</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Edit and Delete Modals for each remediation -->
-{% for remediation in remediations %}
-<!-- Edit Remediation Modal -->
-<div class="modal fade" id="editRemediationModal{{ remediation.id }}" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Modifier la Remédiation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'admin:remediations_edit' remediation.id %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="edit-rem-name-{{ remediation.id }}" class="form-label">Nom de la Remédiation</label>
-                            <input type="text" class="form-control" id="edit-rem-name-{{ remediation.id }}" name="name" value="{{ remediation.name }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit-rem-type-{{ remediation.id }}" class="form-label">Type de Remédiation</label>
-                            <select class="form-select" id="edit-rem-type-{{ remediation.id }}" name="remediation_type" required>
-                                <option value="patch" {% if remediation.remediation_type == 'patch' %}selected{% endif %}>Patch</option>
-                                <option value="configuration" {% if remediation.remediation_type == 'configuration' %}selected{% endif %}>Configuration</option>
-                                <option value="code_fix" {% if remediation.remediation_type == 'code_fix' %}selected{% endif %}>Correction de code</option>
-                                <option value="workaround" {% if remediation.remediation_type == 'workaround' %}selected{% endif %}>Contournement</option>
-                                <option value="other" {% if remediation.remediation_type == 'other' %}selected{% endif %}>Autre</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit-rem-method-{{ remediation.id }}" class="form-label">Méthode de Remédiation</label>
-                        <textarea class="form-control" id="edit-rem-method-{{ remediation.id }}" name="method" rows="5" required>{{ remediation.method }}</textarea>
-                    </div>
-                    {% if remediation.status != 'pending' %}
-                    <div class="mb-3">
-                        <label for="edit-rem-status-{{ remediation.id }}" class="form-label">Statut</label>
-                        <select class="form-select" id="edit-rem-status-{{ remediation.id }}" name="status">
-                            <option value="pending" {% if remediation.status == 'pending' %}selected{% endif %}>En attente</option>
-                            <option value="in_progress" {% if remediation.status == 'in_progress' %}selected{% endif %}>En cours</option>
-                            <option value="success" {% if remediation.status == 'success' %}selected{% endif %}>Succès</option>
-                            <option value="failed" {% if remediation.status == 'failed' %}selected{% endif %}>Échec</option>
-                            <option value="cancelled" {% if remediation.status == 'cancelled' %}selected{% endif %}>Annulé</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit-rem-output-{{ remediation.id }}" class="form-label">Sortie</label>
-                        <textarea class="form-control" id="edit-rem-output-{{ remediation.id }}" name="output" rows="3">{{ remediation.output }}</textarea>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Remediation Modal -->
-<div class="modal fade" id="deleteRemediationModal{{ remediation.id }}" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmer la Suppression</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir supprimer la remédiation <strong>{{ remediation.name }}</strong>?</p>
-                <p class="text-danger">Cette action est irréversible!</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form method="post" action="{% url 'admin:remediations_delete' remediation.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Supprimer</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endfor %}
+        // Fonction pour afficher le modal d'exécution de remédiation
+        function showExecuteRemediation(id) {
+            const modal = new bootstrap.Modal(document.getElementById('executeRemediationModal'));
+            
+            // Récupérer l'objet de remédiation (pour la démo, utiliser un exemple fixe)
+            const remediations = {
+                "1": {
+                    id: "1",
+                    name: "Correctif de Vulnérabilité SQL",
+                    status: "success",
+                    type: "patch",
+                    vulnerability: "Injection SQL",
+                    vulnerability_type: "Injection SQL",
+                    applied_at: "2023-04-15T10:30:00Z",
+                    details: "Paramétrage des requêtes SQL pour éviter les injections",
+                    method: "Remplacer les concaténations de chaînes par des requêtes paramétrées. Utiliser des ORM pour gérer automatiquement l'échappement.",
+                    command: "sed -i 's/query = \"SELECT * FROM users WHERE username='\" + username + \"'\"]/query = \"SELECT * FROM users WHERE username=?\"; preparedStatement.setString(1, username)/g' /var/www/html/login.php"
+                },
+                // Autres définitions similaires
+            };
+            
+            const remediation = remediations[id] || remediations["1"];
+            
+            // Remplir les détails
+            document.getElementById('execName').textContent = remediation.name;
+            document.getElementById('execType').textContent = getTypeLabel(remediation.type);
+            document.getElementById('execVuln').textContent = remediation.vulnerability;
+            document.getElementById('execTarget').textContent = getVulnerabilityTarget(remediation.vulnerability_type);
+            
+            // Commande
+            const commandElement = document.getElementById('execCommand');
+            commandElement.textContent = remediation.command || '# Aucune commande définie';
+            
+            // Réinitialiser l'interface
+            document.getElementById('execProgress').style.display = 'none';
+            document.getElementById('execResult').classList.add('d-none');
+            document.getElementById('startExecBtn').disabled = false;
+            document.getElementById('startExecBtn').classList.remove('d-none');
+            document.getElementById('viewResultsBtn').classList.add('d-none');
+            
+            modal.show();
+        }
+        
+        // Fonction pour générer une commande de correctif de code
+        function generateCodeFixCommand(vulnType, remName) {
+            if (vulnType === "Injection SQL") {
+                if (remName.includes("requêtes paramétrées")) {
+                    return "sed -i 's/query = \"SELECT * FROM users WHERE username='\" + username + \"'\"/query = \"SELECT * FROM users WHERE username=?\"; preparedStatement.setString(1, username)/g' /var/www/html/login.php";
+                } else if (remName.includes("Validation")) {
+                    return "sed -i 's/var username = req.body.username;/var username = req.body.username.replace(/[^a-zA-Z0-9]/g, \"\");/g' /var/www/html/login.js";
+                }
+            } else if (vulnType === "XSS Persistant") {
+                if (remName.includes("Échappement")) {
+                    return "sed -i 's/element.innerHTML = userContent;/element.textContent = userContent;/g' /var/www/html/js/main.js";
+                } else if (remName.includes("Sanitization")) {
+                    return "npm install dompurify && sed -i '1i\\import DOMPurify from \"dompurify\";' /var/www/html/js/main.js && sed -i 's/element.innerHTML = userContent;/element.innerHTML = DOMPurify.sanitize(userContent);/g' /var/www/html/js/main.js";
+                }
+            }
+            
+            return "# Commande générée automatiquement pour " + remName + " - vulnérabilité " + vulnType;
+        }
+        
+        // Fonction pour générer une commande IPTables
+        function generateIPTablesCommand(vulnType) {
+            if (vulnType === "Ports ouverts non sécurisés") {
+                return "iptables -F && iptables -A INPUT -i lo -j ACCEPT && iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT && iptables -A INPUT -p tcp --dport 22 -j ACCEPT && iptables -A INPUT -p tcp --dport 80 -j ACCEPT && iptables -A INPUT -p tcp --dport 443 -j ACCEPT && iptables -A INPUT -j DROP";
+            } else if (vulnType === "Attaque par déni de service") {
+                return "iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 20 --connlimit-mask 24 -j DROP && iptables -A INPUT -p tcp --dport 80 -m hashlimit --hashlimit-above 20/min --hashlimit-mode srcip --hashlimit-name http -j DROP";
+            }
+            
+            return "# Commande IPTables générée pour protection contre " + vulnType;
+        }
+        
+        // Fonction pour générer une commande de configuration
+        function generateConfigCommand(vulnType, remName) {
+            if (vulnType === "En-têtes de sécurité manquants") {
+                return "cat > /etc/apache2/conf-available/security-headers.conf << EOF\n<IfModule mod_headers.c>\nHeader set X-XSS-Protection \"1; mode=block\"\nHeader set X-Content-Type-Options \"nosniff\"\nHeader set X-Frame-Options \"SAMEORIGIN\"\nHeader set Content-Security-Policy \"default-src 'self'\"\n</IfModule>\nEOF\n\na2enconf security-headers && systemctl reload apache2";
+            } else if (vulnType === "Chiffrement SSL obsolète") {
+                return "cat > /etc/apache2/conf-available/ssl-params.conf << EOF\nSSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1\nSSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\nSSLHonorCipherOrder on\nEOF\n\na2enconf ssl-params && systemctl reload apache2";
+            }
+            
+            return "# Commande de configuration générée pour " + remName + " - vulnérabilité " + vulnType;
+        }
+        
+        // Fonction pour générer un résultat d'exécution simulé
+        function generateExecutionResult(remediation) {
+            if (remediation.status === 'success') {
+                if (remediation.type === 'patch' || remediation.type === 'code_fix') {
+                    return `[+] Sauvegarde du fichier original: ${getFileName(remediation.command)}.bak\n[+] Application du correctif...\n[+] Vérification de l'application...\n[+] Les modifications ont été correctement implémentées\n[+] Test de sécurité: OK - La vulnérabilité est résolue\n[+] Opération terminée avec succès`;
+                } else if (remediation.type === 'firewall' || remediation.type === 'iptables') {
+                    return `[+] Sauvegarde des règles existantes...\n[+] Ajout des nouvelles règles...\n[+] Règles ajoutées:\n${remediation.command}\n[+] Règles ajoutées avec succès\n[+] Sauvegarde des nouvelles règles...\n[+] Configuration terminée avec succès`;
+                } else if (remediation.type === 'configuration') {
+                    return `[+] Sauvegarde de la configuration existante...\n[+] Application des nouvelles configurations...\n[+] Redémarrage des services concernés...\n[+] Vérification de la configuration...\n[+] Configuration appliquée avec succès`;
+                }
+                return `[+] Remédiation appliquée avec succès\n[+] Vulnérabilité ${remediation.vulnerability} résolue`;
+            } else if (remediation.status === 'failed') {
+                if (remediation.type === 'patch' || remediation.type === 'code_fix') {
+                    return `[+] Sauvegarde du fichier original: ${getFileName(remediation.command)}.bak\n[+] Tentative d'application du correctif...\n[-] Erreur: Le fichier n'a pas pu être modifié. Vérifiez les permissions.\n[-] La commande a échoué avec le code d'erreur 1\n[-] Opération annulée`;
+                } else if (remediation.type === 'firewall' || remediation.type === 'iptables') {
+                    return `[+] Sauvegarde des règles existantes...\n[+] Tentative d'ajout des nouvelles règles...\n[-] Erreur: Impossible d'ajouter les règles. Vérifiez la syntaxe ou les permissions.\n[-] La commande a échoué avec le code d'erreur 1\n[-] Opération annulée`;
+                }
+                return `[-] La remédiation a échoué\n[-] Erreur: ${remediation.vulnerability} non résolue`;
+            }
+            return '';
+        }
+        
+        // Fonction pour extraire le nom de fichier d'une commande
+        function getFileName(command) {
+            if (!command) return 'unknown';
+            const match = command.match(/\/([^\/]+)(?:'|\s|$)/);
+            return match ? match[1] : 'fichier';
+        }
+        
+        // Fonction pour obtenir l'étiquette de type de remédiation
+        function getTypeLabel(type) {
+            const types = {
+                'patch': 'Correctif',
+                'configuration': 'Configuration',
+                'code_fix': 'Correction de code',
+                'update': 'Mise à jour',
+                'firewall': 'Pare-feu',
+                'iptables': 'IPTables'
+            };
+            return types[type] || type;
+        }
+        
+        // Fonction pour obtenir un badge de statut
+        function getStatusBadge(status) {
+            if (status === 'success') {
+                return '<span class="badge bg-success">Réussi</span>';
+            } else if (status === 'in_progress') {
+                return '<span class="badge bg-warning">En cours</span>';
+            } else if (status === 'failed') {
+                return '<span class="badge bg-danger">Échoué</span>';
+            } else if (status === 'pending') {
+                return '<span class="badge bg-secondary">En attente</span>';
+            }
+            return `<span class="badge bg-secondary">${status}</span>`;
+        }
+        
+        // Fonction pour obtenir un badge de sévérité
+        function getSeverityBadge(severity) {
+            if (severity === 'critical') {
+                return '<span class="badge bg-danger">Critique</span>';
+            } else if (severity === 'high') {
+                return '<span class="badge bg-warning">Élevée</span>';
+            } else if (severity === 'medium') {
+                return '<span class="badge bg-info">Moyenne</span>';
+            } else if (severity === 'low') {
+                return '<span class="badge bg-success">Faible</span>';
+            }
+            return `<span class="badge bg-secondary">${severity}</span>`;
+        }
+        
+        // Fonction pour obtenir la sévérité d'une vulnérabilité
+        function getVulnerabilitySeverity(vulnType) {
+            if (vulnType.includes('SQL') || vulnType.includes('RCE')) {
+                return 'critical';
+            } else if (vulnType.includes('XSS') || vulnType.includes('CSRF') || vulnType.includes('Path')) {
+                return 'high';
+            } else if (vulnType.includes('Ports') || vulnType.includes('en-têtes')) {
+                return 'medium';
+            }
+            return 'medium';
+        }
+        
+        // Fonction pour obtenir une cible simulée pour une vulnérabilité
+        function getVulnerabilityTarget(vulnType) {
+            if (vulnType.includes('SQL')) {
+                return 'example.com/login.php';
+            } else if (vulnType.includes('XSS')) {
+                return 'example.com/search.php';
+            } else if (vulnType.includes('Ports')) {
+                return '192.168.1.100';
+            } else if (vulnType.includes('en-têtes')) {
+                return 'example.com/*';
+            }
+            return 'example.com';
+        }
+        
+        // Fonction pour formater une date
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+        
+        // Fonction pour formater du texte avec une syntaxe markdown-like
+        function formatMarkdownLike(text) {
+            if (!text) return '';
+            
+            // Convertir les retours à la ligne en <br>
+            let formatted = text.replace(/\n/g, '<br>');
+            
+            // Traiter les blocs de code ```...```
+            formatted = formatted.replace(/```(.*?)```/gs, function(match, code) {
+                return '<pre class="bg-dark text-light p-2 rounded"><code>' + code.replace(/<br>/g, '\n') + '</code></pre>';
+            });
+            
+            // Traiter le code inline `...`
+            formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-light px-1 rounded">$1</code>');
+            
+            // Traiter les titres
+            formatted = formatted.replace(/^(\d+)\.\s+(.*?)(?:<br>|$)/gm, '<strong>$1. $2</strong><br>');
+            
+            return formatted;
+        }
+    });
+</script>
 {% endblock %}

@@ -1,6 +1,6 @@
 
 {% extends 'admin/admin_base.html' %}
-
+{% load scan_filters %}
 {% block title %}Outils de Sécurité - Ethical Pulse Shield{% endblock %}
 
 {% block content %}
@@ -58,53 +58,68 @@
     <!-- Tools List -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4" id="toolsList">
         <!-- Nmap Tool -->
-        <div class="col tool-item" data-category="scanner">
-            <div class="card h-100">
-                <div class="card-header bg-dark text-white d-flex justify-content-between">
-                    <div>
-                        <i class="bi bi-search me-2"></i>
-                        <strong>Nmap</strong>
-                    </div>
-                    <span class="badge bg-info">Scanner</span>
-                </div>
-                <div class="card-body">
-                    <p class="card-text small">Scanner réseau puissant pour la découverte d'hôtes, services et vulnérabilités.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Options:</label>
-                        <select class="form-select form-select-sm tool-option" data-tool="nmap">
-                            {% for value, label in nmap_options %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Cible:</label>
-                        <input type="text" class="form-control form-control-sm tool-target" placeholder="IP ou domaine (ex: 192.168.1.1)" data-tool="nmap">
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-sm run-tool" data-tool="nmap">
-                            <i class="bi bi-play-fill me-1"></i>Exécuter
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#nmapDoc" aria-expanded="false">
-                            <i class="bi bi-file-text me-1"></i>Documentation
-                        </button>
-                    </div>
-                    <div class="collapse mt-3" id="nmapDoc">
-                        <div class="card card-body bg-light small">
-                            <h6>Documentation Nmap</h6>
-                            <p>Nmap (Network Mapper) est un scanner de sécurité open source utilisé pour découvrir des hôtes et services sur un réseau informatique.</p>
-                            <p><strong>Utilisations principales:</strong></p>
-                            <ul>
-                                <li>Découverte d'hôtes actifs</li>
-                                <li>Identification des ports ouverts</li>
-                                <li>Détection des systèmes d'exploitation</li>
-                                <li>Détection des services et versions</li>
-                            </ul>
+            <div class="col tool-item" data-category="scanner">
+                <div class="card h-100">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between">
+                        <div>
+                            <i class="bi bi-search me-2"></i>
+                            <strong>Nmap</strong>
                         </div>
+                        <span class="badge bg-info">Scanner</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text small">Scanner réseau puissant pour la découverte d'hôtes, services et vulnérabilités.</p>
+                        <form method="post" action="{% url 'tools_admin' %}" class="mb-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="tool" value="NMAP" />
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Options:</label>
+                                <select class="form-select form-select-sm" name="option" required>
+                                    {% for value, label in nmap_options %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="nmapOption" class="form-label fw-bold small">Cible:</label>
+                                <select class="form-select form-select-sm" id="nmapOption" name="project_id" required>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">
+                                        {{ project.name }} — 
+                                        {% if project.ip_address %}{{ project.ip_address }}
+                                        {% elif project.domain %}{{ project.domain }}
+                                        {% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play-fill me-1"></i>Exécuter
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm tool-doc-btn" 
+                                        data-bs-toggle="collapse" data-bs-target="#nmapDoc" aria-expanded="false">
+                                    <i class="bi bi-file-text me-1"></i>Documentation
+                                </button>
+                            </div>
+                            <div class="collapse mt-3" id="nmapDoc">
+                                <div class="card card-body bg-light small">
+                                    <h6>Documentation Nmap</h6>
+                                    <p>Nmap (Network Mapper) est un scanner de sécurité open source utilisé pour découvrir des hôtes et services sur un réseau informatique.</p>
+                                    <p><strong>Fonctionnalités principales:</strong></p>
+                                    <ul>
+                                        <li>Découverte d'hôtes actifs</li>
+                                        <li>Scan de ports TCP/UDP</li>
+                                        <li>Détection de services et versions</li>
+                                        <li>Détection de système d'exploitation</li>
+                                        <li>Scripts NSE pour tests avancés</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- Nikto Tool -->
             <div class="col tool-item" data-category="web">
@@ -119,49 +134,49 @@
                     <div class="card-body">
                         <p class="card-text small">Scanner de vulnérabilités web qui effectue des tests complets contre des serveurs web.</p>
                         <form method="post" action="{% url 'tools_admin' %}" class="mb-3">
-    {% csrf_token %}
-    <input type="hidden" name="tool" value="NIKTO" />
-    <div class="mb-3">
-        <label class="form-label fw-bold small">Options:</label>
-        <select class="form-select form-select-sm" name="option" required>
-            {% for value, label in nikto_options %}
-            <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="niktoOption" class="form-label fw-bold small">Cible:</label>
-        <select class="form-select form-select-sm" id="niktoOption" name="project_id" required>
-            {% for project in projects %}
-            <option value="{{ project.id }}">
-                {{ project.name }} — 
-                {% if project.url %}{{ project.url }}{% else %}{{ project.ip_address }}{% endif %}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="d-grid gap-2">
-        <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-play-fill me-1"></i>Exécuter
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#niktoDoc" aria-expanded="false">
-            <i class="bi bi-file-text me-1"></i>Documentation
-        </button>
-    </div>
-    <div class="collapse mt-3" id="niktoDoc">
-        <div class="card card-body bg-light small">
-            <h6>Documentation Nikto</h6>
-            <p>Nikto est un scanner de vulnérabilités open source qui effectue des tests complets contre des serveurs web.</p>
-            <p><strong>Fonctionnalités:</strong></p>
-            <ul>
-                <li>Détection de fichiers/CGI vulnérables</li>
-                <li>Vérification des serveurs obsolètes</li>
-                <li>Scans de configuration</li>
-                <li>Tests d'injection</li>
-            </ul>
-        </div>
-    </div>
-</form>
+                            {% csrf_token %}
+                            <input type="hidden" name="tool" value="NIKTO" />
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Options:</label>
+                                <select class="form-select form-select-sm" name="option" required>
+                                    {% for value, label in nikto_options %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="niktoOption" class="form-label fw-bold small">Cible:</label>
+                                <select class="form-select form-select-sm" id="niktoOption" name="project_id" required>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">
+                                        {{ project.name }} — 
+                                        {% if project.url %}{{ project.url }}{% else %}{{ project.ip_address }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play-fill me-1"></i>Exécuter
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#niktoDoc" aria-expanded="false">
+                                    <i class="bi bi-file-text me-1"></i>Documentation
+                                </button>
+                            </div>
+                            <div class="collapse mt-3" id="niktoDoc">
+                                <div class="card card-body bg-light small">
+                                    <h6>Documentation Nikto</h6>
+                                    <p>Nikto est un scanner de vulnérabilités open source qui effectue des tests complets contre des serveurs web.</p>
+                                    <p><strong>Fonctionnalités:</strong></p>
+                                    <ul>
+                                        <li>Détection de fichiers/CGI vulnérables</li>
+                                        <li>Vérification des serveurs obsolètes</li>
+                                        <li>Scans de configuration</li>
+                                        <li>Tests d'injection</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </form>
 
                     </div>
                 </div>
@@ -824,7 +839,9 @@
                     <div class="row">
                         <div class="col-lg-8">
                             <div class="terminal bg-dark text-light p-3 rounded mb-3" id="terminalOutput" style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace;">
-                                {% if nikto_raw_output %}
+                                {% if nmap_raw_output %}
+                                    <div class="text-success"><pre>{{ nmap_raw_output|escape }}</pre></div>
+                                {% elif nikto_raw_output %}
                                     <div class="text-success"><pre>{{ nikto_raw_output|escape }}</pre></div>
                                 {% else %}
                                     <div class="text-success">Terminal prêt. Sélectionnez un outil et cliquez sur Exécuter pour commencer.</div>
@@ -945,9 +962,8 @@
                         <label class="form-label small">Outil</label>
                         <select class="form-select form-select-sm" id="filterTool">
                             <option value="">Tous</option>
-                            {% for tool in available_tools %}
-                                <option value="{{ tool }}">{{ tool }}</option>
-                            {% endfor %}
+                            <option value="NMAP">Nmap</option>
+                            <option value="NIKTO">Nikto</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -993,22 +1009,28 @@
                                         <td>{{ scan.start_time|date:"d/m/Y H:i" }}</td>
                                         <td>{{ scan.tool }}</td>
                                         <td>
-                                            {% if scan.tool|upper == 'NIKTO' %}
-                                                nikto -h {{ scan.project.url|default_if_none:scan.project.ip_address }}
-                                                {% if scan.niktoresult_set.first and scan.niktoresult_set.first.option %}
-                                                    {{ scan.niktoresult_set.first.option }}
-                                                {% endif %}
-                                            {% else %}
-                                                Commande personnalisée
+                                            {% if scan.tool|upper == 'NMAP' %}
+                                                {% with result=scan.nmap_results.first %}
+                                                    {% if result %}
+                                                        nmap {{ result.option }} {{ result.target }}
+                                                    {% else %}
+                                                        nmap {% if scan.project.ip_address %}{{ scan.project.ip_address }}{% else %}{{ scan.project.domain }}{% endif %}
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% elif scan.tool|upper == 'NIKTO' %}
+                                                {% with nikto_result=scan.nikto_results.first %}
+                                                    nikto -h {{ scan.project.url|default_if_none:scan.project.ip_address }}
+                                                    {% if nikto_result and nikto_result.option %}
+                                                        {{ nikto_result.option }}
+                                                    {% endif %}
+                                                {% endwith %}
                                             {% endif %}
                                         </td>
-                                        <td>
-                                            {{ scan.project.url|default_if_none:scan.project.ip_address }}
-                                        </td>
+                                        <td>{{ scan.project.url|default_if_none:scan.project.ip_address }}</td>
                                         <td>
                                             {% if scan.status == "completed" %}
                                                 <span class="badge bg-success">Terminé</span>
-                                            {% elif scan.status == "in_progress" or scan.status == "running" %}
+                                            {% elif scan.status == "in_progress" %}
                                                 <span class="badge bg-warning text-dark">En cours...</span>
                                             {% elif scan.status == "failed" %}
                                                 <span class="badge bg-danger">Échec</span>
@@ -1022,60 +1044,6 @@
                                             </button>
                                         </td>
                                     </tr>
-
-                                    <!-- Modal Détails du Scan -->
-                                    <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true" role="dialog">
-                                        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-dark text-white">
-                                                    <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
-                                                        Détails du scan - {{ scan.tool }} ({{ scan.start_time|date:"d/m/Y H:i" }})
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    {% if scan.tool|upper == 'NIKTO' %}
-                                                        {% with result=scan.niktoresult_set.first %}
-                                                            {% if result %}
-                                                                <p><strong>Cible :</strong> {{ result.uri }}</p>
-                                                                <p><strong>Serveur :</strong> {{ result.server }}</p>
-                                                                <p><strong>SSL Subject :</strong> {{ result.ssl_subject }}</p>
-                                                                <p><strong>SSL Issuer :</strong> {{ result.ssl_issuer }}</p>
-                                                                <p><strong>SSL AltNames :</strong> {{ result.ssl_altnames }}</p>
-                                                                <p><strong>SSL Cipher :</strong> {{ result.ssl_cipher }}</p>
-                                                                <p><strong>Powered By :</strong> {{ result.x_powered_by }}</p>
-                                                                <p><strong>Frame Options :</strong> {{ result.x_frame_options }}</p>
-                                                                <hr>
-                                                                <h6>Vulnérabilités :</h6>
-                                                                <pre style="white-space: pre-wrap;">{{ result.vulnerability }}</pre>
-                                                                <hr>
-                                                                <h6>Sortie brute :</h6>
-                                                                <pre style="white-space: pre-wrap;">{{ result.nikto_raw_output }}</pre>
-                                                            {% else %}
-                                                                <p class="text-muted">Aucun résultat détaillé trouvé pour ce scan.</p>
-                                                            {% endif %}
-                                                        {% endwith %}
-                                                    {% else %}
-                                                        <p class="text-muted">Aucun détail disponible pour cet outil.</p>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="modal-footer">
-                                                    {% if scan.tool|upper == 'NIKTO' %}
-                                                        {% with result=scan.niktoresult_set.first %}
-                                                            {% if result and result.scan and result.scan.id %}
-                                                                <a href="{% url 'download_nikto_report' result.scan.id %}" class="btn btn-success" target="_blank" rel="noopener">
-                                                                     📄 Télécharger le rapport Nikto (PDF)
-                                                                </a>
-                                                            {% else %}
-                                                                <span class="text-muted">Rapport indisponible</span>
-                                                            {% endif %}
-                                                        {% endwith %}
-                                                    {% endif %}
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 {% endfor %}
                             {% else %}
                                 <tr>
@@ -1084,46 +1052,168 @@
                             {% endif %}
                         </tbody>
                     </table>
-                    
-                    <!-- Pagination -->
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div class="text-muted small">
-                            Affichage <span id="startIndex">1</span>-<span id="endIndex">10</span> 
-                            sur <span id="totalItems">{{ scans_history.count }}</span> résultats
+                    <!-- Après la fermeture de la table d'historique, ajoutez ceci -->
+
+                    <!-- Modals pour chaque scan -->
+                    {% for scan in scans_history %}
+                        <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-xl">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-dark text-white">
+                                        <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
+                                            <i class="bi bi-search me-2"></i>
+                                            Détails du Scan {{ scan.tool }}
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {% if scan.tool|upper == 'NMAP' %}
+                                            {% with result=scan.nmap_results.first %}
+                                                {% if result %}
+                                                    <!-- Informations générales -->
+                                                    <div class="card mb-4">
+                                                        <div class="card-header bg-primary text-white">
+                                                            <h6 class="mb-0">Informations générales</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <p><strong>Cible :</strong> {{ result.target }}</p>
+                                                                    <p><strong>Options :</strong> {{ result.option }}</p>
+                                                                    <p><strong>Commande :</strong> {{ result.command_used }}</p>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <p><strong>Début :</strong> {{ scan.start_time|date:"d/m/Y H:i:s" }}</p>
+                                                                    <p><strong>Fin :</strong> {{ scan.end_time|date:"d/m/Y H:i:s" }}</p>
+                                                                    <p><strong>Durée :</strong> {{ scan.duration|floatformat:2 }} secondes</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Ports TCP -->
+                                                    {% if result.open_tcp_ports %}
+                                                    <div class="card mb-4">
+                                                        <div class="card-header bg-info text-white">
+                                                            <h6 class="mb-0">Ports TCP ouverts</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Port</th>
+                                                                            <th>Service</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for port in result.open_tcp_ports.split %}
+                                                                            <tr>
+                                                                                <td>{{ port|split:"/"|first }}</td>
+                                                                                <td>{{ port|split:"/"|last }}</td>
+                                                                            </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+
+                                                    <!-- Détection OS -->
+                                                    {% if result.os_detected %}
+                                                    <div class="card mb-4">
+                                                        <div class="card-header bg-success text-white">
+                                                            <h6 class="mb-0">Système d'exploitation détecté</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <p><strong>OS :</strong> {{ result.os_detected }}</p>
+                                                            <p><strong>Précision :</strong> {{ result.os_accuracy }}%</p>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+
+                                                    <!-- Scripts -->
+                                                    {% if result.script_results %}
+                                                    <div class="card mb-4">
+                                                        <div class="card-header bg-warning text-dark">
+                                                            <h6 class="mb-0">Résultats des scripts</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <pre>{{ result.script_results }}</pre>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+
+                                                    <!-- Sortie brute -->
+                                                    <div class="card">
+                                                        <div class="card-header bg-secondary text-white">
+                                                            <h6 class="mb-0">Sortie complète</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <pre class="bg-light p-3 rounded"><code>{{ result.full_output }}</code></pre>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    <p class="text-muted">Aucun résultat détaillé trouvé pour ce scan.</p>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        {% if scan.tool|upper == 'NMAP' %}
+                                            {% with result=scan.nmap_results.first %}
+                                                {% if result %}
+                                                    <a href="{% url 'download_nmap_report' scan.id %}" class="btn btn-success">
+                                                        <i class="bi bi-file-pdf me-1"></i>Télécharger le rapport
+                                                    </a>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <select class="form-select form-select-sm d-inline-block w-auto me-2" id="itemsPerPage">
-                                <option value="10">10 par page</option>
-                                <option value="25">25 par page</option>
-                                <option value="50">50 par page</option>
-                                <option value="100">100 par page</option>
-                            </select>
-                            <nav class="d-inline-block">
-                                <ul class="pagination pagination-sm mb-0">
-                                    <li class="page-item">
-                                        <button class="page-link" id="prevPage">
-                                            <i class="bi bi-chevron-left"></i>
-                                        </button>
-                                    </li>
-                                    <li class="page-item">
-                                        <span class="page-link">Page <span id="currentPage">1</span></span>
-                                    </li>
-                                    <li class="page-item">
-                                        <button class="page-link" id="nextPage">
-                                            <i class="bi bi-chevron-right"></i>
-                                        </button>
-                                    </li>
-                                </ul>
-                            </nav>
-                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted small">
+                        Affichage <span id="startIndex">1</span>-<span id="endIndex">10</span> 
+                        sur <span id="totalItems">{{ scans_history.count }}</span> résultats
+                    </div>
+                    <div>
+                        <select class="form-select form-select-sm d-inline-block w-auto me-2" id="itemsPerPage">
+                            <option value="10">10 par page</option>
+                            <option value="25">25 par page</option>
+                            <option value="50">50 par page</option>
+                            <option value="100">100 par page</option>
+                        </select>
+                        <nav class="d-inline-block">
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item">
+                                    <button class="page-link" id="prevPage">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                </li>
+                                <li class="page-item">
+                                    <span class="page-link">Page <span id="currentPage">1</span></span>
+                                </li>
+                                <li class="page-item">
+                                    <button class="page-link" id="nextPage">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-
 
 {% endblock %}
 
@@ -1322,6 +1412,8 @@ socket.onmessage = function(e) {
 function showResultDetails(scanId) {
     const niktoScans = JSON.parse(document.getElementById('nikto-results-data').textContent);
     const scan = niktoScans.find(s => s.id == scanId);
+    const scanType = document.querySelector(`#modalScan${scanId} .modal-title`).textContent.includes('NMAP') ? 'nmap' : 'nikto';
+
     if (!scan) return;
 
     document.getElementById('modal-hostname').textContent = scan.target_hostname || '';
@@ -1348,6 +1440,9 @@ function showResultDetails(scanId) {
     document.getElementById('modal-estimated-time').textContent = scan.estimated_time_left || '';
     document.getElementById('modal-created-at').textContent = scan.created_at || '';
     document.getElementById('modal-description').textContent = scan.description || '';
+    document.getElementById('terminalOutput').innerHTML = `<div class="text-success"><pre>${nmapOutput}</pre></div>`;
+    document.getElementById('raw-tab').click();
+
 }
 </script>
 {% endblock %}

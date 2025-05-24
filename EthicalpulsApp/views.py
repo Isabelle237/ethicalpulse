@@ -7,13 +7,29 @@ import time
 import json
 import os
 from datetime import timedelta, datetime
-from EthicalpulsApp.utils import run_aircrack_scan, run_beef_scan, run_ghidra_analysis, run_hashcat_scan, run_john_scan, run_metasploit_scan, run_nmap_scan, run_reconng_scan, run_snort_scan, run_sqlmap_scan, run_wifite_scan, run_wireshark_capture, run_zap_scan
+from EthicalpulsApp.aircrack_scan.aircrack_views import handle_aircrack_scan
+from EthicalpulsApp.beef_scan.beef_views import handle_beef_scan
+from EthicalpulsApp.ghidra_scan.ghidra_views import handle_ghidra_scan
+from EthicalpulsApp.hashcat_scan.hashcat_views import handle_hashcat_scan
+from EthicalpulsApp.john_scan.john_views import handle_john_scan
+from EthicalpulsApp.metasploit_scan.metasploit_views import handle_metasploit_scan
+from EthicalpulsApp.netcat_scan.netcat_views import handle_netcat_scan
+from EthicalpulsApp.nikto_scan.nikto_views import handle_nikto_scan
+from EthicalpulsApp.reconng_scan.reconng_views import handle_reconng_scan
+from EthicalpulsApp.snort_scan.snort_views import handle_snort_scan
+from EthicalpulsApp.sqlmap_scan.sqlmap_views import handle_sqlmap_scan
+from EthicalpulsApp.utils import run_nmap_scan
+from EthicalpulsApp.utils import run_aircrack_scan, run_beef_scan, run_ghidra_analysis, run_hashcat_scan, run_john_scan, run_metasploit_scan, run_reconng_scan, run_snort_scan, run_sqlmap_scan, run_wifite_scan, run_wireshark_capture, run_zap_scan
 from EthicalpulsApp.utils.netcat_scan import run_netcat_scan
 from EthicalpulsApp.utils.nikto_scan import run_nikto_scan
+from EthicalpulsApp.wifite_scan.wifite_views import handle_wifite_scan
+from EthicalpulsApp.wireshark_scan.wireshark_views import handle_wireshark_scan
+from EthicalpulsApp.zap_scan.zap_views import handle_zap_scan
 from zapv2 import ZAPv2
 import subprocess
 import logging
 import pyotp
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -61,6 +77,7 @@ from celery import shared_task
 from .models import Project, Scan, Vulnerability, ScheduledScan
 from .forms import ScanForm
 
+from django.core.paginator import Paginator
 
 
 def index(request):
@@ -459,7 +476,17 @@ def vulnerabilities_filter(request):
 
         return JsonResponse({'vulnerabilities': results})
 
+def get_base_context(request):
+    return {
+        'projects': Project.objects.all(),
+        'current_project': request.session.get('current_project'),
+    }
 
+class BaseViewMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(get_base_context(self.request))
+        return context
 
 def vuln_view(request):
     # Récupérer les scans avec les filtres
@@ -1127,400 +1154,24 @@ def analytics(request):
 
 logger = logging.getLogger(__name__)
 
-def handle_netcat_scan(project, option, target_port, request):
-    """Gère le lancement d'un scan Netcat"""
-    try:
-        # Validation des options
-        valid_options = [opt[0] for opt in NetcatResult._meta.get_field('option').choices]
-        if option and option not in valid_options:
-            raise ValueError(f"Option invalide pour Netcat : '{option}'")
 
-        # Validation du port pour l'option -lvp
-        if option == '-lvp' and not target_port.isdigit():
-            raise ValueError("Port invalide pour l'écoute Netcat.")
 
-        # Création du scan
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='NETCAT',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
 
-        # Lancement du scan en arrière-plan
-        transaction.on_commit(lambda: run_netcat_scan.delay(
-            scan_instance.id, 
-            option,
-            target_port=target_port if target_port else None
-        ))
 
-        return True, f"Scan Netcat lancé pour le projet '{project.name}' avec l'option '{option}'"
-    except ValueError as e:
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan Netcat : {e}")
-        return False, f"Erreur inattendue : {str(e)}"
+from django.db import transaction  # ⚠️ Manquait dans ton import
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
+from django.utils import timezone
+from EthicalpulsApp.models import Project, Scan, NmapResult, OwaspZapResult, SqlmapResult, AircrackngResult, \
+    BeefResult, MetasploitResult, HashcatResult, JohntheripperResult, ReconngResult, WiresharkResult, \
+    GhidraResult, SnortResult, WifiteResult, NetcatResult, NiktoResult
+from EthicalpulsApp.utils.run_nmap_scan import run_nmap_scan  # ✅ Import correct pour la tâche Celery
+import logging
 
-def handle_nikto_scan(project, option, request):
-    """Gère le lancement d'un scan Nikto"""
-    try:
-        # Validation de l'URL du projet
-        if not project.url:
-            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
 
-        # Validation des options
-        valid_options = [opt[0] for opt in NiktoResult._meta.get_field('option').choices]
-        if option and option not in valid_options:
-            raise ValueError(f"Option invalide pour Nikto : '{option}'")
-
-        # Création du scan
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='NIKTO',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        # Lancement du scan en arrière-plan
-        transaction.on_commit(lambda: run_nikto_scan.delay(scan_instance.id, option))
-
-        return True, f"Scan Nikto lancé pour le projet '{project.name}' avec l'option '{option}'"
-    except ValueError as e:
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan Nikto : {e}")
-        return False, f"Erreur inattendue : {str(e)}"
-
-def handle_wifite_scan(project, option, request):
-    """Gère le lancement d'un scan Wifite"""
-    try:
-        if not project.mac_address:
-            raise ValueError(f"Aucune adresse MAC définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='WIFITE',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_wifite_scan.delay(scan_instance.id, option))
-        return True, f"Scan Wifite lancé pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan Wifite : {e}")
-        return False, str(e)
-
-def handle_snort_scan(project, option, request):
-    """Gère le lancement d'un scan Snort"""
-    try:
-        if not project.ip_address:
-            raise ValueError(f"Aucune adresse IP définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='SNORT',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_snort_scan.delay(scan_instance.id, option))
-        return True, f"Analyse Snort lancée pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Snort : {e}")
-        return False, str(e)
-
-def handle_ghidra_scan(project, option, request):
-    """Gère l'analyse avec Ghidra"""
-    try:
-        if not project.binary_file:
-            raise ValueError(f"Aucun fichier binaire défini pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='GHIDRA',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_ghidra_analysis.delay(scan_instance.id, option))
-        return True, f"Analyse Ghidra lancée pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Ghidra : {e}")
-        return False, str(e)
-
-def handle_wireshark_scan(project, option, request):
-    """Gère la capture Wireshark"""
-    try:
-        if not project.interface:
-            raise ValueError(f"Aucune interface réseau définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='WIRESHARK',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_wireshark_capture.delay(scan_instance.id, option))
-        return True, f"Capture Wireshark lancée pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Wireshark : {e}")
-        return False, str(e)
-
-def handle_reconng_scan(project, option, request):
-    """Gère le scan Recon-ng"""
-    try:
-        if not project.domain:
-            raise ValueError(f"Aucun domaine défini pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='RECONNG',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_reconng_scan.delay(scan_instance.id, option))
-        return True, f"Scan Recon-ng lancé pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Recon-ng : {e}")
-        return False, str(e)
-
-def handle_john_scan(project, option, request):
-    """Gère l'analyse John The Ripper"""
-    try:
-        if not project.hash_file:
-            raise ValueError(f"Aucun fichier de hash défini pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='JOHN',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_john_scan.delay(scan_instance.id, option))
-        return True, f"Analyse John The Ripper lancée pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de John The Ripper : {e}")
-        return False, str(e)
-
-def handle_hashcat_scan(project, option, request):
-    """Gère l'analyse Hashcat"""
-    try:
-        if not project.hash_file:
-            raise ValueError(f"Aucun fichier de hash défini pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='HASHCAT',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_hashcat_scan.delay(scan_instance.id, option))
-        return True, f"Analyse Hashcat lancée pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Hashcat : {e}")
-        return False, str(e)
-
-def handle_metasploit_scan(project, option, request):
-    """Gère le scan Metasploit"""
-    try:
-        if not project.ip_address and not project.url:
-            raise ValueError(f"Aucune cible (IP ou URL) définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='METASPLOIT',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_metasploit_scan.delay(scan_instance.id, option))
-        return True, f"Scan Metasploit lancé pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de Metasploit : {e}")
-        return False, str(e)
-
-def handle_beef_scan(project, option, request):
-    """Gère le scan BeEF"""
-    try:
-        if not project.url:
-            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='BEEF',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_beef_scan.delay(scan_instance.id, option))
-        return True, f"Hook BeEF lancé pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement de BeEF : {e}")
-        return False, str(e)
-
-def handle_aircrack_scan(project, option, request):
-    """Gère le scan Aircrack-ng"""
-    try:
-        if not project.mac_address:
-            raise ValueError(f"Aucune adresse MAC définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='AIRCRACK',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_aircrack_scan.delay(scan_instance.id, option))
-        return True, f"Scan Aircrack-ng lancé pour le projet '{project.name}'"
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement d'Aircrack-ng : {e}")
-        return False, str(e)
-def handle_nmap_scan(project, option, request):
-    """Gère le lancement d'un scan Nmap"""
-    try:
-        valid_options = [opt[0] for opt in NmapResult._meta.get_field('option').choices]
-        if option and option not in valid_options:
-            raise ValueError(f"Option invalide pour Nmap : '{option}'")
-
-        if not project.ip_address:
-            raise ValueError(f"Aucune adresse IP définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='NMAP',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_nmap_scan.delay(scan_instance.id, option))
-        return True, f"Scan Nmap lancé pour le projet '{project.name}'"
-    except ValueError as e:
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan Nmap : {e}")
-        return False, f"Erreur inattendue : {str(e)}"
-
-def handle_zap_scan(project, option, request):
-    """Gère le lancement d'un scan OWASP ZAP"""
-    try:
-        valid_options = [opt[0] for opt in OwaspZapResult._meta.get_field('option').choices]
-        if option and option not in valid_options:
-            raise ValueError(f"Option invalide pour ZAP : '{option}'")
-
-        if not project.url:
-            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='ZAP',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_zap_scan.delay(scan_instance.id, option))
-        return True, f"Scan ZAP lancé pour le projet '{project.name}'"
-    except ValueError as e:
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan ZAP : {e}")
-        return False, f"Erreur inattendue : {str(e)}"
-
-def handle_sqlmap_scan(project, option, request):
-    """Gère le lancement d'un scan SQLMap"""
-    try:
-        valid_options = [opt[0] for opt in SqlmapResult._meta.get_field('option').choices]
-        if option and option not in valid_options:
-            raise ValueError(f"Option invalide pour SQLMap : '{option}'")
-
-        if not project.url:
-            raise ValueError(f"Aucune URL définie pour le projet '{project.name}'")
-
-        scan_instance = Scan.objects.create(
-            project=project,
-            tool='SQLMAP',
-            status='in_progress',
-            start_time=timezone.now(),
-            created_by=request.user
-        )
-
-        transaction.on_commit(lambda: run_sqlmap_scan.delay(scan_instance.id, option))
-        return True, f"Scan SQLMap lancé pour le projet '{project.name}'"
-    except ValueError as e:
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Erreur lors du lancement du scan SQLMap : {e}")
-        return False, f"Erreur inattendue : {str(e)}"
-
-# Mettre à jour la vue tools_admin pour utiliser tous les handlers
-@csrf_protect
 def tools_admin(request):
-    if request.method == "POST":
-        tool_name = request.POST.get("tool", "").strip().upper()
-        project_id = request.POST.get("project_id", "").strip()
-        option = request.POST.get("option", "").strip()
-        target_port = request.POST.get("target_port", "").strip()
+    from EthicalpulsApp.nmap_scan.run_nmap_views import handle_nmap_scan
 
-        if not project_id.isdigit():
-            messages.error(request, "ID de projet invalide.")
-            return redirect('tools_admin')
-
-        project = get_object_or_404(Project, id=int(project_id))
-
-        # Dictionnaire des handlers pour chaque outil
-        tool_handlers = {
-            'NMAP': lambda: handle_nmap_scan(project, option, request),
-            'ZAP': lambda: handle_zap_scan(project, option, request),
-            'SQLMAP': lambda: handle_sqlmap_scan(project, option, request),
-            'NIKTO': lambda: handle_nikto_scan(project, option, request),
-            'NETCAT': lambda: handle_netcat_scan(project, option, target_port, request),
-            'AIRCRACK': lambda: handle_aircrack_scan(project, option, request),
-            'BEEF': lambda: handle_beef_scan(project, option, request),
-            'METASPLOIT': lambda: handle_metasploit_scan(project, option, request),
-            'HASHCAT': lambda: handle_hashcat_scan(project, option, request),
-            'JOHN': lambda: handle_john_scan(project, option, request),
-            'RECONNG': lambda: handle_reconng_scan(project, option, request),
-            'WIRESHARK': lambda: handle_wireshark_scan(project, option, request),
-            'GHIDRA': lambda: handle_ghidra_scan(project, option, request),
-            'SNORT': lambda: handle_snort_scan(project, option, request),
-            'WIFITE': lambda: handle_wifite_scan(project, option, request),
-        }
-
-        handler = tool_handlers.get(tool_name)
-        if handler:
-            success, message = handler()
-            if success:
-                messages.success(request, message)
-            else:
-                messages.error(request, message)
-        else:
-            messages.error(request, f"Outil '{tool_name}' non pris en charge.")
-
-        return redirect('tools_admin')
-
-    context = prepare_tools_context()
-    return render(request, 'admin/tools.html', context)
-
-@csrf_protect
-def tools_admin(request):
     if request.method == "POST":
         # Récupération des données du formulaire
         tool_name = request.POST.get("tool", "").strip().upper()
@@ -1601,155 +1252,44 @@ def prepare_tools_context():
 
     return {
         "projects": Project.objects.all(),
-        "scans_history": Scan.objects.all().order_by('-start_time')[:20],
-        "nikto_results": nikto_results,
-        "nikto_raw_output": nikto_results.first().nikto_raw_output if nikto_results.exists() else "",
+        'scans_history': Scan.objects.select_related('project').prefetch_related(
+            'nmap_results'
+        ).order_by('-start_time')[:20],
+              "nikto_results": nikto_results,
         **options,
     }
 
-def scan_result_detail(request, scan_id):
-    scan = get_object_or_404(Scan, id=scan_id)
-    result = NiktoResult.objects.filter(scan=scan).first()
-    return render(request, 'admin/scan_detail.html', {
-        'scan': scan,
-        'result': result
-    })
-def generate_nikto_report(scan_data, filename):
-    """Génère un rapport PDF pour un scan Nikto"""
-    doc = SimpleDocTemplate(filename, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
 
-    # Styles personnalisés
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=1
-    )
-    header_style = ParagraphStyle(
-        'CustomHeader',
-        parent=styles['Heading2'],
-        fontSize=14,
-        spaceAfter=12,
-        textColor=colors.HexColor('#2E5090')
-    )
 
-    # Titre
-    elements.append(Paragraph("Rapport de Scan Nikto", title_style))
-    elements.append(Spacer(1, 12))
 
-    # Informations de base
-    elements.append(Paragraph("Informations de la Cible", header_style))
-    target_info = f"""
-    <para>
-    <b>URI :</b> {scan_data['url']}<br/>
-    <b>Hostname :</b> {scan_data['host']}<br/>
-    <b>Port :</b> {scan_data['port']}<br/>
-    <b>Option utilisée :</b> {scan_data['option_used']}<br/>
-    </para>
-    """
-    elements.append(Paragraph(target_info, styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    # Informations serveur
-    elements.append(Paragraph("Informations Serveur", header_style))
-    server_info = f"""
-    <para>
-    <b>Serveur :</b> {scan_data['server_info']['server']}<br/>
-    <b>SSL Subject :</b> {scan_data['server_info']['ssl_info']['subject']}<br/>
-    <b>SSL Issuer :</b> {scan_data['server_info']['ssl_info']['issuer']}<br/>
-    <b>SSL Cipher :</b> {scan_data['server_info']['ssl_info']['cipher']}<br/>
-    </para>
-    """
-    elements.append(Paragraph(server_info, styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    # En-têtes de sécurité
-    elements.append(Paragraph("En-têtes de Sécurité", header_style))
-    security_headers = f"""
-    <para>
-    <b>X-Powered-By :</b> {scan_data['server_info']['headers']['x_powered_by']}<br/>
-    <b>X-Frame-Options :</b> {scan_data['server_info']['headers']['x_frame_options']}<br/>
-    <b>Content-Security-Policy :</b> {scan_data['server_info']['headers']['content_security']}<br/>
-    <b>Strict-Transport-Security :</b> {scan_data['server_info']['headers']['transport_security']}<br/>
-    </para>
-    """
-    elements.append(Paragraph(security_headers, styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    # Vulnérabilités
-    elements.append(Paragraph("Vulnérabilités Détectées", header_style))
-    if scan_data['vulnerabilities']:
-        for vuln in scan_data['vulnerabilities'].split('\n'):
-            if vuln.strip():
-                elements.append(Paragraph(f"• {vuln}", styles['Normal']))
-    else:
-        elements.append(Paragraph("Aucune vulnérabilité détectée", styles['Normal']))
-
-    # Description détaillée
-    elements.append(Paragraph("Description Détaillée", header_style))
-    elements.append(Paragraph(scan_data['description'], styles['Normal']))
-
-    # Sortie brute
-    elements.append(Paragraph("Sortie Brute", header_style))
-    elements.append(Paragraph(scan_data['output'], styles['Code']))
-
-    # Pied de page
-    elements.append(Spacer(1, 20))
-    footer = f"""
-    <para alignment="center">
-    <b>Rapport généré le :</b> {timezone.now().strftime('%d/%m/%Y %H:%M:%S')}<br/>
-    EthicalPulse Security Assessment
-    </para>
-    """
-    elements.append(Paragraph(footer, styles['Normal']))
-
-    # Génération du PDF
-    doc.build(elements)
-
-def download_nikto_report(request, scan_id):
-    nikto_result = NiktoResult.objects.get(scan__id=scan_id)
-
-    scan_data = {
-        'url': nikto_result.uri,  # Utilise uri au lieu de target_url
-        'host': nikto_result.target_hostname,  # Utilise target_hostname au lieu de host
-        'port': nikto_result.target_port,  # Utilise target_port au lieu de port
-        'server_info': {
-            'server': nikto_result.server,
-            'ssl_info': {
-                'subject': nikto_result.ssl_subject,
-                'issuer': nikto_result.ssl_issuer,
-                'cipher': nikto_result.ssl_cipher
-            },
-            'headers': {
-                'x_powered_by': nikto_result.x_powered_by,
-                'x_frame_options': nikto_result.x_frame_options,
-                'content_security': nikto_result.content_security_policy,
-                'transport_security': nikto_result.strict_transport_security
-            }
-        },
-        'vulnerabilities': nikto_result.vulnerability,
-        'output': nikto_result.nikto_raw_output,
-        'description': nikto_result.description,
-        'option_used': nikto_result.option
-    }
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmpfile:
-        generate_nikto_report(scan_data, tmpfile.name)
-        tmpfile.seek(0)
-        response = FileResponse(
-            open(tmpfile.name, 'rb'),
-            content_type='application/pdf',
-            filename=f'nikto_report_{scan_id}.pdf'
-        )
-        
-        # Nettoyage du fichier temporaire après l'envoi
-        os.unlink(tmpfile.name)
-        return response
 def tools(request):
     return render(request, 'tools/index.html')
 
 def tools_create(request):
     return redirect('tools')
+
+def afficher_sortie_scan(scan):
+    try:
+        if scan.tool == 'NMAP':
+            result = scan.nmap_results.last()
+            if result:
+                print("\n--- Sortie brute Nmap ---")
+                print(result.full_output)
+                print("--- Fin de sortie Nmap ---\n")
+            else:
+                print("Aucun résultat Nmap disponible pour ce scan.")
+        elif scan.tool == 'NIKTO':
+            result = scan.nikto_results.last()
+            if result:
+                print("\n--- Sortie brute Nikto ---")
+                print(result.full_output)
+                print("--- Fin de sortie Nikto ---\n")
+            else:
+                print("Aucun résultat Nikto disponible pour ce scan.")
+        # ➕ Ajoute les autres outils si nécessaire
+        else:
+            print(f"Affichage non implémenté pour l'outil {scan.tool}")
+    except Exception as e:
+        print(f"Erreur lors de l'affichage de la sortie brute : {e}")
+
+  
