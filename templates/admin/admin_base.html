@@ -6,57 +6,21 @@
     <title>EthicalPulse - Plateforme de Sécurité</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
+       <style>
         :root {
             --navy-dark: rgba(34, 39, 54, 0.9);
-            --navy-medium: rgba(45, 52, 70, 0.8);
-            --navy-light: rgba(58, 65, 84, 0.7);
+            --navy-medium: rgba(34, 39, 54, 0.9);
+            --navy-light: rgba(34, 39, 54, 0.9);
             --orange-primary: rgb(199, 86, 5);
             --orange-light: rgb(231, 126, 40);
             --glass-bg: rgba(34, 39, 54, 0.9);
         }
-        .dropdown-menu {
-        background: var(--glass-bg);
-        border: 1px solid rgba(249, 115, 22, 0.2);
-        backdrop-filter: blur(10px);
-        margin-top: 0.5rem;
-        min-width: 200px;
-    }
 
-    .dropdown-item {
-        color: #fff;
-        padding: 0.5rem 1rem;
-        transition: all 0.2s ease;
-    }
-
-    .dropdown-item:hover, 
-    .dropdown-item:focus {
-        background: rgba(249, 115, 22, 0.1);
-        color: var(--orange-primary);
-    }
-
-    .dropdown-divider {
-        border-color: rgba(249, 115, 22, 0.2);
-        margin: 0.5rem 0;
-    }
-
-    /* Fix pour le bouton dropdown */
-    .dropdown-toggle::after {
-        margin-left: 0.5rem;
-        vertical-align: middle;
-    }
-
-    .dropdown-toggle:hover {
-        color: var(--orange-primary) !important;
-    }
-
-        /* Base */
         body {
-            background: linear-gradient(135deg, var(--navy-dark), rgba(25, 33, 58, 0.9));
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
             color: #f7fafc;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
-            margin: 0;
         }
 
         /* Sidebar */
@@ -64,12 +28,13 @@
             position: fixed;
             top: 0;
             left: 0;
-            height: 100vh;
             width: 256px;
-            background: var(--glass-bg);
+            height: 100vh;
+            font-size: 0.875rem;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
             border-right: 1px solid rgba(249, 115, 22, 0.2);
+            z-index: 1000;
             backdrop-filter: blur(10px);
-            z-index: 1040;
             transition: transform 0.3s ease;
         }
 
@@ -78,7 +43,7 @@
         }
 
         .sidebar-header {
-            padding: 1.5rem;
+            padding: 1.1rem;
             border-bottom: 1px solid rgba(249, 115, 22, 0.2);
         }
 
@@ -93,6 +58,13 @@
         .sidebar-brand:hover {
             color: var(--orange-primary);
         }
+        // Ajouter dans la section style existante    
+        .sidebar-icon {
+            width: 2rem;
+            height: 2rem;
+            color: var(--orange-primary);
+            animation: pulse-orange 2s infinite;
+        }
 
         .sidebar-title {
             font-size: 1.25rem;
@@ -103,23 +75,39 @@
             background-clip: text;
         }
 
+        .sidebar-subtitle {
+            font-size: 0.75rem;
+            color: rgba(247, 250, 252, 0.6);
+            font-weight: 500;
+        }
+
         .sidebar-nav {
             padding: 1.5rem 0.75rem;
+            flex: 1;
             overflow-y: auto;
+        }
+
+        .nav-section-title {
+            padding: 0 0.75rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(247, 250, 252, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .sidebar-nav-link {
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.625rem 0.75rem;
-            margin-bottom: 0.25rem;
+            padding: 0.225rem 0.75rem;
+            margin-bottom: 0.05rem;
             border-radius: 0.5rem;
             color: #f7fafc;
             text-decoration: none;
             font-weight: 500;
-            transition: all 0.2s ease;
             border-left: 2px solid transparent;
+            transition: all 0.2s ease;
             position: relative;
         }
 
@@ -166,12 +154,11 @@
             top: 0;
             left: 256px;
             right: 0;
-            height: 70px;
+            z-index: 1020;
             background: rgba(34, 39, 54, 0.95);
-            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
             backdrop-filter: blur(10px);
-            transition: left 0.3s ease;
-            z-index: 1030;
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+            transition: all 0.3s ease;
         }
 
         .main-navbar.expanded {
@@ -184,27 +171,32 @@
             transition: transform 0.3s ease;
         }
 
-        .sidebar-toggle i {
-            font-size: 1.5rem;
+        .mobile-brand:hover {
             color: var(--orange-primary);
         }
 
-        /* Modal */
-        .modal-content {
-            background: var(--glass-bg);
+        .mobile-toggle {
+            background: rgba(249, 115, 22, 0.1);
             border: 1px solid rgba(249, 115, 22, 0.2);
             color: #fff;
             backdrop-filter: blur(10px);
         }
 
-        .modal-header,
-        .modal-footer {
-            border-color: rgba(249, 115, 22, 0.2);
+        /* Animations */
+        @keyframes pulse-orange {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% {
+                opacity: 0.8;
+                box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+            }
         }
 
-        body.modal-open {
-            overflow: hidden;
-            padding-right: 0 !important;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         /* Responsive */
@@ -217,20 +209,44 @@
                 transform: translateX(0);
             }
 
-            .main-content,
             .main-navbar {
-                margin-left: 0;
                 left: 0;
+            }
+
+            .mobile-navbar {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
             }
         }
 
-        /* Animations */
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.6; }
-            100% { transform: scale(1); opacity: 1; }
+        /* Glass effect */
+        .glass-card {
+            background: rgba(34, 39, 54, 0.8);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        </style>
+
+        /* Custom scrollbar */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(34, 39, 54, 0.3);
+        }
+
+         .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(249, 115, 22, 0.7);
+        }
+</style>  
     {% block extra_css %}{% endblock %}
 
 </head>
@@ -267,7 +283,7 @@
 
         <nav class="sidebar-nav">
             <div class="nav-section-title">Navigation Principale</div>
-            <a href="{% url 'dashboard'%}" class="sidebar-nav-link active">
+            <a href="{% url 'dashboard'%}" class="sidebar-nav-link">
                 <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                 <span>Tableau de bord<active/span>
             </a>
@@ -279,7 +295,7 @@
                 <i class="bi bi-folder-fill sidebar-nav-icon"></i>
                 <span>Projets</span>
             </a>
-            <a href="{% url 'launch_scan' %}" class="sidebar-nav-link">
+            <a href="{% url 'scans' %}" class="sidebar-nav-link">
                 <i class="bi bi-search sidebar-nav-icon"></i>
                 <span>Scans</span>
             </a>
@@ -313,26 +329,50 @@
             </a>
         </nav>
 
-        <div class="sidebar-user">
-            <div class="user-profile">
-                <div class="user-avatar">AP</div>
-                <div class="user-info flex-grow-1">
-                    <h6>User Panel</h6>
-                    <small>{% if user.is_authenticated %}{{ user.email }}{% else %}Non connecté{% endif %}</small>
+        <!-- User Panel -->
+                <div class="sidebar-user mt-auto">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            {% if user.is_authenticated %}
+                                {{ user.username|make_list|first|upper }}
+                            {% else %}
+                                <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-info flex-grow-1">
+                            <h6>{% if user.is_authenticated %}{{ user.username }}{% else %}Visiteur{% endif %}</h6>
+                            <small>
+                                {% if user.is_authenticated %}
+                                    {{ user.email }}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">En ligne</span>
+                                {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Non connecté</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="status-indicator"></div>
+                    </div>
+                    
+                    <!-- Actions utilisateur -->
+                    <div class="mt-3">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                <i class="bi bi-gear sidebar-nav-icon"></i>
+                                <span>Paramètres</span>
+                            </a>
+                            <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                <span>Déconnexion</span>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                <span>Connexion</span>
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="status-indicator"></div>
             </div>
-            <div class="mt-3">
-                <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
-                    <i class="bi bi-gear sidebar-nav-icon"></i>
-                    <span>Paramètres</span>
-                </a>
-                <a href="/logout" class="sidebar-nav-link">
-                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
-                    <span>Déconnexion</span>
-                </a>
-            </div>
-        </div>
     </div>
     <!-- Remplacez la section du Main Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark main-navbar">
@@ -471,28 +511,52 @@
                 </a>
             </nav>
             
-            <div class="user-info flex-grow-1">
-                <h6>Admin Panel</h6>
-                <small>
-                    {% if user.is_authenticated %}
-                        <span class="text-success">
-                            <i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i>En ligne
-                        </span>
-                    {% else %}
-                        <span class="text-danger">
-                            <i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i>Hors ligne
-                        </span>
-                    {% endif %}
-                </small>
-            </div>
-            <div class="user-profile mt-3">
-                <div class="user-avatar">AP</div>
-                <div class="user-info flex-grow-1">
-                    <h6>{{ user.username }}</h6>
-                    <small>{% if user.is_authenticated %}{{ user.email }}{% else %}Non connecté{% endif %}</small>
+            <!-- User Panel -->
+                <div class="sidebar-user mt-auto">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            {% if user.is_authenticated %}
+                                {{ user.username|make_list|first|upper }}
+                            {% else %}
+                                <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-info flex-grow-1">
+                            <h6>{% if user.is_authenticated %}{{ user.username }}{% else %}Visiteur{% endif %}</h6>
+                            <small>
+                                {% if user.is_authenticated %}
+                                    {{ user.email }}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">En ligne</span>
+                                {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Non connecté</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="status-indicator"></div>
+                    </div>
+                    
+                    <!-- Actions utilisateur -->
+                    <div class="mt-3">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                <i class="bi bi-gear sidebar-nav-icon"></i>
+                                <span>Paramètres</span>
+                            </a>
+                            <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                <span>Déconnexion</span>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                <span>Connexion</span>
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-<div class="status-indicator" style="background-color: {% if user.is_authenticated %}#10b981{% else %}#ef4444{% endif %}"></div>
+
+    <div class="status-indicator" style="background-color: {% if user.is_authenticated %}#10b981{% else %}#ef4444{% endif %}"></div>
         </div>
     </div>
 
@@ -513,78 +577,84 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Gestion des modals
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.addEventListener('show.bs.modal', function () {
-            document.body.classList.add('modal-open');
-            document.body.style.overflow = 'hidden';
-        });
-
-        modal.addEventListener('hidden.bs.modal', function () {
-            document.body.classList.remove('modal-open');
-            setTimeout(() => {
-                document.body.style.overflow = '';
-                if (document.body.style.paddingRight) {
-                    document.body.style.paddingRight = '';
-                }
-            }, 300);
-        });
-
-        const modalContent = modal.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
-        }
-    });
-
-    // 2. Liens actifs dans la sidebar
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.sidebar-nav-link').forEach(link => {
-        const href = link.getAttribute('href');
-        if (href === currentPath || currentPath.startsWith(href)) {
-            link.classList.add('active');
-        } else {
-            link.classList.remove('active');
-        }
-    });
-
-    // 3. Gestion du toggle de la sidebar
+    // Variables globales
     const sidebar = document.querySelector('.sidebar');
     const mainContent = document.querySelector('.main-content');
     const mainNavbar = document.querySelector('.main-navbar');
-    const toggleButton = document.querySelector('.sidebar-toggle');
-    const toggleIcon = toggleButton?.querySelector('i');
+    const sidebarToggle = document.querySelector('.sidebar-toggle');
+    const mobileSidebarToggle = document.querySelector('.mobile-toggle');
+    const offcanvasSidebar = document.getElementById('mobileSidebar');
 
-    if (toggleButton && sidebar && mainContent && mainNavbar && toggleIcon) {
-        const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        if (collapsed) {
-            sidebar.classList.add('collapsed');
-            mainContent.classList.add('expanded');
-            mainNavbar.classList.add('expanded');
-            toggleIcon.classList.replace('bi-list', 'bi-x-lg');
-        }
+    // Initialisation de l'Offcanvas pour mobile
+    if (offcanvasSidebar) {
+        const bsOffcanvas = new bootstrap.Offcanvas(offcanvasSidebar, {
+            backdrop: true,
+            scroll: false
+        });
 
-        toggleButton.addEventListener('click', function () {
-            const isCollapsed = sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-            mainNavbar.classList.toggle('expanded');
-            toggleIcon.classList.toggle('bi-list');
-            toggleIcon.classList.toggle('bi-x-lg');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        // Gestionnaire pour le bouton mobile
+        mobileSidebarToggle?.addEventListener('click', function(e) {
+            e.preventDefault();
+            bsOffcanvas.show();
         });
     }
-    // 4. Configuration du dropdown profil
-    const dropdownElementList = document.querySelectorAll('.dropdown-toggle');
-    const dropdownList = [...dropdownElementList].map(dropdownToggleEl => {
-        return new bootstrap.Dropdown(dropdownToggleEl, {
+
+    // Fonction pour gérer la sidebar desktop
+    function toggleDesktopSidebar() {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+        mainNavbar.classList.toggle('expanded');
+        
+        // Sauvegarder l'état
+        localStorage.setItem('sidebarState', isCollapsed ? 'expanded' : 'collapsed');
+    }
+
+    // Event listener pour le toggle desktop
+    sidebarToggle?.addEventListener('click', function(e) {
+        e.preventDefault();
+        toggleDesktopSidebar();
+    });
+
+    // Gestion responsive
+    function handleResize() {
+        if (window.innerWidth <= 991.98) {
+            sidebar.classList.add('d-none', 'd-lg-block');
+            mainContent.classList.add('expanded');
+            mainNavbar.classList.add('expanded');
+        } else {
+            sidebar.classList.remove('d-none', 'd-lg-block');
+            const savedState = localStorage.getItem('sidebarState');
+            if (savedState === 'collapsed') {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                mainNavbar.classList.add('expanded');
+            }
+        }
+    }
+
+    // Appliquer les états initiaux
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Gestion des liens actifs
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+
+    // Initialisation des dropdowns
+    const dropdowns = document.querySelectorAll('.dropdown-toggle');
+    dropdowns.forEach(dropdown => {
+        new bootstrap.Dropdown(dropdown, {
             offset: [0, 10],
-            boundary: 'viewport',
-            reference: 'toggle',
-            display: 'dynamic'
+            boundary: 'viewport'
         });
+    });
 });
 </script>
 
