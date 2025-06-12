@@ -1,77 +1,781 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Administration - Ethical Pulse Shield{% endblock %}</title>
-    <link rel="icon" href="/path/to/favicon.ico" type="image/x-icon">
+    <title>EthicalPulse - Plateforme de Sécurité</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/static/css/admin_style.css" rel="stylesheet">
+<style>
+        :root {
+            --navy-dark: rgba(34, 39, 54, 0.9);
+            --navy-medium: rgba(34, 39, 54, 0.9);
+            --navy-light: rgba(34, 39, 54, 0.9);
+            --orange-primary: rgb(199, 86, 5);
+            --orange-light: rgb(231, 126, 40);
+            --glass-bg: rgba(34, 39, 54, 0.9);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            color: #f7fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 256px;
+            height: 100vh;
+            font-size: 0.875rem;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            border-right: 1px solid rgba(249, 115, 22, 0.2);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-256px);
+        }
+
+        .sidebar-header {
+            padding: 1.1rem;
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #f7fafc;
+            text-decoration: none;
+        }
+        /* User Panel Styles */
+        .sidebar-user {
+            padding: 1rem;
+            background: rgba(34, 39, 54, 0.8);
+            border-top: 1px solid rgba(249, 115, 22, 0.2);
+            margin-top: auto;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .user-avatar {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+            font-size: 0.6rem;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .user-info h6 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-info small {
+            color: rgba(248, 250, 252, 0.7);
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
+        .badge {
+            padding: 0.2em 0.4em;  /* Réduit le padding des badges */
+            font-size: 0.65rem;  /* Réduit la taille de police des badges */
+        }
+
+        /* User Actions */
+        .sidebar-user .mt-3 .sidebar-nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-user .mt-3 .sidebar-nav-link:hover {
+            opacity: 1;
+            background: rgba(249, 115, 22, 0.1);
+            transform: translateX(4px);
+        }
+
+        .sidebar-user .mt-3 .sidebar-nav-icon {
+            font-size: 1rem;
+            width: 1.5rem;
+            display: inline-flex;
+            justify-content: center;
+        }
+
+        /* Badge Styles */
+        .badge {
+            padding: 0.25em 0.5em;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+        }
+
+        .badge.bg-success {
+            background: rgba(16, 185, 129, 0.9) !important;
+        }
+
+        .badge.bg-secondary {
+            background: rgba(156, 163, 175, 0.9) !important;
+        }
+
+        .sidebar-brand:hover {
+            color: var(--orange-primary);
+        }
+        // Ajouter dans la section style existante    
+        .sidebar-icon {
+            width: 2rem;
+            height: 2rem;
+            color: var(--orange-primary);
+            animation: pulse-orange 2s infinite;
+        }
+
+        .sidebar-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            background: linear-gradient(to right, var(--orange-primary), var(--orange-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.75rem;
+            color: rgba(247, 250, 252, 0.6);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-section-title {
+            padding: 0 0.75rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(247, 250, 252, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.225rem 0.75rem;
+            margin-bottom: 0.05rem;
+            border-radius: 0.5rem;
+            color: #f7fafc;
+            text-decoration: none;
+            font-weight: 500;
+            border-left: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .sidebar-nav-link:hover {
+            background: rgba(249, 115, 22, 0.1);
+            color: var(--orange-light);
+            border-left-color: rgba(249, 115, 22, 0.3);
+            transform: scale(1.02);
+        }
+
+        .sidebar-nav-link.active {
+            background: linear-gradient(to right, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.2));
+            color: var(--orange-primary);
+            border-left-color: var(--orange-primary);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
+        }
+
+        .sidebar-nav-link.active::after {
+            content: '';
+            position: absolute;
+            right: 0.75rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--orange-primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 256px;
+            margin-top: 70px;
+            transition: margin-left 0.3s ease;
+            min-height: calc(100vh - 70px);
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Navbar */
+        .main-navbar {
+            position: fixed;
+            top: 0;
+            left: 256px;
+            right: 0;
+            z-index: 1020;
+            background: rgba(34, 39, 54, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .main-navbar.expanded {
+            left: 0;
+        }
+
+        /* Sidebar Toggle */
+        .sidebar-toggle {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-brand:hover {
+            color: var(--orange-primary);
+        }
+
+        .mobile-toggle {
+            background: rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            color: #fff;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Animations */
+        @keyframes pulse-orange {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% {
+                opacity: 0.8;
+                box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-navbar {
+                left: 0;
+            }
+
+            .mobile-navbar {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        /* Glass effect */
+        .glass-card {
+            background: rgba(34, 39, 54, 0.8);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom scrollbar */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(34, 39, 54, 0.3);
+        }
+
+         .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(249, 115, 22, 0.7);
+        }
+</style>  
     {% block extra_css %}{% endblock %}
+
 </head>
-<body class="bg-light">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+<body>
+    <!-- Mobile Navbar -->
+    <nav class="navbar mobile-navbar">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/admin/">
-                <i class="bi bi-shield-lock"></i> Admin - Ethical Pulse Shield
+            <a class="mobile-brand" href="/">
+                <i class="bi bi-shield-lock sidebar-icon"></i>
+                <span>EthicalPulse</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <button class="btn mobile-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
+                <i class="bi bi-list"></i>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/dashboard' in request.path %}active{% endif %}" href="{% url 'dashboard'%}">Tableau de bord</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/users' in request.path %}active{% endif %}" href="{% url 'users'%}">Utilisateurs</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/projects' in request.path %}active{% endif %}" href="{% url 'admin_projets'%}">Projets</a>
-                    </li>               
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'vulnerabilities' %}">Vulnérabilités</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'remediations_admin' %}">remediations</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/tools' in request.path %}active{% endif %}" href="{%url 'tools_admin'%}"> Outils</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/admin/settings' in request.path %}active{% endif %}" href="{%url 'settings_admin'%}">Paramètres</a>
-                    </li>
-                </ul>
-                <div class="d-flex">
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i> Admin
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            {% comment %} <li><a class="dropdown-item" href="{%url/profile%}">Profil</a></li> {% endcomment %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/">Vue utilisateur</a></li>
-                            <li><a class="dropdown-item" href="{% url 'logout' %}">Déconnexion</a></li>
-                        </ul>
+        </div>
+    </nav>
+
+    <!-- Desktop Sidebar -->
+    <div class="sidebar d-lg-block">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-brand">
+                <div class="position-relative">
+                    <i class="bi bi-shield-lock sidebar-icon"></i>
+                    <div class="position-absolute top-0 start-100 translate-middle">
+                        <span class="badge bg-warning rounded-pill" style="width: 12px; height: 12px; padding: 0;"></span>
+                    </div>
+                </div>
+                <div>
+                    <div class="sidebar-title">Admin - Ethical Pulse Shield</div>
+                    <div class="sidebar-subtitle">Security Platform</div>
+                </div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Navigation Principale</div>
+            <a href="{% url 'dashboard'%}" class="sidebar-nav-link">
+                <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
+                <span>Tableau de bord<active/span>
+            </a>
+            {% if user.role == 'ADMIN' %}
+                <!-- Section Admin uniquement -->
+                <a href="{% url 'users'%}" class="sidebar-nav-link">
+                    <i class="bi bi-people-fill sidebar-nav-icon"></i>
+                    <span>Utilisateurs</span>
+                </a>
+                <a href="{% url 'admin_projets'%}" class="sidebar-nav-link">
+                    <i class="bi bi-folder-fill sidebar-nav-icon"></i>
+                    <span>Projets</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'scan_list' %}" class="sidebar-nav-link">
+                <i class="bi bi-search sidebar-nav-icon"></i>
+                <span>Scans</span>
+            </a>
+            <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
+                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                <span>Vulnérabilités</span>
+            </a>
+            <a href="{% url 'tools_admin' %}" class="sidebar-nav-link">
+                <i class="bi bi-tools sidebar-nav-icon"></i>
+                <span>Outils</span>
+            </a>
+            <a href="{% url 'remediations_admin' %}" class="sidebar-nav-link">
+                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                <span>Remédiation</span>
+            </a>
+            <a href="{% url 'reports' %}" class="sidebar-nav-link">
+                <i class="bi bi-bar-chart sidebar-nav-icon"></i>
+                <span>Rapports</span>
+            </a>
+            <a href="{% url 'history' %}" class="sidebar-nav-link">
+                <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                <span>Historique</span>
+            </a>
+            <a href="{% url 'analytics_dashboard' %}" class="sidebar-nav-link">
+                <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                <span>Analytique</span>
+            </a>
+            <a href="{% url 'logs' %}" class="sidebar-nav-link">
+                <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                <span>logs</span>
+            </a>
+            <a href="{% url 'training' %}" class="sidebar-nav-link">
+                <i class="bi bi-mortarboard sidebar-nav-icon"></i>
+                <span>Formation</span>
+            </a>
+        </nav>
+
+        <!-- User Panel -->
+                <div class="sidebar-user mt-auto">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            {% if user.is_authenticated %}
+                                {{ user.username|make_list|first|upper }}
+                            {% else %}
+                                <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-info flex-grow-1">
+                            <h6>{% if user.is_authenticated %}{{ user.username }}{% else %}Visiteur{% endif %}</h6>
+                            <small>
+                                {% if user.is_authenticated %}
+                                    {{ user.email }}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">En ligne</span>
+                                {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Non connecté</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="status-indicator"></div>
+                    </div>
+                    
+                    <!-- Actions utilisateur -->
+                    <div class="mt-3">
+                            {% if user.role == 'ADMIN' %}
+                            <!-- Section Admin uniquement -->
+                                <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                                    <span>Paramètres</span>
+                                </a>
+                            {% else %}
+                                <div class="nav-section-title mt-3">Utilisateur</div>
+                                <a href="{% url 'settings_users' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                                    <span>Paramètres</span>
+                            {% endif %}
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                    <span>Déconnexion</span>
+                                </a>
+                            {% else %}
+                                <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                    <span>Connexion</span>
+                                </a>
+                            {% endif %}
+                    </div>
+                </div>
+            </div>
+    </div>
+    <!-- Remplacez la section du Main Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark main-navbar">
+    <div class="container-fluid">
+        <button class="btn btn-link text-light me-3 d-flex align-items-center sidebar-toggle">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+        <!-- Global Search -->
+        <div class="d-none d-lg-flex align-items-center flex-grow-1 mx-lg-4">
+            <form class="w-100 me-3" action="" method="GET">
+                <div class="input-group">
+                    <input type="search" name="q" class="form-control" 
+                           placeholder="Recherche globale..." 
+                           style="background: rgba(255, 255, 255, 0.1); border-color: rgba(249, 115, 22, 0.3); color: #fff;">
+                    <button class="btn btn-outline-warning" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Project Selector -->
+        <div class="mx-3">
+            <select class="form-select" id="projectSelector" 
+                    style="background: rgba(255, 255, 255, 0.1); border-color: rgba(249, 115, 22, 0.3); color: #fff;">
+                <option value="">Sélectionner un projet</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if current_project.id == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- User Profile Dropdown -->
+        <div class="dropdown ms-3">
+            <button class="btn btn-link dropdown-toggle text-light text-decoration-none d-flex align-items-center" 
+                    type="button" 
+                    id="userDropdown" 
+                    data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                <i class="bi bi-person-circle"></i>
+                <span class="ms-2">{{ user.username }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" 
+                aria-labelledby="userDropdown">
+                <li>
+                    <a class="dropdown-item text-light" href="">
+                        <i class="bi bi-person me-2"></i>Mon Profil
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-light" href="{% url 'settings_admin' %}">
+                        <i class="bi bi-gear me-2"></i>Paramètres
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-light" href="{% url 'index' %}">
+                        <i class="bi bi-layout-text-window me-2"></i>Vue utilisateur
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-light" href="{% url 'logout' %}">
+                        <i class="bi bi-box-arrow-right me-2"></i>Déconnexion
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+
+    </div>
+</nav>
+
+    <!-- Mobile Sidebar (Offcanvas) -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" style="background: linear-gradient(135deg, var(--navy-dark) 0%, #262bb3 100%); border-right: 1px solid rgba(249, 115, 22, 0.2);">
+        <div class="offcanvas-header border-bottom" style="border-color: rgba(249, 115, 22, 0.2) !important;">
+            <div class="sidebar-brand">
+                <div class="position-relative">
+                    <i class="bi bi-shield-lock sidebar-icon"></i>
+                    <div class="position-absolute top-0 start-100 translate-middle">
+                        <span class="badge bg-warning rounded-pill" style="width: 12px; height: 12px; padding: 0;"></span>
+                    </div>
+                </div>
+                <div>
+                    <div class="sidebar-title">EthicalPulse</div>
+                    <div class="sidebar-subtitle">Security Platform</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <nav class="sidebar-nav">
+                <a href="{% url 'dashboard'%}" class="sidebar-nav-link active">
+                    <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
+                    <span>Tableau de bord</span>
+                </a>
+                <a href="/{% url 'scan_list'%}" class="sidebar-nav-link">
+                    <i class="bi bi-search sidebar-nav-icon"></i>
+                    <span>Scans</span>
+                </a>
+                <a href="/{% url 'vulnerabilities'%}" class="sidebar-nav-link">
+                    <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                    <span>Vulnérabilités</span>
+                </a>
+                <a href="/{% url 'tools_admin'%}" class="sidebar-nav-link">
+                    <i class="bi bi-tools sidebar-nav-icon"></i>
+                    <span>Outils</span>
+                </a>
+                <a href="/{% url 'remediations'%}" class="sidebar-nav-link">
+                    <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                    <span>Remédiation</span>
+                </a>
+                <a href="/{% url 'reports'%}" class="sidebar-nav-link">
+                    <i class="bi bi-bar-chart sidebar-nav-icon"></i>
+                    <span>Rapports</span>
+                </a>
+                <a href="/{% url 'history'%}" class="sidebar-nav-link">
+                    <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                    <span>Historique</span>
+                </a>
+                <a href="/{% url 'analytics_dashboard'%}" class="sidebar-nav-link">
+                    <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                    <span>Analytique</span>
+                </a>
+                <a href="/{% url 'training'%}" class="sidebar-nav-link">
+                    <i class="bi bi-mortarboard sidebar-nav-icon"></i>
+                    <span>Formation</span>
+                </a>
+                <a href="/settings" class="sidebar-nav-link">
+                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                    <span>Paramètres</span>
+                </a>
+                <a href="/logout" class="sidebar-nav-link">
+                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                    <span>Déconnexion</span>
+                </a>
+            </nav>
+            
+            <!-- User Panel -->
+                <div class="sidebar-user mt-auto">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            {% if user.is_authenticated %}
+                                {{ user.username|make_list|first|upper }}
+                            {% else %}
+                                <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-info flex-grow-1">
+                            <h6>{% if user.is_authenticated %}{{ user.username }}{% else %}Visiteur{% endif %}</h6>
+                            <small>
+                                {% if user.is_authenticated %}
+                                    {{ user.email }}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">En ligne</span>
+                                {% else %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Non connecté</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="status-indicator"></div>
+                    </div>
+                    
+                    <!-- Actions utilisateur -->
+                    <div class="mt-3">
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                <i class="bi bi-gear sidebar-nav-icon"></i>
+                                <span>Paramètres</span>
+                            </a>
+                            <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                <span>Déconnexion</span>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                <span>Connexion</span>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+    <div class="status-indicator" style="background-color: {% if user.is_authenticated %}#10b981{% else %}#ef4444{% endif %}"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid py-4">
+            <!-- Votre contenu principal ici -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="glass-card p-4">
+                        {% block content %}{% endblock %}
                     </div>
                 </div>
             </div>
         </div>
-    </nav>
-
-    <!-- Main content -->
-    <div class="main-content-admin">
-        <div class="container-fluid py-4 mt-5">
-            {% block content %}{% endblock %}
-        </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.0/dist/chart.umd.min.js"></script>
-    <script src="/static/js/admin.js"></script>
-    {% block extra_js %}{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    
+document.addEventListener('DOMContentLoaded', function () {
+    // Variables globales
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+    const mainNavbar = document.querySelector('.main-navbar');
+    const sidebarToggle = document.querySelector('.sidebar-toggle');
+    const mobileSidebarToggle = document.querySelector('.mobile-toggle');
+    const offcanvasSidebar = document.getElementById('mobileSidebar');
+
+    // Initialisation de l'Offcanvas pour mobile
+    if (offcanvasSidebar) {
+        const bsOffcanvas = new bootstrap.Offcanvas(offcanvasSidebar, {
+            backdrop: true,
+            scroll: false
+        });
+
+        // Gestionnaire pour le bouton mobile
+        mobileSidebarToggle?.addEventListener('click', function(e) {
+            e.preventDefault();
+            bsOffcanvas.show();
+        });
+    }
+
+    // Fonction pour gérer la sidebar desktop
+    function toggleDesktopSidebar() {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+        mainNavbar.classList.toggle('expanded');
+        
+        // Sauvegarder l'état
+        localStorage.setItem('sidebarState', isCollapsed ? 'expanded' : 'collapsed');
+    }
+
+    // Event listener pour le toggle desktop
+    sidebarToggle?.addEventListener('click', function(e) {
+        e.preventDefault();
+        toggleDesktopSidebar();
+    });
+
+    // Gestion responsive
+    function handleResize() {
+        if (window.innerWidth <= 991.98) {
+            sidebar.classList.add('d-none', 'd-lg-block');
+            mainContent.classList.add('expanded');
+            mainNavbar.classList.add('expanded');
+        } else {
+            sidebar.classList.remove('d-none', 'd-lg-block');
+            const savedState = localStorage.getItem('sidebarState');
+            if (savedState === 'collapsed') {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                mainNavbar.classList.add('expanded');
+            }
+        }
+    }
+
+    // Appliquer les états initiaux
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Gestion des liens actifs
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+
+    // Initialisation des dropdowns
+    const dropdowns = document.querySelectorAll('.dropdown-toggle');
+    dropdowns.forEach(dropdown => {
+        new bootstrap.Dropdown(dropdown, {
+            offset: [0, 10],
+            boundary: 'viewport'
+        });
+    });
+});
+</script>
+
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

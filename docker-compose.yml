@@ -6,6 +6,7 @@ services:
     container_name: mysql_db-ethicalpulse
     restart: always
     environment:
+      TZ: Africa/Douala
       MYSQL_DATABASE: ethicalpulse_app
       MYSQL_USER: clara
       MYSQL_PASSWORD: ethicalpulse
@@ -20,6 +21,7 @@ services:
     container_name: phpmyadmin-ethicalpulse
     restart: always
     environment:
+      TZ: Africa/Douala
       PMA_HOST: db
       PMA_USER: clara
       PMA_PASSWORD: ethicalpulse
@@ -28,6 +30,35 @@ services:
     depends_on:
       - db
 
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    container_name: zap-ethicalpulse
+    restart: always
+    environment:
+      TZ: Africa/Douala
+    command: >
+      zap.sh -daemon
+      -host 0.0.0.0
+      -port 8086
+      -config api.key=620tjnb5od0ef8tep7n78usun
+      -config api.addrs.addr.name=.*
+      -config api.addrs.addr.regex=true
+    ports:
+      - "8086:8086"
+    volumes:
+      - zap_data:/zap/wrk
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-ethicalpulse
+    restart: always
+    environment:
+      TZ: Africa/Douala
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
   web:
     build: .
     container_name: django_web-ethicalpulse
@@ -35,23 +66,47 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       - db
+      - zap
+      - redis
     env_file:
       - .env
-  
-  zap:
-    image: owasp/zap2docker-stable
-    ports:
-      - "8080:8080"
-    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.key=your-zap-api-key
-
-  openvas:
-    image: greenbone/openvas-scanner
     environment:
-      - GVM_ADMIN_PASSWORD=admin
+      TZ: Africa/Douala
+
+  celery_worker:
+    build:
+      context: .
+    container_name: celery_worker-ethicalpulse
+    command: celery -A Ethicalpulse worker --loglevel=info --hostname=worker1@%h -E
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - web
+    env_file:
+      - .env
+    environment:
+      TZ: Africa/Douala
+
+  flower:
+    image: mher/flower
+    container_name: flower-ethicalpulse
+    restart: always
     ports:
-      - "9392:9392"
+      - "5555:5555"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      TZ: Africa/Douala
+      FLOWER_PORT: 5555
+
 volumes:
   mysql_data:
+  zap_data:
+  redis_data:

@@ -1,190 +1,450 @@
-
-{% extends 'base.html' %}
+{% extends "admin/admin_base.html" %}
+{% load static %}
+{% load scan_filters %}
 
 {% block title %}Analytique | Ethical Pulse Shield{% endblock %}
 
+
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-4">
+    <!-- En-tête avec filtres -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3"><i class="bi bi-graph-up"></i> Analytique de Sécurité</h1>
         <div>
-            <button class="btn btn-outline-primary"><i class="bi bi-download"></i> Exporter</button>
-            <button class="btn btn-outline-secondary ms-2"><i class="bi bi-filter"></i> Filtrer</button>
+            <h1 class="h3 mb-0">
+                <i class="bi bi-graph-up me-2"></i>Analytique de Sécurité
+            </h1>
+            <p class="text-muted mb-0">
+                Période : {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
+            </p>
+        </div>
+        <div class="d-flex align-items-center">
+            <!-- Filtres -->
+            <div class="me-3">
+                <select class="form-select" id="projectFilter">
+                    <option value="">Tous les projets</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if selected_project == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="me-3">
+                <select class="form-select" id="periodSelect">
+                    <option value="7d" {% if period == "7d" %}selected{% endif %}>7 derniers jours</option>
+                    <option value="30d" {% if period == "30d" %}selected{% endif %}>30 derniers jours</option>
+                    <option value="90d" {% if period == "90d" %}selected{% endif %}>90 derniers jours</option>
+                    <option value="1y" {% if period == "1y" %}selected{% endif %}>1 an</option>
+                    <option value="custom">Personnalisé</option>
+                </select>
+            </div>
+            <button class="btn btn-outline-primary" id="exportBtn">
+                <i class="bi bi-download me-1"></i>Exporter
+            </button>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Statistiques globales -->
-        <div class="col-md-3">
-            <div class="card">
+    <!-- KPIs -->
+    <div class="row g-4 mb-4">
+        <!-- Total Scans -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Total des Scans</h5>
-                    <h2 class="display-4">{{ analytics_data.scan_count }}</h2>
-                    <p class="text-muted">+12% depuis le dernier mois</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-3">Total des Scans</h6>
+                            <h2 class="mb-0">{{ scan_metrics.total_count }}</h2>
+                            <span class="text-muted small">Scans réalisés</span>
+                        </div>
+                        <div class="icon-shape bg-primary text-white">
+                            <i class="bi bi-search stats-icon"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="{% if variations.scan_count > 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="bi bi-arrow-{% if variations.scan_count > 0 %}up{% else %}down{% endif %}"></i>
+                            {{ variations.scan_count|floatformat:1 }}%
+                        </span>
+                        <span class="text-muted ms-2">vs période précédente</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
+
+        <!-- Vulnérabilités -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Vulnérabilités</h5>
-                    <h2 class="display-4">{{ analytics_data.vulnerability_count }}</h2>
-                    <p class="text-muted">-5% depuis le dernier mois</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-3">Vulnérabilités</h6>
+                            <h2 class="mb-0">{{ vuln_metrics.total_count }}</h2>
+                            <span class="text-muted small">Total détecté</span>
+                        </div>
+                        <div class="icon-shape bg-danger text-white">
+                            <i class="bi bi-bug stats-icon"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="{% if variations.vuln_count < 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="bi bi-arrow-{% if variations.vuln_count < 0 %}down{% else %}up{% endif %}"></i>
+                            {{ variations.vuln_count|abs_val|floatformat:1 }}%
+                        </span>
+                        <span class="text-muted ms-2">vs période précédente</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
+
+        <!-- Taux de Résolution -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Taux de Remédiation</h5>
-                    <h2 class="display-4">{{ analytics_data.remediation_rate }}%</h2>
-                    <p class="text-success">+8% depuis le dernier mois</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-3">Taux de Résolution</h6>
+                            <h2 class="mb-0">{{ vuln_metrics.resolution_rate|floatformat:1 }}%</h2>
+                            <span class="text-muted small">Vulnérabilités résolues</span>
+                        </div>
+                        <div class="icon-shape bg-success text-white">
+                            <i class="bi bi-check-circle stats-icon"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="{% if variations.resolution_rate > 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="bi bi-arrow-{% if variations.resolution_rate > 0 %}up{% else %}down{% endif %}"></i>
+                            {{ variations.resolution_rate|floatformat:1 }}%
+                        </span>
+                        <span class="text-muted ms-2">vs période précédente</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
+
+        <!-- Temps de Résolution -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Temps moyen de résolution</h5>
-                    <h2 class="display-4">3.2j</h2>
-                    <p class="text-success">-0.5j depuis le dernier mois</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-3">Temps de Résolution</h6>
+                            <h2 class="mb-0">{{ vuln_metrics.avg_time_to_fix|format_duration }}</h2>
+                            <span class="text-muted small">Moyenne</span>
+                        </div>
+                        <div class="icon-shape bg-warning text-white">
+                            <i class="bi bi-clock stats-icon"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="{% if variations.avg_time_to_fix < 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="bi bi-arrow-{% if variations.avg_time_to_fix < 0 %}down{% else %}up{% endif %}"></i>
+                            {{ variations.avg_time_to_fix|abs_val|floatformat:1 }}%
+                        </span>
+                        <span class="text-muted ms-2">vs période précédente</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row mt-4 g-4">
-        <!-- Graphiques et analyses -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Tendances Mensuelles</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="trendsChart" height="300"></canvas>
-                </div>
+  <!-- Graphiques - Première ligne -->
+<div class="row g-4 mb-4">
+    <!-- Tendances des Scans -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Tendance des Scans</h5>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Top Vulnérabilités</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="vulnerabilitiesChart" height="300"></canvas>
-                </div>
+            <div class="card-body">
+                <canvas id="scanTrendsChart" height="300"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Tableau détaillé -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5>Analyse de Performance</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Métrique</th>
-                            <th>Ce mois</th>
-                            <th>Mois précédent</th>
-                            <th>Évolution</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Vulnérabilités découvertes</td>
-                            <td>42</td>
-                            <td>38</td>
-                            <td><span class="badge bg-warning">+10.5%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Vulnérabilités résolues</td>
-                            <td>36</td>
-                            <td>30</td>
-                            <td><span class="badge bg-success">+20.0%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Temps moyen de détection</td>
-                            <td>1.2j</td>
-                            <td>1.5j</td>
-                            <td><span class="badge bg-success">-20.0%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Temps moyen de résolution</td>
-                            <td>3.2j</td>
-                            <td>3.7j</td>
-                            <td><span class="badge bg-success">-13.5%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Scans effectués</td>
-                            <td>28</td>
-                            <td>25</td>
-                            <td><span class="badge bg-warning">+12.0%</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+    <!-- Distribution des Vulnérabilités -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Distribution par Sévérité</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="vulnSeverityChart" height="300"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-{% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Graphique des tendances mensuelles
-        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
-        new Chart(trendsCtx, {
-            type: 'line',
-            data: {
-                labels: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin'],
-                datasets: [{
-                    label: 'Vulnérabilités découvertes',
-                    data: {{ analytics_data.monthly_trend }},
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+<!-- Graphiques - Deuxième ligne -->
+<div class="row g-4 mb-4">
+        <!-- Types de Vulnérabilités -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Types de Vulnérabilités</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="vulnTypesChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
 
-        // Graphique des top vulnérabilités
-        const vulnCtx = document.getElementById('vulnerabilitiesChart').getContext('2d');
-        new Chart(vulnCtx, {
-            type: 'pie',
-            data: {
-                labels: [
-                    {% for vuln in analytics_data.top_vulnerabilities %}
-                    '{{ vuln.name }}',
+
+    <!-- Projets Vulnérables -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Projets les Plus Vulnérables</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="vulnerableProjectsChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title">Analyse Détaillée</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover">
+                <thead>
+                    <tr>
+                        <th>Projet</th>
+                        <th>Scans Effectués</th>
+                        <th>Vulnérabilités</th>
+                        <th>Sévérité</th>
+                        <th>Taux de Résolution</th>
+                        <th>Temps Moyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in project_metrics.details %}
+                    <tr>
+                        <td>{{ project.name }}</td>
+                        <td>{{ project.scan_count }}</td>
+                        <td>{{ project.vuln_count }}</td>
+                        <td>
+                            <span class="badge bg-danger">{{ project.critical_count }}</span>
+
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" 
+                                     role="progressbar" 
+                                     style="width: {{ project.resolution_rate }}%"
+                                     aria-valuenow="{{ project.resolution_rate }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ project.resolution_rate }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ project.avg_resolution_time|format_duration }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center">
+                            Aucune donnée disponible
+                        </td>
+                    </tr>
                     {% endfor %}
-                ],
-                datasets: [{
-                    data: [
-                        {% for vuln in analytics_data.top_vulnerabilities %}
-                        {{ vuln.count }},
-                        {% endfor %}
-                    ],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 206, 86, 0.7)',
-                        'rgba(75, 192, 192, 0.7)',
-                        'rgba(153, 102, 255, 0.7)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
-    });
-</script>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal pour la sélection de dates personnalisées -->
+<div class="modal fade" id="dateRangeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title">Sélectionner une période</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dateRangeForm">
+                    <div class="mb-3">
+                        <label for="startDate" class="form-label">Date de début</label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">Date de fin</label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="applyDateRange">Appliquer</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Récupération sécurisée des données injectées par Django
+  try {
+    const scanMetrics = JSON.parse('{{ scan_metrics_json|escapejs }}');
+    const vulnMetrics = JSON.parse('{{ vuln_metrics_json|escapejs }}');
+    const projectMetrics = JSON.parse('{{ project_metrics_json|escapejs }}');
+
+    // --- Tendance des Scans (Line Chart) ---
+    const ctxScan = document.getElementById('scanTrendsChart')?.getContext('2d');
+    if (ctxScan && scanMetrics?.trend_labels && scanMetrics?.trend_data) {
+      new Chart(ctxScan, {
+        type: 'line',
+        data: {
+          labels: scanMetrics.trend_labels.map(d => new Date(d).toLocaleDateString()),
+          datasets: [{
+            label: 'Nombre de scans',
+            data: scanMetrics.trend_data,
+            borderColor: 'rgba(54, 162, 235, 1)',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Date' } },
+            y: { beginAtZero: true, title: { display: true, text: 'Nombre de scans' } }
+          }
+        }
+      });
+    }
+
+    // --- Distribution par Sévérité (Doughnut Chart) ---
+    const ctxSeverity = document.getElementById('vulnSeverityChart')?.getContext('2d');
+    if (ctxSeverity && vulnMetrics?.by_severity) {
+      new Chart(ctxSeverity, {
+        type: 'doughnut',
+        data: {
+          labels: ['Critique', 'Élevé', 'Moyen', 'Faible'],
+          datasets: [{
+            label: 'Sévérité des vulnérabilités',
+            data: [
+              vulnMetrics.by_severity.critical || 0,
+              vulnMetrics.by_severity.high || 0,
+              vulnMetrics.by_severity.medium || 0,
+              vulnMetrics.by_severity.low || 0
+            ],
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.7)',   // Critique
+              'rgba(255, 159, 64, 0.7)',   // Élevé
+              'rgba(255, 205, 86, 0.7)',   // Moyen
+              'rgba(75, 192, 192, 0.7)'    // Faible
+            ],
+            borderColor: 'rgba(255, 255, 255, 0.8)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'right' },
+            tooltip: { enabled: true }
+          }
+        }
+      });
+    }
+
+    // --- Types de Vulnérabilités (Bar Chart) ---
+    const ctxTypes = document.getElementById('vulnTypesChart')?.getContext('2d');
+    if (ctxTypes && Array.isArray(projectMetrics?.details)) {
+      const projects = projectMetrics.labels || [];
+      const criticalCounts = projectMetrics.details.map(p => p.critical_count || 0);
+      const highCounts = projectMetrics.details.map(p => p.high_count || 0);
+
+      new Chart(ctxTypes, {
+        type: 'bar',
+        data: {
+          labels: projects,
+          datasets: [
+            {
+              label: 'Vulnérabilités critiques',
+              data: criticalCounts,
+              backgroundColor: 'rgba(255, 99, 132, 0.7)'
+            },
+            {
+              label: 'Vulnérabilités élevées',
+              data: highCounts,
+              backgroundColor: 'rgba(255, 159, 64, 0.7)'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+              title: { display: true, text: 'Projets' }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              title: { display: true, text: 'Nombre de vulnérabilités' }
+            }
+          },
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      });
+    }
+
+    // --- Projets les Plus Vulnérables (Horizontal Bar Chart) ---
+    const ctxProjects = document.getElementById('vulnerableProjectsChart')?.getContext('2d');
+    if (ctxProjects && projectMetrics?.data) {
+      new Chart(ctxProjects, {
+        type: 'bar',
+        data: {
+          labels: projectMetrics.labels || [],
+          datasets: [{
+            label: 'Nombre total de vulnérabilités',
+            data: projectMetrics.data,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          scales: {
+            x: {
+              beginAtZero: true,
+              title: { display: true, text: 'Nombre de vulnérabilités' }
+            },
+            y: {
+              title: { display: true, text: 'Projets' }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Erreur lors de l'analyse ou du rendu des métriques :", e);
+  }
+</script>
+
+
+
+
 {% endblock %}

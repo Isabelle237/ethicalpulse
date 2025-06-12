@@ -15,6 +15,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-key')
 
 # Mode debug
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
+# Ajouter les gestionnaires d'erreurs
 
 # Hôtes autorisés
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -29,7 +30,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'EthicalpulsApp',  # Ton application principale
     'widget_tweaks',
+    'channels',  # Pour les WebSockets
 ]
+
 
 # Middleware
 MIDDLEWARE = [
@@ -40,6 +43,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
 ]
 
 ROOT_URLCONF = 'Ethicalpulse.urls'
@@ -56,6 +60,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+#                'EthicalpulsApp.context_processors.base_template_selector',
             ],
         },
     },
@@ -78,6 +83,7 @@ DATABASES = {
     }
 }
 
+
 # Validation des mots de passe
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -94,9 +100,21 @@ USE_L10N = True
 USE_TZ = True
 
 # Fichiers statiques
+# Fichiers statiques
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Configuration des fichiers statiques
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Finders pour les fichiers statiques
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
 
 # Fichiers média
 MEDIA_URL = '/media/'
@@ -140,6 +158,15 @@ LOGGING = {
 
 AUTH_USER_MODEL = 'EthicalpulsApp.CustomUser'
 # Configuration Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL du broker Redis
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('redis', 6379)],
+        },
+    },
+}

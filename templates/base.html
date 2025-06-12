@@ -3,123 +3,689 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Ethical Pulse Shield{% endblock %}</title>
+    <title>EthicalPulse - Plateforme de Sécurité</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/static/css/style.css" rel="stylesheet">
-    {% block extra_css %}{% endblock %}
+    <style>
+        :root {
+            --navy-dark:rgba(34, 39, 54, 0.9);
+            --navy-medium:rgba(34, 39, 54, 0.9);
+            --navy-light:rgba(34, 39, 54, 0.9);
+            --orange-primary:rgb(199, 86, 5);
+            --orange-light:rgb(231, 126, 40);
+            --glass-bg:rgba(34, 39, 54, 0.9);;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            color: #f7fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 256px;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            border-right: 1px solid rgba(249, 115, 22, 0.2);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+
+    /* Sidebar Toggle States */
+    .sidebar {
+        transition: all 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-256px);
+    }
+
+    .main-content {
+        transition: all 0.3s ease;
+    }
+
+    .main-content.expanded {
+        margin-left: 0;
+    }
+
+    .main-navbar {
+        transition: all 0.3s ease;
+    }
+
+    .main-navbar.expanded {
+        left: 0;
+    }
+
+    .sidebar-toggle {
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar-toggle.rotated {
+        transform: rotate(180deg);
+    }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #f7fafc;
+            text-decoration: none;
+        }
+
+        .sidebar-brand:hover {
+            color: var(--orange-primary);
+        }
+
+        .sidebar-icon {
+            width: 2rem;
+            height: 2rem;
+            color: var(--orange-primary);
+            animation: pulse-orange 2s infinite;
+        }
+
+        .sidebar-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            background: linear-gradient(to right, var(--orange-primary), var(--orange-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.75rem;
+            color: rgba(247, 250, 252, 0.6);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-section-title {
+            padding: 0 0.75rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(247, 250, 252, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 0.75rem;
+            margin-bottom: 0.25rem;
+            border-radius: 0.5rem;
+            color: #f7fafc;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-left: 2px solid transparent;
+            position: relative;
+        }
+
+        .sidebar-nav-link:hover {
+            background: rgba(249, 115, 22, 0.1);
+            color: var(--orange-light);
+            border-left-color: rgba(249, 115, 22, 0.3);
+            transform: scale(1.02);
+        }
+
+        .sidebar-nav-link.active {
+            background: linear-gradient(to right, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.2));
+            color: var(--orange-primary);
+            border-left-color: var(--orange-primary);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
+        }
+
+        .sidebar-nav-link.active::after {
+            content: '';
+            position: absolute;
+            right: 0.75rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--orange-primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .sidebar-nav-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .sidebar-user {
+            padding: 1rem 0.75rem;
+            border-top: 1px solid rgba(249, 115, 22, 0.2);
+            background: linear-gradient(to right, var(--navy-dark), rgba(249, 115, 22, 0.1));
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background: rgba(42, 54, 92, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .user-avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(to right, var(--orange-primary), var(--orange-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+
+        .user-info h6 {
+            margin: 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #f7fafc;
+        }
+
+        .user-info small {
+            color: rgba(247, 250, 252, 0.6);
+            font-size: 0.75rem;
+        }
+
+        .status-indicator {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: #00d4aa;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        /* Navbar Styles */
+        /* Ajoutez ces styles dans la section style de votre base.html */
+        .main-navbar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 256px; /* Même largeur que la sidebar */
+            z-index: 1020;
+            background: rgba(34, 39, 54, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .main-content {
+            margin-left: 256px;
+            margin-top: 70px; /* Hauteur du navbar + un peu d'espace */
+            min-height: calc(100vh - 70px);
+            transition: margin-left 0.3s ease;
+        }
+
+        @media (max-width: 991.98px) {
+            .main-navbar {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        /* Mobile Navbar */
+        .mobile-navbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 1040;
+            background: rgba(34, 39, 54, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #f7fafc;
+            text-decoration: none;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .mobile-brand:hover {
+            color: var(--orange-primary);
+        }
+
+        .mobile-toggle {
+            background: rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            color: var(--orange-primary);
+        }
+
+        .mobile-toggle:hover {
+            background: rgba(249, 115, 22, 0.2);
+            color: var(--orange-light);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 256px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Animations */
+        @keyframes pulse-orange {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% {
+                opacity: 0.8;
+                box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .mobile-navbar {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        /* Glass effects */
+        .glass-card {
+            backdrop-filter: blur(10px);
+            border-radius: 0.5rem;
+        }
+
+        /* Custom scrollbar */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(34, 39, 54, 0.3);
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(249, 115, 22, 0.5);
+            border-radius: 2px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(249, 115, 22, 0.7);
+        }
+    </style>    
 </head>
-<body class="bg-light">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+<body>
+    <!-- Mobile Navbar -->
+    <nav class="navbar mobile-navbar">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'index' %}">
-                <i class="bi bi-shield-lock"></i> Ethical Pulse Shield
+            <a class="mobile-brand" href="/">
+                <i class="bi bi-shield-lock sidebar-icon"></i>
+                <span>EthicalPulse</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <button class="btn mobile-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
+                <i class="bi bi-list"></i>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <!-- Navigation items will be added here -->
-                </ul>
-                <div class="d-flex">
-                    {% if user.is_authenticated %}
-                    <div class="dropdown">
-                        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i> {{ user.username }}
-                        </button>
-                        {% comment %} <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{% url 'profile' %}">Profil</a></li>
-                            <li><a class="dropdown-item" href="{% url 'settings' %}">Paramètres</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'logout' %}">Déconnexion</a></li>
-                        </ul> {% endcomment %}
-                    </div>
-                    {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-outline-light">Connexion</a>
-                    {% endif %}
-                </div>
-            </div>
         </div>
     </nav>
 
-    <!-- Sidebar -->
-    <div class="sidebar bg-dark">
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'index' %}">
-                    <i class="bi bi-speedometer2"></i>
-                    <span class="sidebar-text">Tableau de bord</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/scans' in request.path %}active{% endif %}" href="{% url 'scan_dashboard' %}">
-                    <i class="bi bi-search"></i>
-                    <span class="sidebar-text">Scans</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/vulnerabilities' in request.path %}active{% endif %}" href="{% url 'vulnerabilities' %}">
-                    <i class="bi bi-bug"></i>
-                    <span class="sidebar-text">Vulnérabilités</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/tools' in request.path %}active{% endif %}" href="{% url 'tools' %}">
-                    <i class="bi bi-tools"></i>
-                    <span class="sidebar-text">Outils</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/remediation' in request.path %}active{% endif %}" href="{% url 'remediations' %}">
-                    <i class="bi bi-bandaid"></i>
-                    <span class="sidebar-text">Remédiation</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/reports' in request.path %}active{% endif %}" href="{% url 'reports' %}">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span class="sidebar-text">Rapports</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/history' in request.path %}active{% endif %}" href="{% url 'history' %}">
-                    <i class="bi bi-clock-history"></i>
-                    <span class="sidebar-text">Historique</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/analytics' in request.path %}active{% endif %}" href="{% url 'analytics' %}">
-                    <i class="bi bi-graph-up"></i>
-                    <span class="sidebar-text">Analytique</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/settings' in request.path %}active{% endif %}" href="{% url 'settings_users' %}">
-                    <i class="bi bi-gear"></i>
-                    <span class="sidebar-text">Paramètres</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/training' in request.path %}active{% endif %}" href="{% url 'training' %}">
-                    <i class="bi bi-mortarboard"></i>
-                    <span class="sidebar-text">Formation</span>
-                </a>
-            </li>
-        </ul>
-    </div>
+    <!-- Desktop Sidebar -->
+    <div class="sidebar d-lg-block">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-brand">
+                <div class="position-relative">
+                    <i class="bi bi-shield-lock sidebar-icon"></i>
+                    <div class="position-absolute top-0 start-100 translate-middle">
+                        <span class="badge bg-warning rounded-pill" style="width: 12px; height: 12px; padding: 0;"></span>
+                    </div>
+                </div>
+                <div>
+                    <div class="sidebar-title">EthicalPulse</div>
+                    <div class="sidebar-subtitle">Security Platform</div>
+                </div>
+            </a>
+        </div>
 
-    <!-- Main content -->
-    <div class="main-content">
-        <div class="container-fluid py-4">
-            {% block content %}{% endblock %}
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Navigation Principale</div>
+            <a href="{% url 'index' %}" class="sidebar-nav-link active">
+                <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
+                <span>Tableau de bord</span>
+            </a>
+            <a href="{% url 'launch_scan' %}" class="sidebar-nav-link">
+                <i class="bi bi-search sidebar-nav-icon"></i>
+                <span>Scans</span>
+            </a>
+            <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
+                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                <span>Vulnérabilités</span>
+            </a>
+            <a href="{% url 'tools_admin' %}" class="sidebar-nav-link">
+                <i class="bi bi-tools sidebar-nav-icon"></i>
+                <span>Outils</span>
+            </a>
+            <a href="{% url 'remediations' %}" class="sidebar-nav-link">
+                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                <span>Remédiation</span>
+            </a>
+            <a href="{% url 'reports' %}" class="sidebar-nav-link">
+                <i class="bi bi-bar-chart sidebar-nav-icon"></i>
+                <span>Rapports</span>
+            </a>
+            <a href="{% url 'history' %}" class="sidebar-nav-link">
+                <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                <span>Historique</span>
+            </a>
+            <a href="{% url 'analytics' %}" class="sidebar-nav-link">
+                <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                <span>Analytique</span>
+            </a>
+            <a href="{% url 'training' %}" class="sidebar-nav-link">
+                <i class="bi bi-mortarboard sidebar-nav-icon"></i>
+                <span>Formation</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-user">
+            <div class="user-profile">
+                <div class="user-avatar">AP</div>
+                <div class="user-info flex-grow-1">
+                    <h6>User Panel</h6>
+                    <small>{% if user.is_authenticated %}{{ user.email }}{% else %}Non connecté{% endif %}</small>
+                </div>
+                <div class="status-indicator"></div>
+            </div>
+            <div class="mt-3">
+                <a href="{% url 'settings_users' %}" class="sidebar-nav-link">
+                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                    <span>Paramètres</span>
+                </a>
+                <a href="/logout" class="sidebar-nav-link">
+                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                    <span>Déconnexion</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    <!-- Remplacez la section du Main Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark main-navbar">
+    <div class="container-fluid">
+        <button class="btn btn-link text-light me-3 d-flex align-items-center sidebar-toggle">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+        <!-- Global Search -->
+        <div class="d-none d-lg-flex align-items-center flex-grow-1 mx-lg-4">
+            <form class="w-100 me-3" action="" method="GET">
+                <div class="input-group">
+                    <input type="search" name="q" class="form-control" 
+                           placeholder="Recherche globale..." 
+                           style="background: rgba(255, 255, 255, 0.1); border-color: rgba(249, 115, 22, 0.3); color: #fff;">
+                    <button class="btn btn-outline-warning" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Project Selector -->
+        <div class="mx-3">
+            <select class="form-select" id="projectSelector" 
+                    style="background: rgba(255, 255, 255, 0.1); border-color: rgba(249, 115, 22, 0.3); color: #fff;">
+                <option value="">Sélectionner un projet</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if current_project.id == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- User Profile -->
+        <div class="dropdown">
+            <button class="btn btn-link dropdown-toggle text-light text-decoration-none" 
+                    type="button" id="userDropdown" data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                <i class="bi bi-person-circle me-2"></i>
+                <span class="ms-2">{{ user.username }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" 
+                style="background: rgba(34, 39, 54, 0.95); backdrop-filter: blur(10px);">
+                <li>
+                    <a class="dropdown-item text-light" href="">
+                        <i class="bi bi-person me-2"></i>Mon Profil
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-light" href="{% url 'settings_users' %}">
+                        <i class="bi bi-gear me-2"></i>Paramètres
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider" style="border-color: rgba(249, 115, 22, 0.2);"></li>
+                <li>
+                    <a class="dropdown-item text-light" href="{% url 'logout' %}">
+                        <i class="bi bi-box-arrow-right me-2"></i>Déconnexion
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+    <!-- Mobile Sidebar (Offcanvas) -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" style="background: linear-gradient(135deg, var(--navy-dark) 0%, #262bb3 100%); border-right: 1px solid rgba(249, 115, 22, 0.2);">
+        <div class="offcanvas-header border-bottom" style="border-color: rgba(249, 115, 22, 0.2) !important;">
+            <div class="sidebar-brand">
+                <div class="position-relative">
+                    <i class="bi bi-shield-lock sidebar-icon"></i>
+                    <div class="position-absolute top-0 start-100 translate-middle">
+                        <span class="badge bg-warning rounded-pill" style="width: 12px; height: 12px; padding: 0;"></span>
+                    </div>
+                </div>
+                <div>
+                    <div class="sidebar-title">EthicalPulse</div>
+                    <div class="sidebar-subtitle">Security Platform</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-nav-link active">
+                    <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
+                    <span>Tableau de bord</span>
+                </a>
+                <a href="/scans" class="sidebar-nav-link">
+                    <i class="bi bi-search sidebar-nav-icon"></i>
+                    <span>Scans</span>
+                </a>
+                <a href="/vulnerabilities" class="sidebar-nav-link">
+                    <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                    <span>Vulnérabilités</span>
+                </a>
+                <a href="/tools" class="sidebar-nav-link">
+                    <i class="bi bi-tools sidebar-nav-icon"></i>
+                    <span>Outils</span>
+                </a>
+                <a href="/remediation" class="sidebar-nav-link">
+                    <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                    <span>Remédiation</span>
+                </a>
+                <a href="/reports" class="sidebar-nav-link">
+                    <i class="bi bi-bar-chart sidebar-nav-icon"></i>
+                    <span>Rapports</span>
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                    <span>Historique</span>
+                </a>
+                <a href="/analytics" class="sidebar-nav-link">
+                    <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                    <span>Analytique</span>
+                </a>
+                <a href="/training" class="sidebar-nav-link">
+                    <i class="bi bi-mortarboard sidebar-nav-icon"></i>
+                    <span>Formation</span>
+                </a>
+                <a href="/settings" class="sidebar-nav-link">
+                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                    <span>Paramètres</span>
+                </a>
+                <a href="/logout" class="sidebar-nav-link">
+                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                    <span>Déconnexion</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-user">
+                <div class="user-info flex-grow-1">
+                    <h6>Admin Panel</h6>
+                    <small>
+                        {% if user.is_authenticated %}
+                            <span class="text-success">
+                                <i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i>En ligne
+                            </span>
+                        {% else %}
+                            <span class="text-danger">
+                                <i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i>Hors ligne
+                            </span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="status-indicator" style="background-color: {% if user.is_authenticated %}#10b981{% else %}#ef4444{% endif %}"></div>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.0/dist/chart.umd.min.js"></script>
-    <script src="/static/js/main.js"></script>
-    {% block extra_js %}{% endblock %}
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid py-4">
+            <!-- Votre contenu principal ici -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="glass-card p-4">
+                        {% block content %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Gestion des modals
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('show.bs.modal', function () {
+            document.body.classList.add('modal-open');
+            document.body.style.overflow = 'hidden';
+        });
+
+        modal.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('modal-open');
+            setTimeout(() => {
+                document.body.style.overflow = '';
+                if (document.body.style.paddingRight) {
+                    document.body.style.paddingRight = '';
+                }
+            }, 300);
+        });
+
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+        }
+    });
+
+    // 2. Liens actifs dans la sidebar
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === currentPath || currentPath.startsWith(href)) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
+
+    // 3. Gestion du toggle de la sidebar
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+    const mainNavbar = document.querySelector('.main-navbar');
+    const toggleButton = document.querySelector('.sidebar-toggle');
+    const toggleIcon = toggleButton?.querySelector('i');
+
+    if (toggleButton && sidebar && mainContent && mainNavbar && toggleIcon) {
+        const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (collapsed) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+            mainNavbar.classList.add('expanded');
+            toggleIcon.classList.replace('bi-list', 'bi-x-lg');
+        }
+
+        toggleButton.addEventListener('click', function () {
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            mainNavbar.classList.toggle('expanded');
+            toggleIcon.classList.toggle('bi-list');
+            toggleIcon.classList.toggle('bi-x-lg');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        });
+    }
+    // 4. Configuration du dropdown profil
+    const dropdownElementList = document.querySelectorAll('.dropdown-toggle');
+    const dropdownList = [...dropdownElementList].map(dropdownToggleEl => {
+        return new bootstrap.Dropdown(dropdownToggleEl, {
+            offset: [0, 10],
+            boundary: 'viewport',
+            reference: 'toggle',
+            display: 'dynamic'
+        });
+});
+</script>
+
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

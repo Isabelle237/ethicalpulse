@@ -1,5 +1,7 @@
 
-{% extends 'admin/admin_base.html' %}
+
+{% extends "admin/admin_base.html" %}
+
 {% load static scan_filters %}
 {% block title %}Gestion des vulnérabilités - Ethical Pulse Shield{% endblock %}
 
@@ -7,23 +9,13 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Gestion des vulnérabilités</h1>
-        <div>
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#exportModal">
-                <i class="bi bi-file-earmark-arrow-down"></i> Exporter
-            </button>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVulnModal">
-                <i class="bi bi-plus-circle"></i> Lancer un scan
-            </button>
-            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#scheduleScanModal">
-                <i class="bi bi-calendar-plus"></i> Planifier un scan
-            </button>
-        </div>
+      
     </div>
     
     <!-- Statistiques des vulnérabilités -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="stats-box danger">
+            <div class="stats-box danger shadow-sm p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6>Critiques</h6>
@@ -37,7 +29,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stats-box warning">
+            <div class="stats-box warning shadow-sm p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6>Élevées</h6>
@@ -51,7 +43,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stats-box primary">
+            <div class="stats-box primary shadow-sm p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6>Moyennes</h6>
@@ -65,7 +57,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stats-box success">
+            <div class="stats-box success shadow-sm p-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6>Faibles</h6>
@@ -148,6 +140,17 @@
     <div class="admin-card card">
         <div class="card-body">
             <div class="table-responsive">
+                {% if messages %}
+                    <div class="container mt-3">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
                 <table class="table admin-table">
                     <thead>
                         <tr>
@@ -169,20 +172,25 @@
                             <td>{{ scan.id }}</td>
                             <td>{{ scan.name }}</td>
                             <td>{{ scan.project.name }}</td>
-                          <td>
-                                {% for severity, count in scan.severities.items %}
-                                    {% if count > 0 %}
-                                        <span class="badge 
-                                            {% if severity == 'critical' %}bg-danger
-                                            {% elif severity == 'high' %}bg-warning text-dark
-                                            {% elif severity == 'medium' %}bg-primary
-                                            {% elif severity == 'low' %}bg-success
-                                            {% else %}bg-secondary
-                                            {% endif %}">
-                                            {{ severity|title }}: {{ count }}
-                                        </span>
-                                    {% endif %}
-                                {% endfor %}
+                            <td>
+                                {% if scan.severities.items %}
+                                    {% for severity, count in scan.severities.items %}
+                                        {% if count > 0 %}
+                                            <span class="badge 
+                                                {% if severity == 'critical' %}bg-danger
+                                                {% elif severity == 'high' %}bg-warning text-dark
+                                                {% elif severity == 'medium' %}bg-primary
+                                                {% elif severity == 'low' %}bg-success
+                                                {% else %}bg-secondary
+                                                {% endif %}">
+                                                {{ severity|title }}: {{ count }}
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Aucune sévérité</span>
+                                {% endif %}
+
                             </td>
                             <td>
                                 <span class="badge 
@@ -236,44 +244,44 @@
                 </table>
             </div>
             
-            <nav class="mt-3">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#" tabindex="-1">Précédent</a>
-                    </li>
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#">Suivant</a>
-                    </li>
-                </ul>
-            </nav>
+            <!-- Pagination -->
+       <!-- Update the pagination section -->
+        <nav class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if scans.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ scans.previous_page_number }}&{{ request.GET.urlencode }}">Précédent</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">Précédent</a>
+                </li>
+                {% endif %}
+
+                {% for page_num in scans.paginator.page_range %}
+                <li class="page-item {% if scans.number == page_num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ page_num }}&{{ request.GET.urlencode }}">{{ page_num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if scans.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ scans.next_page_number }}&{{ request.GET.urlencode }}">Suivant</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">Suivant</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+            <!-- Fin de la pagination -->
+
         </div>
     </div>
 </div>
 
-<!-- Modal de lancement de scan -->
-<div class="modal fade" id="addVulnModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Lancer un scan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{% url 'launch_scan' %}">
-                    {% csrf_token %}
-                    {{ form.as_p }} <!-- Affiche les champs du formulaire -->
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <button type="submit" class="btn btn-primary">Lancer le scan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Modal d'exportation -->
 <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
@@ -412,134 +420,269 @@
 </div>
 {% endfor %}
 
-<!-- Modal de planification de scan -->
- <div class="modal fade" id="scheduleScanModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Planifier un scan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{% url 'schedule_scan' %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="project" class="form-label">Projet</label>
-                        <select class="form-select" id="project" name="project">
-                            {% for project in projects %}
-                                <option value="{{ project.id }}">{{ project.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="tool" class="form-label">Outil</label>
-                        <select class="form-select" id="tool" name="tool">
-                            <option value="NMAP">NMAP</option>
-                            <option value="ZAP">OWASP ZAP</option>
-                            <option value="SQLMAP">SQLMAP</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="date" class="form-label">Date</label>
-                        <input type="date" class="form-control" id="date" name="date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="time" class="form-label">Heure</label>
-                        <input type="time" class="form-control" id="time" name="time" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="frequency" class="form-label">Fréquence</label>
-                        <select class="form-select" id="frequency" name="frequency">
-                            <option value="once">Une seule fois</option>
-                            <option value="daily">Tous les jours</option>
-                            <option value="weekly">Toutes les semaines</option>
-                        </select>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <button type="submit" class="btn btn-success">Planifier</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
 
 </div>
 {% endblock %}
 
-
 {% block extra_css %}
 <style>
-    .modal-body {
-        max-height: 70vh;
-        overflow-y: auto;
-    }
-</style>
+/* Styles généraux du tableau */
+.admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
 
+/* En-tête du tableau */
+.admin-table thead {
+    background: #f8f9fa;
+}
+
+.admin-table th {
+    padding: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Corps du tableau */
+.admin-table td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #e9ecef;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+/* Effet hover sur les lignes */
+.admin-table tbody tr:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.2s ease;
+}
+
+/* Style pour les badges */
+.admin-table .badge {
+    padding: 5px 10px;
+    font-weight: 500;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+/* Style pour les boutons d'action */
+.admin-table .btn-group {
+    display: flex;
+    gap: 5px;
+}
+
+.admin-table .btn-sm {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-table .btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Style pour les colonnes spécifiques */
+.admin-table td:first-child {  /* Colonne ID */
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.admin-table td:nth-child(3) {  /* Colonne Projet */
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+/* Style pour les états */
+.admin-table .status-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .admin-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .admin-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f8f9fa;
+    }
+}
+
+/* Animation de chargement */
+.loading {
+    cursor: wait;
+    opacity: 0.7;
+}
+
+.loading * {
+    pointer-events: none;
+}
+
+/* Style pour la pagination */
+.pagination {
+    margin-top: 20px;
+}
+
+.pagination .page-link {
+    padding: 8px 16px;
+    color: #0d6efd;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.pagination .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    color: #0a58ca;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+    pointer-events: none;
+    background-color: #fff;
+    border-color: #dee2e6;
+}
+
+/* Alternance des couleurs des lignes */
+.admin-table tbody tr:nth-child(odd) {
+    background-color: #f8f9fa;
+}
+
+.admin-table tbody tr:nth-child(even) {
+    background-color: #ffffff;
+}
+
+/* Effet hover amélioré */
+.admin-table tbody tr:hover {
+    background-color:rgb(142, 194, 231) !important; /* Bleu clair au survol */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+/* Animation de transition douce */
+.admin-table tbody tr {
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Ajustement pour les cellules pendant le hover */
+.admin-table tbody tr:hover td {
+    color: #0d6efd; /* Bleu plus foncé pour le texte */
+    background-color: #e3f2fd; /* Bleu clair pour le fond */
+}
+
+/* Style pour les filtres actifs */
+.filter-active {
+    background-color: #e3f2fd;
+    border-color: #90caf9;
+}
+
+/* Animation pour les actions */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.table-action {
+    animation: fadeIn 0.3s ease;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const projectFilter = document.getElementById('projectFilter');
-    const severityFilter = document.getElementById('severityFilter');
-    const statusFilter = document.getElementById('statusFilter');
+    // Function to update URL parameters
+    function updateUrlParameter(key, value) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (value) {
+            urlParams.set(key, value);
+        } else {
+            urlParams.delete(key);
+        }
+        return urlParams.toString();
+    }
 
-    [projectFilter, severityFilter, statusFilter].forEach(filter => {
-        filter.addEventListener('change', updateFilters);
+    // Handle filter changes
+    const filters = document.querySelectorAll('select[id$="Filter"], input[type="date"], input[name="query"]');
+    filters.forEach(filter => {
+        filter.addEventListener('change', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.delete('page'); // Reset to first page when filtering
+            urlParams.set(this.name, this.value);
+            window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+        });
     });
 
-    function updateFilters() {
-        const project = projectFilter.value;
-        const severity = severityFilter.value;
-        const status = statusFilter.value;
+    // Handle pagination links
+    document.querySelectorAll('.pagination .page-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.getAttribute('href').split('page=')[1];
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('page', page);
+            window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+        });
+    });
 
-        // Requête AJAX pour récupérer les vulnérabilités filtrées
-        fetch('{% url "vulnerabilities_filter" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify({ project, severity, status }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Mettre à jour le tableau des vulnérabilités
-            const tableBody = document.querySelector('table tbody');
-            tableBody.innerHTML = ''; // Vider le tableau
+    // Handle export functionality
+    const exportBtn = document.querySelector('#exportModal .btn-primary');
+    exportBtn?.addEventListener('click', function() {
+        const format = document.getElementById('exportFormat').value;
+        const includeDetails = document.getElementById('includeDetails').checked;
+        const includeSteps = document.getElementById('includeSteps').checked;
+        const includeRemediation = document.getElementById('includeRemediation').checked;
+        
+        // Get current filters
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('format', format);
+        urlParams.set('include_details', includeDetails);
+        urlParams.set('include_steps', includeSteps);
+        urlParams.set('include_remediation', includeRemediation);
+        
+        window.location.href = `{% url 'export_vulnerabilities' %}?${urlParams.toString()}`;
+    });
 
-            if (data.vulnerabilities.length > 0) {
-                data.vulnerabilities.forEach(vuln => {
-                    const row = `
-                        <tr>
-                            <td>${vuln.id}</td>
-                            <td>${vuln.name}</td>
-                            <td>${vuln.project}</td>
-                            <td><span class="badge bg-${vuln.severity_class}">${vuln.severity}</span></td>
-                            <td><span class="badge bg-${vuln.status_class}">${vuln.status}</span></td>
-                            <td>${vuln.target_url}</td>
-                            <td>${vuln.discovered_at}</td>
-                            <td>
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary">Voir</button>
-                                    <button class="btn btn-sm btn-outline-success">Remédier</button>
-                                    <button class="btn btn-sm btn-outline-secondary">Modifier</button>
-                                    <button class="btn btn-sm btn-outline-danger">Supprimer</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                    tableBody.insertAdjacentHTML('beforeend', row);
-                });
-            } else {
-                tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Aucune vulnérabilité trouvée</td></tr>';
-            }
-        })
-        .catch(error => console.error('Erreur lors de la récupération des données:', error));
-    }
+    // Add loading indicators
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function() {
+        document.body.classList.add('loading');
+    });
 });
 </script>
+
 {% endblock %}

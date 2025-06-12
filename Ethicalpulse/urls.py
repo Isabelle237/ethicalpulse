@@ -1,24 +1,27 @@
-"""
-URL configuration for Ethicalpulse project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-# gestionstock/urls.py ou nom_du_projet/urls.py
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('EthicalpulsApp.urls')),  # ✅ Inclus ici
-]
+    path('', include('EthicalpulsApp.urls')),
+    
+    # Scanning Tools URLs
+    path('nmap_scan/', include('EthicalpulsApp.nmap_scan.urls')),
+    path('nikto_scan/', include('EthicalpulsApp.nikto_scan.urls')),
+    path('aircrack_scan/', include('EthicalpulsApp.aircrack_scan.urls')),
+    path('wifite_scan/', include('EthicalpulsApp.wifite_scan.urls')),
+    path('snort_scan/', include('EthicalpulsApp.snort_scan.urls')),
+    path('wireshark_scan/', include('EthicalpulsApp.wireshark_scan.urls')),
+    path('reconng_scan/', include('EthicalpulsApp.reconng_scan.urls')),
+    path('john_scan/', include('EthicalpulsApp.john_scan.urls')),
+    path('metasploit_scan/', include('EthicalpulsApp.metasploit_scan.urls')),
+    path('zap_scan/', include('EthicalpulsApp.zap_scan.urls')),
+    path('sqlmap_scan/', include('EthicalpulsApp.sqlmap_scan.urls')),
+    path('beef_scan/', include('EthicalpulsApp.beef_scan.urls')),
+    path('hashcat_scan/', include('EthicalpulsApp.hashcat_scan.urls')),
+    path('ghidra_scan/', include('EthicalpulsApp.ghidra_scan.urls')),
+    path('vulnerabilities/', include('EthicalpulsApp.vulnerabilities.urls')),
+    path('scans/', include('EthicalpulsApp.scans.urls')),
+] + static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

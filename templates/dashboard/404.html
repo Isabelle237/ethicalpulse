@@ -1,15 +1,54 @@
-
-{% extends 'base.html' %}
-
-{% block title %}Page Non Trouvée - Ethical Pulse Shield{% endblock %}
+{% extends "admin/admin_base.html" %}
+{% block title %}Erreur - Ethical Pulse Shield{% endblock %}
 
 {% block content %}
 <div class="container text-center py-5">
-    <h1 class="display-1">404</h1>
-    <p class="lead mb-4">Oups! La page que vous recherchez n'existe pas.</p>
-    <p class="text-muted">L'URL demandée n'a pas été trouvée sur ce serveur.</p>
-    <a href="/" class="btn btn-primary mt-3">
-        <i class="bi bi-house-door me-2"></i>Retourner à l'accueil
-    </a>
+    <div class="error-page">
+        {% if request.user.is_authenticated %}
+            <h1 class="display-1">404</h1>
+            <p class="lead mb-4">Oups! La page que vous recherchez n'existe pas.</p>
+            <p class="text-muted">L'URL demandée n'a pas été trouvée sur ce serveur.</p>
+        {% else %}
+            <h1 class="display-1">403</h1>
+            <p class="lead mb-4">Accès Refusé</p>
+            <p class="text-muted">Vous devez être connecté pour accéder à cette page.</p>
+            <a href="{% url 'login' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+            </a>
+        {% endif %}
+        
+        <a href="/" class="btn btn-outline-primary mt-3 ms-2">
+            <i class="bi bi-house-door me-2"></i>Retourner à l'accueil
+        </a>
+    </div>
 </div>
+
+<style>
+    .error-page {
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .error-page h1 {
+        color: var(--orange-primary);
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .error-page .lead {
+        color: #f8fafc;
+    }
+    
+    .error-page .text-muted {
+        color: rgba(248, 250, 252, 0.7) !important;
+    }
+    
+    .error-page .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .error-page .btn:hover {
+        transform: translateY(-2px);
+    }
+</style>
 {% endblock %}
