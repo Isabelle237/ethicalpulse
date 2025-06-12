@@ -6,6 +6,7 @@ services:
     container_name: mysql_db-ethicalpulse
     restart: always
     environment:
+      TZ: Africa/Douala
       MYSQL_DATABASE: ethicalpulse_app
       MYSQL_USER: clara
       MYSQL_PASSWORD: ethicalpulse
@@ -20,6 +21,7 @@ services:
     container_name: phpmyadmin-ethicalpulse
     restart: always
     environment:
+      TZ: Africa/Douala
       PMA_HOST: db
       PMA_USER: clara
       PMA_PASSWORD: ethicalpulse
@@ -32,6 +34,8 @@ services:
     image: ghcr.io/zaproxy/zaproxy:stable
     container_name: zap-ethicalpulse
     restart: always
+    environment:
+      TZ: Africa/Douala
     command: >
       zap.sh -daemon
       -host 0.0.0.0
@@ -44,6 +48,17 @@ services:
     volumes:
       - zap_data:/zap/wrk
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis-ethicalpulse
+    restart: always
+    environment:
+      TZ: Africa/Douala
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
   web:
     build: .
     container_name: django_web-ethicalpulse
@@ -55,9 +70,43 @@ services:
     depends_on:
       - db
       - zap
+      - redis
     env_file:
       - .env
+    environment:
+      TZ: Africa/Douala
+
+  celery_worker:
+    build:
+      context: .
+    container_name: celery_worker-ethicalpulse
+    command: celery -A Ethicalpulse worker --loglevel=info --hostname=worker1@%h -E
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - web
+    env_file:
+      - .env
+    environment:
+      TZ: Africa/Douala
+
+  flower:
+    image: mher/flower
+    container_name: flower-ethicalpulse
+    restart: always
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      TZ: Africa/Douala
+      FLOWER_PORT: 5555
 
 volumes:
   mysql_data:
   zap_data:
+  redis_data:

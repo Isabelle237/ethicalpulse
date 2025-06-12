@@ -1,7 +1,12 @@
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
 import pyotp
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from .validators import validate_ip, validate_mac, validate_url  # Correction de l'importation
 ROLES = [
     ('ADMIN', 'Administrateur'),
@@ -121,29 +126,128 @@ class Project(models.Model):
 class Scan(models.Model):
     name = models.CharField(max_length=255, verbose_name="Nom du scan")
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="scans")
-    tool = models.CharField(max_length=20, choices=TOOL_CHOICES, default='ZAP', verbose_name="Outil utilisé")
+    tool = models.CharField(max_length=20, choices=TOOL_CHOICES, verbose_name="Outil utilisé")
     status = models.CharField(max_length=20, choices=[
         ('scheduled', 'Planifié'),
         ('in_progress', 'En cours'),
         ('completed', 'Terminé'),
         ('failed', 'Échoué'),
-    ], default='scheduled', verbose_name="Statut")
-    start_time = models.DateTimeField(blank=True, null=True, verbose_name="Heure de début")
-    end_time = models.DateTimeField(blank=True, null=True, verbose_name="Heure de fin")
-    duration = models.FloatField(blank=True, null=True, verbose_name="Durée (en secondes)")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
-    created_by = models.ForeignKey(
-        'CustomUser',  # Utilise le modèle CustomUser
-        on_delete=models.SET_NULL,  # Si l'utilisateur est supprimé, garde le scan
-        null=True,
-        blank=True,
-        verbose_name="Créé par",
-        related_name="scans_created"
-    )
+    ], default='scheduled')
+    start_time = models.DateTimeField(blank=True, null=True)
+    end_time = models.DateTimeField(blank=True, null=True)
+    progress = models.IntegerField(default=0)
+    duration = models.FloatField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    notified = models.BooleanField(default=False)
+    created_by = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
     error_log = models.TextField(null=True, blank=True)
+    scheduled_scan = models.ForeignKey('ScheduledScan', on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return f"{self.name} ({self.tool})"
 
+class ScheduledScan(models.Model):
+    FREQUENCY_CHOICES = [
+        ('once', 'Une seule fois'),
+        ('daily', 'Quotidien'),
+        ('weekly', 'Hebdomadaire'),
+        ('monthly', 'Mensuel'),
+    ]
+
+    TOOL_CHOICES = [
+        ('ZAP', 'OWASP ZAP'),
+        ('NMAP', 'Nmap'),
+        ('SQLMAP', 'SQLMap'),
+        ('NIKTO', 'Nikto'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'En attente'),
+        ('running', 'En cours'),
+        ('completed', 'Terminé'),
+        ('failed', 'Échoué'),
+        ('cancelled', 'Annulé')
+    ]
+
+    name = models.CharField(max_length=255, verbose_name="Nom",blank=True, null=True,)
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    tool = models.CharField(max_length=20, choices=TOOL_CHOICES, verbose_name="Outil")
+    target = models.ForeignKey('Project', on_delete=models.CASCADE, related_name="scheduled_scans", verbose_name="Projet cible")
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, verbose_name="Fréquence")
+    next_run_time = models.DateTimeField(verbose_name="Prochaine exécution")
+    last_run = models.DateTimeField(null=True, blank=True, verbose_name="Dernière exécution")
+    created_by = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, verbose_name="Créé par",blank=True, null=True,)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    error_log = models.TextField(null=True, blank=True)
+    configuration = models.JSONField(null=True, blank=True)
+    email_notification = models.BooleanField(default=True, verbose_name="Notifications par email")
+    
+    class Meta:
+        ordering = ['next_run_time']
+        verbose_name = "Scan planifié"
+        verbose_name_plural = "Scans planifiés"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_frequency_display()})"
+
+    def calculate_next_run(self):
+        """Calcule la prochaine date d'exécution"""
+        if not self.next_run_time:
+            return None
+
+        now = timezone.now()
+        next_run = self.next_run_time
+
+        if self.frequency == 'once':
+            if next_run <= now:
+                self.is_active = False
+                self.save()
+                return None
+        elif self.frequency == 'daily':
+            while next_run <= now:
+                next_run += timedelta(days=1)
+        elif self.frequency == 'weekly':
+            while next_run <= now:
+                next_run += timedelta(weeks=1)
+        elif self.frequency == 'monthly':
+            while next_run <= now:
+                next_run += relativedelta(months=1)
+
+        return next_run
+
+    def get_remaining_time(self):
+        """Retourne le temps restant avant le prochain scan"""
+        if not self.next_run_time:
+            return None
+        
+        now = timezone.now()
+        if self.next_run_time <= now:
+            return "En retard"
+            
+        diff = self.next_run_time - now
+        days = diff.days
+        hours = diff.seconds // 3600
+        minutes = (diff.seconds % 3600) // 60
+        
+        if days > 0:
+            return f"{days}j {hours}h"
+        elif hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+
+class ScanTemplate(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    configuration = models.JSONField()
+    created_by = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['name']
 
 class Vulnerability(models.Model):
     scan = models.ForeignKey(Scan, on_delete=models.CASCADE, related_name='vulnerabilities')
@@ -155,6 +259,7 @@ class Vulnerability(models.Model):
     cve_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="CVE ID")
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='open', verbose_name="Statut")
     discovered_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de découverte")
+    resolved_at = models.DateTimeField(null=True, blank=True)  # Ajout
 
     # Champs spécifiques à OWASP ZAP
     alert = models.CharField(max_length=255, blank=True, null=True, verbose_name="Alerte")
@@ -179,21 +284,17 @@ class Vulnerability(models.Model):
     def __str__(self):
         return self.name
     
-class ScheduledScan(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    tool = models.CharField(max_length=50)
-    scheduled_time = models.DateTimeField()
-    frequency = models.CharField(max_length=20, choices=[
-        ('once', 'Une seule fois'),
-        ('daily', 'Tous les jours'),
-        ('weekly', 'Toutes les semaines'),
-    ])
+from django.db import models
+from django.conf import settings
+
+class UserNotification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Scan planifié pour {self.project.name} à {self.scheduled_time}"
-    
-    # Fichier regroupant toutes les options disponibles pour chaque outil de scan
+        return f"Notification for {self.user.email}"
 
 from django.db import models
 
@@ -226,15 +327,6 @@ ZAP_OPTIONS = (
     ('-sqli', 'SQL Injection - Test des vulnérabilités SQLi uniquement'),
 )
 
-SQLMAP_OPTIONS = (
-    ('-u', 'URL cible'),
-    ('--dbs', 'Liste les bases de données disponibles'),
-    ('--tables', 'Liste les tables dans une base de données'),
-    ('--columns', 'Liste les colonnes dans une table'),
-    ('--dump', "Extrait les données d'une table"),
-    ('--level', "Niveau d'agressivité du scan (1 à 5)"),
-    ('--risk', "Niveau de risque du scan (1 à 3)"),
-)
 
 AIRCRACK_OPTIONS = (
     ('airmon-ng start', 'Active le mode moniteur'),
@@ -363,14 +455,31 @@ class OwaspZapResult(models.Model):
     recommendation = models.TextField()
 
 
+
+SQLMAP_OPTIONS = (
+    ("--batch", "Scan simple (automatique)"),
+    ("--level=3 --risk=2 --batch", "Scan approfondi"),
+    ("--technique=BE --batch", "Scan booléen + erreur"),
+    ("--dbs --batch", "Lister les bases (si vulnérable)"),
+    ("--dump --batch", "Extraire les données (si vulnérable)"),
+    ("--batch --random-agent", "Scan + contournement User-Agent"),
+)
 class SqlmapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE,null=True,blank=True)
-    option = models.CharField(max_length=10, choices=SQLMAP_OPTIONS)
-    dbms = models.CharField(max_length=100)
-    db_name = models.CharField(max_length=100)
-    table_name = models.CharField(max_length=100)
-    column_name = models.CharField(max_length=100)
-    dumped_data = models.TextField(null=True, blank=True)
+    scan = models.ForeignKey(Scan,related_name='w', on_delete=models.CASCADE, blank=True,null = True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True,blank=True)
+    raw_output = models.TextField(blank=True, null=True)
+    is_vulnerable = models.BooleanField(default=False)
+    injection_type = models.CharField(max_length=255, blank=True, null=True)
+    dbms = models.CharField(max_length=255, blank=True, null=True)
+    payloads = models.TextField(blank=True, null=True)
+    dbs_found = models.TextField(blank=True, null=True)
+    tables_found = models.JSONField(default=dict, blank=True)
+    columns_found = models.JSONField(default=dict, blank=True)
+    data_dumped = models.JSONField(default=dict, blank=True)
+    options_used = models.TextField(blank=True, null=True)
+    techniques_used = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
 
 
 class AircrackngResult(models.Model):
@@ -407,7 +516,7 @@ NIKTO_OPTIONS = (
 )
 
 class NiktoResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    scan = models.ForeignKey(Scan, related_name='niktoresults',on_delete=models.CASCADE, null=True, blank=True)
     option = models.CharField(max_length=44, choices=NIKTO_OPTIONS)
     nikto_raw_output = models.TextField(blank=True, null=True)
     vulnerability = models.TextField(blank=True, null=True)
@@ -519,3 +628,47 @@ class NetcatResult(models.Model):
     protocol = models.CharField(max_length=10, default="TCP")
     banner = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    
+    from django.db import models
+from django.contrib.auth import get_user_model
+import json
+
+User = get_user_model()
+
+class SystemLog(models.Model):
+    TYPE_CHOICES = [
+        ('auth', 'Authentification'),
+        ('scan', 'Scans'),
+        ('vuln', 'Vulnérabilités'),
+        ('system', 'Système'),
+    ]
+    
+    LEVEL_CHOICES = [
+        ('info', 'Information'),
+        ('warning', 'Avertissement'),
+        ('error', 'Erreur'),
+        ('critical', 'Critique'),
+    ]
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    message = models.TextField()
+    url = models.URLField(max_length=500, null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    data = models.JSONField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        
+    def __str__(self):
+        return f"{self.get_type_display()} - {self.timestamp}"
+        
+    @property
+    def data_json(self):
+        if self.data:
+            return json.dumps(self.data, indent=2)
+        return "{}"

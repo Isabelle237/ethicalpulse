@@ -22,4 +22,6 @@ urlpatterns = [
     path('beef_scan/', include('EthicalpulsApp.beef_scan.urls')),
     path('hashcat_scan/', include('EthicalpulsApp.hashcat_scan.urls')),
     path('ghidra_scan/', include('EthicalpulsApp.ghidra_scan.urls')),
+    path('vulnerabilities/', include('EthicalpulsApp.vulnerabilities.urls')),
+    path('scans/', include('EthicalpulsApp.scans.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

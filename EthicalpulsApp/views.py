@@ -15,6 +15,7 @@ from EthicalpulsApp.john_scan.john_views import handle_john_scan
 from EthicalpulsApp.metasploit_scan.metasploit_views import handle_metasploit_scan
 from EthicalpulsApp.netcat_scan.netcat_views import handle_netcat_scan
 from EthicalpulsApp.nikto_scan.nikto_views import handle_nikto_scan
+from EthicalpulsApp.nmap_scan.run_nmap_views import handle_nmap_scan
 from EthicalpulsApp.reconng_scan.reconng_views import handle_reconng_scan
 from EthicalpulsApp.snort_scan.snort_views import handle_snort_scan
 from EthicalpulsApp.sqlmap_scan.sqlmap_views import handle_sqlmap_scan
@@ -79,6 +80,24 @@ from .forms import ScanForm
 
 from django.core.paginator import Paginator
 
+from django.core.paginator import Paginator
+
+def users(request):
+    user_list = User.objects.all()
+    paginator = Paginator(user_list, 12)  # 12 utilisateurs par page
+    page_number = request.GET.get('page')
+    users_page = paginator.get_page(page_number)
+
+    return render(request, 'admin/users.html', {
+        'users_list': users_page
+    })
+
+def log(request):
+    """
+    View to handle the log page.
+    """
+    # Here you can implement logic to fetch logs if needed
+    return render(request, 'admin/logs.html')   
 
 def index(request):
     return render(request, 'dashboard/index.html')
@@ -378,103 +397,6 @@ from django.shortcuts import render
 from .models import Project, Scan, Vulnerability
 from .forms import ScanForm
 
-def vulnerabilities_view(request):
-    projects = Project.objects.all()
-    scans = Scan.objects.prefetch_related('vulnerabilities').select_related('project').all()
-    vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
-    form = ScanForm()
-
-    # Filtres GET
-    project_filter = request.GET.get('project')
-    severity_filter = request.GET.get('severity')
-    status_filter = request.GET.get('status')
-
-    if project_filter:
-        vulnerabilities = vulnerabilities.filter(scan__project_id=project_filter)
-    if severity_filter:
-        vulnerabilities = vulnerabilities.filter(severity__iexact=severity_filter)
-    if status_filter:
-        vulnerabilities = vulnerabilities.filter(status__iexact=status_filter)
-
-    # Sévérités valides
-    valid_severities = ['critical', 'high', 'medium', 'low', 'info']
-
-    # Ajouter les sévérités et durées à chaque scan
-    for scan in scans:
-        vuln_qs = scan.vulnerabilities.all()
-        try:
-            scan.severities = dict(Counter(
-                v.severity for v in vuln_qs if v.severity in valid_severities
-            ))
-        except Exception as e:
-            scan.severities = {}
-            print(f"[Erreur] Scan ID {scan.id} – problème lors du comptage des sévérités : {e}")
-
-        if scan.start_time and scan.end_time:
-            scan.duration = scan.end_time - scan.start_time
-        else:
-            scan.duration = None
-
-    # Statistiques dynamiques globales
-    critical_vulns = vulnerabilities.filter(severity='critical').count()
-    high_vulns = vulnerabilities.filter(severity='high').count()
-    medium_vulns = vulnerabilities.filter(severity='medium').count()
-    low_vulns = vulnerabilities.filter(severity='low').count()
-    total_vulns = critical_vulns + high_vulns + medium_vulns + low_vulns
-
-    def percent(count):
-        return (count / total_vulns) * 100 if total_vulns > 0 else 0
-
-    context = {
-        'projects': projects,
-        'vulnerabilities': vulnerabilities.distinct(),
-        'form': form,
-        'scans': scans,
-        'critical_vulns': critical_vulns,
-        'high_vulns': high_vulns,
-        'medium_vulns': medium_vulns,
-        'low_vulns': low_vulns,
-        'critical_percentage': percent(critical_vulns),
-        'high_percentage': percent(high_vulns),
-        'medium_percentage': percent(medium_vulns),
-        'low_percentage': percent(low_vulns),
-    }
-
-    return render(request, 'admin/vulnerabilities.html', context)
-
-def vulnerabilities_filter(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        project = data.get('project')
-        severity = data.get('severity')
-        status = data.get('status')
-
-        # Filtrer les vulnérabilités
-        vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
-
-        if project:
-            vulnerabilities = vulnerabilities.filter(scan__project_id=project)
-        if severity:
-            vulnerabilities = vulnerabilities.filter(severity__iexact=severity)
-        if status:
-            vulnerabilities = vulnerabilities.filter(scan__status__iexact=status)
-
-        # Préparer les données pour la réponse JSON
-        results = []
-        for vuln in vulnerabilities:
-            results.append({
-                'id': vuln.id,
-                'name': vuln.name,
-                'project': vuln.scan.project.name,
-                'severity': vuln.severity,
-                'severity_class': get_severity_class(vuln.severity),
-                'status': vuln.scan.status,
-                'status_class': get_status_class(vuln.scan.status),
-                'target_url': vuln.target_url,
-                'discovered_at': vuln.discovered_at.strftime('%d/%m/%Y'),
-            })
-
-        return JsonResponse({'vulnerabilities': results})
 
 def get_base_context(request):
     return {
@@ -482,619 +404,6 @@ def get_base_context(request):
         'current_project': request.session.get('current_project'),
     }
 
-class BaseViewMixin:
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update(get_base_context(self.request))
-        return context
-
-def vuln_view(request):
-    # Récupérer les scans avec les filtres
-    scans = Scan.objects.all()  # Ajoute ici tes filtres si nécessaire
-
-    # Pagination : 15 éléments par page
-    paginator = Paginator(scans, 15)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    return render(request, 'vuln_view.html', {'scans': page_obj})
-
-
-def get_severity_class(severity):
-    if severity == 'critical':
-        return 'danger'
-    elif severity == 'high':
-        return 'warning text-dark'
-    elif severity == 'medium':
-        return 'primary'
-    elif severity == 'low':
-        return 'success'
-    else:
-        return 'secondary'
-
-def get_status_class(status):
-    if status == 'scheduled':
-        return 'warning text-dark'
-    elif status == 'in_progress':
-        return 'primary'
-    elif status == 'completed':
-        return 'success'
-    elif status == 'failed':
-        return 'danger'
-    else:
-        return 'secondary'
-
-def classify_scan_findings(scan_results):
-    severity_map = {
-        "critical": [],
-        "high": [],
-        "medium": [],
-        "low": [],
-        "info": []
-    }
-
-    def get_nmap_severity(service, port):
-        critical_services = ['msrpc', 'rdp', 'telnet', 'vnc']
-        high_services = ['ftp', 'smb', 'smtp']
-        medium_services = ['http', 'ssh', 'mysql']
-        low_services = ['https', 'dns']
-        service = service.lower()
-        if service in critical_services or port in [3389, 23, 5900]:
-            return 'critical'
-        elif service in high_services or port in [21, 445, 25]:
-            return 'high'
-        elif service in medium_services or port in [80, 22, 3306]:
-            return 'medium'
-        elif service in low_services or port in [443, 53]:
-            return 'low'
-        else:
-            return 'info'
-
-    def get_sqlmap_severity(vulnerability):
-        """
-        Détermine la sévérité en fonction des vulnérabilités SQLMap.
-        """
-        if "boolean-based blind" in vulnerability.lower():
-            return 'high'
-        elif "time-based blind" in vulnerability.lower():
-            return 'medium'
-        elif "error-based" in vulnerability.lower():
-            return 'critical'
-        else:
-            return 'info'
-
-    def get_zap_severity(risk):
-        """
-        Récupère directement la sévérité à partir des résultats ZAP.
-        """
-        risk = risk.lower()
-        if risk == 'high':
-            return 'critical'
-        elif risk == 'medium':
-            return 'high'
-        elif risk == 'low':
-            return 'medium'
-        else:
-            return 'info'
-
-    # Parcourir les résultats des différents outils
-    for tool, results in scan_results.items():
-        for result in results:
-            if tool == "nmap":
-                severity = get_nmap_severity(result.get('service', ''), result.get('port', 0))
-            elif tool == "sqlmap":
-                severity = get_sqlmap_severity(result.get('description', ''))
-            elif tool == "zap":
-                severity = get_zap_severity(result.get('risk', ''))
-            else:
-                severity = 'info'
-
-            if severity not in severity_map:
-                severity_map[severity] = []  # Initialiser une liste si elle n'existe pas
-            severity_map[severity].append({
-                "tool": tool,
-                "description": result.get('description', 'Aucune description disponible'),
-                "state": result.get('state', 'N/A'),
-                "service": result.get('service', 'N/A'),
-                "port": result.get('port', 'N/A'),
-                "url": result.get('url', 'N/A'),
-                "evidence": result.get('evidence', 'N/A'),
-                "remediation": result.get('remediation', 'N/A'),
-                "cve_id": result.get('cve_id', None)
-            })
-
-    # Vérifiez que toutes les entrées de severity_map sont des listes
-    for key, value in severity_map.items():
-        if not isinstance(value, list):
-            severity_map[key] = []
-
-    return severity_map
-
-def parse_scan_results(output, tool):
-    results = {
-        "nmap": [],
-        "zap": [],
-        "sqlmap": [],
-        "apisec": []
-    }
-
-    if tool == 'NMAP':
-        lines = output.splitlines()
-        protocols = []
-        for line in lines:
-            if "open" in line and "/" in line:
-                parts = line.split()
-                if len(parts) >= 3:
-                    port_protocol = parts[0].split('/')
-                    port = int(port_protocol[0])
-                    protocol = port_protocol[1]
-                    state = parts[1]
-                    service = parts[2]
-                    protocols.append({
-                        "port": port,
-                        "protocol": protocol,
-                        "state": state,
-                        "service": service
-                    })
-        if protocols:
-            results["nmap"].append({"protocols": protocols})
-
-    elif tool == 'SQLMAP':
-        if "vulnerable" in output.lower():
-            vulnerabilities = output.split("vulnerable")[1:]
-            for vuln in vulnerabilities:
-                results["sqlmap"].append({
-                    "risk": "high",
-                    "description": vuln.strip(),
-                    "parameter": "non précisé",
-                    "evidence": "Payload détecté dans la requête",
-                    "remediation": "Utilisez des requêtes préparées et échappez les entrées utilisateur."
-                })
-
-    elif tool == 'ZAP':
-        lines = output.lower().splitlines()
-        for line in lines:
-            if "alert" in line or "xss" in line:
-                results["zap"].append({
-                    "risk": "high",
-                    "alert": "XSS détectée",
-                    "url": "inconnue",
-                    "evidence": "Payload détecté dans la réponse",
-                    "remediation": "Validez et échappez les entrées utilisateur."
-                })
-
-    # Vérifiez que chaque clé contient une liste
-    for key, value in results.items():
-        if not isinstance(value, list):
-            results[key] = []
-
-    return results
-
-
-def launch_scan(request):
-    if request.method == 'POST':
-        form = ScanForm(request.POST)
-        if form.is_valid():
-            scan = form.save(commit=False)
-            scan.status = 'in_progress'
-            scan.start_time = now()
-            scan.save()
-
-            tool = scan.tool
-            project = scan.project
-            target_url = project.url
-
-            if not target_url:
-                messages.error(request, "Le projet sélectionné n'a pas d'URL définie.")
-                return redirect('vulnerabilities')
-
-            try:
-                if tool == 'ZAP':
-                    zap = ZAPv2(
-                        apikey='620tjnb5od0ef8tep7n78usun',
-                        proxies={'http': 'http://zap:8086', 'https': 'http://zap:8086'}
-                    )
-
-                    # Vérifier la disponibilité de l'API ZAP
-                    for i in range(30):
-                        try:
-                            if zap.core.version:
-                                break
-                        except:
-                            time.sleep(2)
-                    else:
-                        raise Exception("L'API ZAP n'est pas disponible.")
-
-                    # Lancer le scan ZAP
-                    zap.urlopen(target_url)
-                    time.sleep(2)
-                    scan_id = zap.ascan.scan(target_url)
-                    while int(zap.ascan.status(scan_id)) < 100:
-                        time.sleep(5)
-
-                    # Récupérer les alertes ZAP
-                    alerts = zap.core.alerts(baseurl=target_url)
-                    for alert in alerts:
-                        name = alert.get('alert', 'Vulnérabilité détectée')
-                        description = alert.get('description', 'Aucune description disponible.')
-                        severity = alert.get('risk', 'Medium')
-                        remediation = alert.get('solution', 'Aucune solution disponible.')
-                        parameter = alert.get('param', 'Non spécifié')
-                        evidence = alert.get('evidence', 'Aucune preuve disponible.')
-
-                        Vulnerability.objects.create(
-                            scan=scan,
-                            name=name,
-                            description=description,
-                            severity=severity,
-                            target_url=alert.get('url', target_url),
-                            remediation=remediation,
-                            parameter=parameter,
-                            evidence=evidence,
-                            cve_id=alert.get('cweid', ''),
-                            status='open',
-                            discovered_at=now()
-                        )
-
-                elif tool == 'SQLMAP':
-                    # Lancer SQLMap
-                    command = ['sqlmap', '-u', target_url, '--batch', '--output-dir=/tmp', '--flush-session']
-                    result = subprocess.run(command, capture_output=True, text=True)
-                    output = result.stdout.lower()
-
-                    # Analyser les résultats SQLMap
-                    if "is vulnerable" in output:
-                        parameter = None
-                        technique = None
-                        dbms = None
-                        request_type = None
-
-                        if "parameter:" in output:
-                            parameter = output.split("parameter:")[1].split("\n")[0].strip()
-                        if "technique:" in output:
-                            technique = output.split("technique:")[1].split("\n")[0].strip()
-                        if "dbms:" in output:
-                            dbms = output.split("dbms:")[1].split("\n")[0].strip()
-                        if "type:" in output:
-                            request_type = output.split("type:")[1].split("\n")[0].strip()
-
-                        name = "SQL Injection"
-                        description = f"SQL Injection détectée sur le paramètre '{parameter}' en utilisant la technique '{technique}'. SGBD détecté : {dbms}."
-                        remediation = "Utilisez des requêtes préparées et échappez les entrées utilisateur."
-
-                        Vulnerability.objects.create(
-                            scan=scan,
-                            name=name,
-                            description=description,
-                            severity="High",
-                            target_url=target_url,
-                            parameter=parameter,
-                            remediation=remediation,
-                            evidence=f"Technique: {technique}, SGBD: {dbms}, Type de requête: {request_type}",
-                            cve_id=None,
-                            status='open',
-                            discovered_at=now()
-                        )
-
-                elif tool == 'NMAP':
-                    # Lancer Nmap
-                    command = ['nmap', '-sV', '-O', '-Pn', '-T4', project.ip_address]
-                    result = subprocess.run(command, capture_output=True, text=True, timeout=400)
-                    output = result.stdout
-                    lines = output.splitlines()
-
-                    # Analyser les résultats Nmap
-                    for line in lines:
-                        if "open" in line and "/" in line:
-                            parts = line.split()
-                            if len(parts) >= 3:
-                                port_protocol = parts[0].split('/')
-                                port = int(port_protocol[0])
-                                protocol = port_protocol[1]
-                                state = parts[1]
-                                service = parts[2]
-                                version = " ".join(parts[3:]) if len(parts) > 3 else None
-
-                                name = f"Port {port} - {service}"
-                                description = f"Port {port} ({service}) est {state}."
-                                remediation = "Vérifiez la configuration du service."
-
-                                Vulnerability.objects.create(
-                                    scan=scan,
-                                    name=name,
-                                    description=description,
-                                    severity="Medium",
-                                    target_url=project.url,
-                                    parameter=None,
-                                    remediation=remediation,
-                                    evidence=f"Protocole: {protocol}, État: {state}, Service: {service}, Version: {version}",
-                                    cve_id=None,
-                                    status='open',
-                                    discovered_at=now()
-                                )
-
-                # Mettre à jour le statut du scan
-                scan.status = 'completed'
-                scan.end_time = now()
-                scan.duration = (scan.end_time - scan.start_time).total_seconds()
-                scan.save()
-                messages.success(request, f"Scan {tool} terminé avec succès.")
-
-            except Exception as e:
-                # Gestion des erreurs
-                scan.status = 'failed'
-                scan.save()
-                messages.error(request, f"Erreur lors de l'exécution du scan {tool} : {str(e)}")
-        else:
-            messages.error(request, "Le formulaire est invalide.")
-    return redirect('vulnerabilities')
-
-def export_vulnerabilities(request):
-    format = request.GET.get('format', 'json')
-    vulnerabilities = Vulnerability.objects.select_related('scan', 'scan__project').all()
-
-    if format == 'json':
-        data = list(vulnerabilities.values())
-        return JsonResponse(data, safe=False)
-
-    elif format == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="vulnerabilities.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['ID', 'Nom', 'Projet', 'Sévérité', 'Statut', 'URL cible', 'Découvert le'])
-        for vuln in vulnerabilities:
-            writer.writerow([
-                vuln.id, vuln.name, vuln.scan.project.name, vuln.severity,
-                vuln.status, vuln.target_url, vuln.discovered_at
-            ])
-        return response
-
-    else:
-        return JsonResponse({'error': 'Format non pris en charge'}, status=400)
-
-
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from django.utils.timezone import now
-
-def generate_scan_report(request, scan_id):
-    scan = get_object_or_404(Scan, id=scan_id)
-    project = scan.project
-    vulnerabilities = scan.vulnerabilities.all()
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="rapport_scan_{scan.id}.pdf"'
-
-    doc = SimpleDocTemplate(response, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=72, bottomMargin=36)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    # Style personnalisé pour le titre
-    title_style = ParagraphStyle(name='TitleStyle', fontSize=24, leading=28, alignment=1, textColor=colors.HexColor("#FFFFFF"), spaceAfter=20)
-    subtitle_style = ParagraphStyle(name='SubtitleStyle', fontSize=14, leading=18, alignment=0, textColor=colors.HexColor("#003366"), spaceAfter=10)
-    body_style = ParagraphStyle(name='BodyText', parent=styles['Normal'], fontSize=10, leading=14)
-    footer_style = ParagraphStyle(name='FooterStyle', fontSize=9, alignment=1, textColor=colors.HexColor("#FFFFFF"), backColor=colors.HexColor("#003366"), spaceBefore=10)
-
-    # Fond bleu
-    elements.append(Spacer(1, 12))
-
-    # Informations du scan
-    scan_info = f"""
-    <b>Nom du Scan :</b> {scan.name}<br/>
-    <b>Projet :</b> {project.name}<br/>
-    <b>Outil utilisé :</b> {scan.tool}<br/>
-    <b>Statut :</b> {scan.status}<br/>
-    <b>Durée :</b> {f"{scan.duration:.2f} secondes" if scan.duration else "N/A"}<br/>
-    """
-    elements.append(Paragraph(scan_info, body_style))
-    elements.append(Spacer(1, 12))
-
-    # Titre principal centré et souligné
-    title = Paragraph("<u>Rapport de Scan</u>", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 12))
-
-    # Résultats du Scan en fonction de l'outil
-    if scan.tool == 'NMAP':
-        elements.append(Paragraph("Résultats du Scan NMAP", subtitle_style))
-        nmap_details = f"""
-        <b>Adresse IP cible :</b> {project.ip_address}<br/>
-        <b>Ports ouverts :</b> Liste des ports ouverts et services sur {project.ip_address}.<br/>
-        """
-        elements.append(Paragraph(nmap_details, body_style))
-
-        # Ajouter les vulnérabilités de Nmap
-        for vuln in vulnerabilities:
-            if vuln.port:
-                nmap_vuln_details = f"""
-                <b>Port :</b> {vuln.port}<br/>
-                <b>Protocole :</b> {vuln.protocol}<br/>
-                <b>Service :</b> {vuln.service}<br/>
-                <b>Version :</b> {vuln.version}<br/>
-                <b>Gravité :</b> {vuln.severity}<br/>
-                """
-                elements.append(Paragraph(nmap_vuln_details, body_style))
-
-    elif scan.tool == 'SQLMAP':
-        elements.append(Paragraph("Résultats du Scan SQLMAP", subtitle_style))
-        sqlmap_details = f"""
-        <b>Paramètre vulnérable :</b> {', '.join([vuln.parameter for vuln in vulnerabilities if vuln.parameter])}<br/>
-        <b>DBMS détecté :</b> {', '.join([vuln.dbms for vuln in vulnerabilities if vuln.dbms])}<br/>
-        <b>Technique utilisée :</b> {', '.join([vuln.technique for vuln in vulnerabilities if vuln.technique])}<br/>
-        """
-        elements.append(Paragraph(sqlmap_details, body_style))
-
-        # Ajouter les vulnérabilités spécifiques à SQLMap
-        for vuln in vulnerabilities:
-            sqlmap_vuln_details = f"""
-            <b>Paramètre :</b> {vuln.parameter or 'Non spécifié'}<br/>
-            <b>Technique :</b> {vuln.technique or 'Non spécifiée'}<br/>
-            <b>SGBD détecté :</b> {vuln.dbms or 'Non spécifié'}<br/>
-            """
-            elements.append(Paragraph(sqlmap_vuln_details, body_style))
-
-    elif scan.tool == 'ZAP':
-        elements.append(Paragraph("Résultats du Scan ZAP", subtitle_style))
-        zap_details = f"""
-        <b>Alertes :</b><br/>
-        <i>Liste des vulnérabilités détectées par ZAP.</i><br/>
-        """
-        elements.append(Paragraph(zap_details, body_style))
-
-        # Ajouter les vulnérabilités de ZAP
-        for vuln in vulnerabilities:
-            zap_vuln_details = f"""
-            <b>Alerte :</b> {vuln.alert or 'Non spécifiée'}<br/>
-            <b>Risque :</b> {vuln.risk or 'Non spécifié'}<br/>
-            <b>Confiance :</b> {vuln.confidence or 'Non spécifiée'}<br/>
-            <b>Preuve :</b> {vuln.evidence or 'Non spécifiée'}<br/>
-            """
-            elements.append(Paragraph(zap_vuln_details, body_style))
-
-    else:
-        elements.append(Paragraph("Aucun outil de scan spécifié.", body_style))
-
-    # Pied de page
-    elements.append(PageBreak())
-    footer = f"""
-    <b>EthicalPulse</b> - Rapport généré automatiquement<br/>
-    <b>Date :</b> {now().strftime('%d/%m/%Y %H:%M:%S')}<br/>
-    """
-    elements.append(Paragraph(footer, footer_style))
-
-    # Générer le PDF
-    doc.build(elements)
-    return response
-
-
-def delete_scan(request, scan_id):
-    """
-    Supprime un scan spécifique.
-    """
-    scan = get_object_or_404(Scan, id=scan_id)
-    scan.delete()
-    messages.success(request, f"Le scan #{scan_id} a été supprimé avec succès.")
-    return redirect('vulnerabilities')
-
-
-def relaunch_scan(request, scan_id):
-    # Récupérer le scan existant
-    original_scan = get_object_or_404(Scan, id=scan_id)
-    try:
-        # Créer un nouveau scan basé sur l'original
-        new_scan = Scan.objects.create(
-            name=f"{original_scan.name} (Relancé)",
-            project=original_scan.project,
-            tool=original_scan.tool,
-            status='in_progress',
-            start_time=now(),
-        )
-
-        # Relancer le scan en appelant la logique d'exécution
-        if new_scan.tool == 'NMAP':
-            command = ['nmap', '-sT', '-Pn', '-T4', '-F', new_scan.project.ip_address]
-            result = subprocess.run(command, capture_output=True, text=True, timeout=400)
-            output = result.stdout
-            scan_results = parse_scan_results(output, 'NMAP')
-        elif new_scan.tool == 'SQLMAP':
-            command = ['sqlmap', '-u', new_scan.project.url, '--batch', '--output-dir=/tmp']
-            result = subprocess.run(command, capture_output=True, text=True, timeout=400)
-            output = result.stdout
-            scan_results = parse_scan_results(output, 'SQLMAP')
-        elif new_scan.tool == 'ZAP':
-            zap = ZAPv2(apikey='620tjnb5od0ef8tep7n78usun', proxies={'http': 'http://localhost:8086'})
-            zap.urlopen(new_scan.project.url)
-            zap.spider.scan(new_scan.project.url)
-            while int(zap.spider.status()) < 100:
-                time.sleep(2)
-            zap.ascan.scan(new_scan.project.url)
-            while int(zap.ascan.status()) < 100:
-                time.sleep(5)
-            alerts = zap.core.alerts(baseurl=new_scan.project.url)
-            scan_results = {"zap": alerts}
-        else:
-            messages.error(request, "Outil de scan non pris en charge.")
-            return redirect('vulnerabilities')
-
-        # Traiter les résultats et mettre à jour le nouveau scan
-        severity_map = classify_scan_findings(scan_results)
-        for severity, vulns in severity_map.items():
-            for vuln_data in vulns:
-                Vulnerability.objects.create(
-                    scan=new_scan,
-                    name=vuln_data.get('description', 'Vulnérabilité détectée'),
-                    description=vuln_data.get('description', ''),
-                    severity=severity,
-                    target_url=new_scan.project.url,
-                    remediation=vuln_data.get('remediation', ''),
-                    cve_id=vuln_data.get('cve_id', None),
-                    status='open',
-                    discovered_at=now()
-                )
-        new_scan.status = 'completed'
-        new_scan.end_time = now()
-        new_scan.duration = (new_scan.end_time - new_scan.start_time).total_seconds()
-        new_scan.save()
-        messages.success(request, f"Le scan {new_scan.name} a été relancé avec succès.")
-    except Exception as e:
-        new_scan.status = 'failed'
-        new_scan.save()
-        messages.error(request, f"Erreur lors de la relance du scan : {str(e)}")
-    return redirect('vulnerabilities')
-
-
-@shared_task
-def execute_scheduled_scans():
-    # Récupérer les scans planifiés dont l'heure est arrivée
-    scheduled_scans = Scan.objects.filter(status='scheduled', start_time__lte=now())
-    for scan in scheduled_scans:
-        try:
-            # Mettre à jour le statut à "En cours"
-            scan.status = 'in_progress'
-            scan.save()
-
-            # Logique pour exécuter le scan (exemple avec ZAP)
-            if scan.tool == 'ZAP':
-                zap = ZAPv2(apikey='620tjnb5od0ef8tep7n78usun', proxies={'http': 'http://localhost:8086'})
-                zap.urlopen(scan.project.url)
-                zap.spider.scan(scan.project.url)
-                while int(zap.spider.status()) < 100:
-                    time.sleep(2)
-                zap.ascan.scan(scan.project.url)
-                while int(zap.ascan.status()) < 100:
-                    time.sleep(5)
-                alerts = zap.core.alerts(baseurl=scan.project.url)
-                scan_results = {"zap": alerts}
-
-                # Traiter les résultats et mettre à jour le scan
-                severity_map = classify_scan_findings(scan_results)
-                for severity, vulns in severity_map.items():
-                    for vuln_data in vulns:
-                        Vulnerability.objects.create(
-                            scan=scan,
-                            name=vuln_data.get('description', 'Vulnérabilité détectée'),
-                            description=vuln_data.get('description', ''),
-                            severity=severity,
-                            target_url=scan.project.url,
-                            remediation=vuln_data.get('remediation', ''),
-                            cve_id=vuln_data.get('cve_id', None),
-                            status='open',
-                            discovered_at=now()
-                        )
-
-            # Mettre à jour le statut à "Complet"
-            scan.status = 'completed'
-            scan.end_time = now()
-            scan.duration = (scan.end_time - scan.start_time).total_seconds()
-            scan.save()
-        except Exception as e:
-            # En cas d'erreur, mettre à jour le statut à "Échoué"
-            scan.status = 'failed'
-            scan.save()
 
 
 def tools_edit(request, tool_id):
@@ -1154,26 +463,10 @@ def analytics(request):
 
 logger = logging.getLogger(__name__)
 
-
-
-
-
-from django.db import transaction  # ⚠️ Manquait dans ton import
-from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib import messages
-from django.utils import timezone
-from EthicalpulsApp.models import Project, Scan, NmapResult, OwaspZapResult, SqlmapResult, AircrackngResult, \
-    BeefResult, MetasploitResult, HashcatResult, JohntheripperResult, ReconngResult, WiresharkResult, \
-    GhidraResult, SnortResult, WifiteResult, NetcatResult, NiktoResult
-from EthicalpulsApp.utils.run_nmap_scan import run_nmap_scan  # ✅ Import correct pour la tâche Celery
-import logging
-
-
+@login_required
+@require_http_methods(["GET", "POST"])
 def tools_admin(request):
-    from EthicalpulsApp.nmap_scan.run_nmap_views import handle_nmap_scan
-
     if request.method == "POST":
-        # Récupération des données du formulaire
         tool_name = request.POST.get("tool", "").strip().upper()
         project_id = request.POST.get("project_id", "").strip()
         option = request.POST.get("option", "").strip()
@@ -1185,13 +478,12 @@ def tools_admin(request):
 
         project = get_object_or_404(Project, id=int(project_id))
 
-        # Mapping des outils vers leurs handlers
         tool_handlers = {
             'NETCAT': lambda: handle_netcat_scan(project, option, target_port, request),
             'NIKTO': lambda: handle_nikto_scan(project, option, request),
             'NMAP': lambda: handle_nmap_scan(project, option, request),
             'ZAP': lambda: handle_zap_scan(project, option, request),
-            'SQLMAP': lambda: handle_sqlmap_scan(project, option, request),
+            'SQLMAP': lambda: handle_sqlmap_scan(request),  # retourne une redirection, pas un tuple
             'AIRCRACK': lambda: handle_aircrack_scan(project, option, request),
             'BEEF': lambda: handle_beef_scan(project, option, request),
             'METASPLOIT': lambda: handle_metasploit_scan(project, option, request),
@@ -1205,7 +497,13 @@ def tools_admin(request):
         }
 
         handler = tool_handlers.get(tool_name)
+
         if handler:
+            # ✅ SQLMAP retourne directement une réponse, on ne décompose pas
+            if tool_name == "SQLMAP":
+                return handler()  # retourne HttpResponseRedirect
+
+            # ✅ Autres outils : on suppose qu'ils retournent (success, message)
             success, message = handler()
             if success:
                 messages.success(request, message)
@@ -1216,10 +514,9 @@ def tools_admin(request):
 
         return redirect('tools_admin')
 
-    # Préparation du contexte pour l'affichage
+    # GET
     context = prepare_tools_context()
     return render(request, 'admin/tools.html', context)
-
 
 def prepare_tools_context():
     """Prépare le contexte pour la vue tools_admin"""
@@ -1233,7 +530,7 @@ def prepare_tools_context():
     options = {
         "nmap_options": get_options(NmapResult),
         "zap_options": get_options(OwaspZapResult),
-        "sqlmap_options": get_options(SqlmapResult),
+        "sqlmap_options": SQLMAP_OPTIONS,
         "aircrack_options": get_options(AircrackngResult),
         "beef_options": get_options(BeefResult),
         "metasploit_options": get_options(MetasploitResult),
@@ -1252,10 +549,14 @@ def prepare_tools_context():
 
     return {
         "projects": Project.objects.all(),
-        'scans_history': Scan.objects.select_related('project').prefetch_related(
-            'nmap_results'
-        ).order_by('-start_time')[:20],
-              "nikto_results": nikto_results,
+        'scans_history': Scan.objects.select_related('project')
+            .prefetch_related(
+                'nmap_results',
+                'niktoresults',
+                'sqlmapresults',
+                # Ajoute ici les related_name de tous tes outils si besoin
+            ).order_by('-start_time')[:100],  # Mets une valeur assez grande pour voir tous les scans
+        "nikto_results": nikto_results,
         **options,
     }
 
@@ -1292,4 +593,413 @@ def afficher_sortie_scan(scan):
     except Exception as e:
         print(f"Erreur lors de l'affichage de la sortie brute : {e}")
 
-  
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.http import HttpResponse
+from django.contrib import messages
+from datetime import datetime
+import csv
+import json
+import xml.etree.ElementTree as ET
+from .models import SystemLog
+from .decorators import admin_required
+
+@login_required
+@admin_required
+def logs_view(request):
+    # Filtres
+    log_type = request.GET.get('type')
+    log_level = request.GET.get('level')
+    
+    # Query de base
+    logs = SystemLog.objects.all()
+    
+    # Application des filtres
+    if log_type:
+        logs = logs.filter(type=log_type)
+    if log_level:
+        logs = logs.filter(level=log_level)
+    
+    # Pagination
+    paginator = Paginator(logs, 25)  # 25 logs par page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'logs': page_obj,
+        'current_type': log_type,
+        'current_level': log_level,
+    }
+    
+    return render(request, 'admin/logs.html', context)
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.contrib import messages
+import csv
+import json
+from datetime import datetime
+
+@login_required
+def export_logs(request):
+    if request.method != 'POST':
+        messages.error(request, 'Méthode non autorisée')
+        return redirect('logs')
+        
+    # Get export parameters
+    export_format = request.POST.get('format', 'csv')
+    date_from = request.POST.get('date_from')
+    date_to = request.POST.get('date_to')
+    
+    # Build query
+    logs = SystemLog.objects.all()
+    if date_from:
+        logs = logs.filter(timestamp__gte=date_from)
+    if date_to:
+        logs = logs.filter(timestamp__lte=date_to)
+        
+    # Handle different export formats
+    if export_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="logs.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Type', 'Niveau', 'Utilisateur', 'IP', 'Message'])
+        
+        for log in logs:
+            writer.writerow([
+                log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                log.get_type_display(),
+                log.get_level_display(),
+                str(log.user) if log.user else 'Système',
+                log.ip_address or '-',
+                log.message
+            ])
+            
+        return response
+        
+    elif export_format == 'json':
+        data = [{
+            'date': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'type': log.get_type_display(),
+            'level': log.get_level_display(),
+            'user': str(log.user) if log.user else 'Système',
+            'ip': log.ip_address or '-',
+            'message': log.message,
+            'data': log.data
+        } for log in logs]
+        
+        response = HttpResponse(
+            json.dumps(data, indent=2),
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = 'attachment; filename="logs.json"'
+        return response
+        
+    else:  # xml format
+        # Add XML export handling if needed
+        messages.error(request, 'Format XML non supporté pour le moment')
+        return redirect('logs')
+
+
+
+from django.contrib import messages
+from EthicalpulsApp.models import Scan
+
+def dashboard_view(request):
+    if request.user.is_authenticated:
+        recent_scans = Scan.objects.filter(
+            scheduled_scan__created_by=request.user,
+            status='completed',
+            notified=False
+        )
+        for scan in recent_scans:
+            messages.info(request, f"Le scan '{scan.name}' s’est terminé avec succès à {scan.end_time.strftime('%d/%m/%Y %H:%M')}.")
+            scan.notified = True
+            scan.save()
+    
+    # Reste du code
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from datetime import timedelta
+import json
+from .services.analytics_service import AnalyticsService
+from .utils.json_encoder import CustomJSONEncoder
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from datetime import timedelta
+import json
+from django.db.models import Count, Avg, F, Q, ExpressionWrapper, fields
+from django.db.models.functions import TruncDate, Greatest
+from .models import Scan, Vulnerability, Project
+from .utils.json_encoder import CustomJSONEncoder
+
+@login_required
+def analytics_dashboard(request):
+    # Get period parameters
+    period = request.GET.get('period', '30d')
+    project_id = request.GET.get('project')
+    end_date = timezone.now()
+    
+    # Calculate start date based on period
+    if period == '7d':
+        start_date = end_date - timedelta(days=7)
+    elif period == '90d':
+        start_date = end_date - timedelta(days=90)
+    elif period == '1y':
+        start_date = end_date - timedelta(days=365)
+    elif period == 'custom':
+        try:
+            start_date = timezone.datetime.strptime(request.GET.get('start_date'), '%Y-%m-%d')
+            end_date = timezone.datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d')
+        except (TypeError, ValueError):
+            start_date = end_date - timedelta(days=30)
+    else:  # default 30d
+        start_date = end_date - timedelta(days=30)
+
+    # Base filters
+    scan_filters = {'created_at__range': [start_date, end_date]}
+    vuln_filters = {'discovered_at__range': [start_date, end_date]}
+    
+    if project_id:
+        scan_filters['project_id'] = project_id
+        vuln_filters['scan__project_id'] = project_id
+
+    # Get data for scan metrics
+    scans = Scan.objects.filter(**scan_filters)
+    scan_metrics = {
+        'total_count': scans.count(),
+        'trend_data': list(
+            scans.annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(count=Count('id'))
+            .order_by('date')
+            .values_list('count', flat=True)
+        ),
+        'trend_labels': list(
+            scans.annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(count=Count('id'))
+            .order_by('date')
+            .values_list('date', flat=True)
+        )
+    }
+
+    # Get data for vulnerability metrics
+    vulnerabilities = Vulnerability.objects.filter(**vuln_filters)
+    total_vulns = vulnerabilities.count()
+    vuln_metrics = {
+        'total_count': total_vulns,
+        'by_severity': {
+            'critical': vulnerabilities.filter(severity='critical').count(),
+            'high': vulnerabilities.filter(severity='high').count(),
+            'medium': vulnerabilities.filter(severity='medium').count(),
+            'low': vulnerabilities.filter(severity='low').count()
+        },
+        'by_status': {
+            'open': vulnerabilities.filter(status='open').count(),
+            'in_progress': vulnerabilities.filter(status='in_progress').count(),
+            'resolved': vulnerabilities.filter(status='resolved').count(),
+            'closed': vulnerabilities.filter(status='closed').count()
+        },
+        'resolution_rate': (vulnerabilities.filter(status__in=['resolved', 'closed']).count() / total_vulns * 100) if total_vulns > 0 else 0
+    }
+
+    # Get data for tool metrics
+    tool_metrics = {
+        'labels': [],
+        'data': [],
+        'detection_rate': [],
+        'success_rate': []
+    }
+    
+    tools_data = scans.values('tool').annotate(
+        count=Count('id'),
+        success_count=Count('id', filter=Q(status='completed')),
+        vuln_count=Count('vulnerabilities')
+    ).order_by('-count')
+    
+    for tool in tools_data:
+        tool_metrics['labels'].append(tool['tool'])
+        tool_metrics['data'].append(tool['count'])
+        tool_metrics['success_rate'].append(
+            (tool['success_count'] / tool['count'] * 100) if tool['count'] > 0 else 0
+        )
+        tool_metrics['detection_rate'].append(
+            (tool['vuln_count'] / tool['success_count']) if tool['success_count'] > 0 else 0
+        )
+
+    # Get data for project metrics
+    project_metrics = {
+        'labels': [],
+        'data': [],
+        'details': []
+    }
+
+    projects = Project.objects.filter(
+        scans__created_at__range=[start_date, end_date]
+    ).distinct().annotate(
+        scan_count=Count('scans', filter=Q(scans__created_at__range=[start_date, end_date])),
+        vuln_count=Count('scans__vulnerabilities', filter=Q(scans__created_at__range=[start_date, end_date])),
+        critical_count=Count('scans__vulnerabilities', 
+                           filter=Q(scans__vulnerabilities__severity='critical',
+                                  scans__created_at__range=[start_date, end_date])),
+        high_count=Count('scans__vulnerabilities',
+                        filter=Q(scans__vulnerabilities__severity='high',
+                               scans__created_at__range=[start_date, end_date])),
+        resolved_count=Count('scans__vulnerabilities',
+                           filter=Q(scans__vulnerabilities__status__in=['resolved', 'closed'],
+                                  scans__created_at__range=[start_date, end_date]))
+    ).annotate(
+        resolution_rate=ExpressionWrapper(
+            F('resolved_count') * 100.0 / Greatest(F('vuln_count'), 1),
+            output_field=fields.FloatField()
+        )
+    ).order_by('-vuln_count')
+
+    for project in projects:
+        project_metrics['labels'].append(project.name)
+        project_metrics['data'].append(project.vuln_count)
+        project_metrics['details'].append({
+            'name': project.name,
+            'scan_count': project.scan_count,
+            'vuln_count': project.vuln_count,
+            'critical_count': project.critical_count,
+            'high_count': project.high_count,
+            'resolution_rate': project.resolution_rate
+        })
+
+    # Calculate variations with previous period
+    previous_start = start_date - (end_date - start_date)
+    previous_end = start_date - timedelta(days=1)
+    
+    previous_scans = Scan.objects.filter(created_at__range=[previous_start, previous_end])
+    previous_vulns = Vulnerability.objects.filter(discovered_at__range=[previous_start, previous_end])
+    
+    variations = {
+        'scan_count': ((scan_metrics['total_count'] - previous_scans.count()) / 
+                      previous_scans.count() * 100) if previous_scans.count() > 0 else 0,
+        'vuln_count': ((vuln_metrics['total_count'] - previous_vulns.count()) / 
+                      previous_vulns.count() * 100) if previous_vulns.count() > 0 else 0,
+        'resolution_rate': vuln_metrics['resolution_rate'] - (
+            (previous_vulns.filter(status__in=['resolved', 'closed']).count() / 
+             previous_vulns.count() * 100) if previous_vulns.count() > 0 else 0
+        ),
+    }
+
+    context = {
+        'period': period,
+        'start_date': start_date,
+        'end_date': end_date,
+        'projects': Project.objects.all(),
+        'selected_project': project_id,
+        'variations': variations,
+        # JSON data for charts
+        'scan_metrics_json': json.dumps(scan_metrics, cls=CustomJSONEncoder),
+        'vuln_metrics_json': json.dumps(vuln_metrics, cls=CustomJSONEncoder),
+        'tool_metrics_json': json.dumps(tool_metrics, cls=CustomJSONEncoder),
+        'project_metrics_json': json.dumps(project_metrics, cls=CustomJSONEncoder),
+        # Raw data for template
+        'scan_metrics': scan_metrics,
+        'vuln_metrics': vuln_metrics,
+        'tool_metrics': tool_metrics,
+        'project_metrics': project_metrics
+    }
+
+    return render(request, 'analytics.html', context)
+
+
+# views.py
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+
+@require_POST
+@login_required
+def relaunch_scan(request, scan_id):
+    scan = get_object_or_404(Scan, id=scan_id)
+    # Crée un nouveau scan avec les mêmes paramètres
+    new_scan = Scan.objects.create(
+        name=f"{scan.name} (Relancé {timezone.now():%Y-%m-%d %H:%M:%S})",
+        project=scan.project,
+        tool=scan.tool,
+        status='scheduled',
+        start_time=timezone.now(),
+        created_by=request.user
+    )
+    # Relance la tâche selon l'outil
+    if scan.tool == 'NMAP':
+        from EthicalpulsApp.utils.run_nmap_scan import run_nmap_scan
+        transaction.on_commit(lambda: run_nmap_scan.delay(new_scan.id, scan.nmap_results.first.option if scan.nmap_results.exists() else None))
+    elif scan.tool == 'NIKTO':
+        from EthicalpulsApp.utils.nikto_scan import run_nikto_scan
+        transaction.on_commit(lambda: run_nikto_scan.delay(new_scan.id, scan.nikto_results.first.option if scan.nikto_results.exists() else None))
+    elif scan.tool == 'SQLMAP':
+        from EthicalpulsApp.utils.run_sqlmap_scan import run_sqlmap_scan
+        options = scan.sqlmap_results.first.options_used.split() if scan.sqlmap_results.exists() else []
+        transaction.on_commit(lambda: run_sqlmap_scan.delay(new_scan.id, options))
+    # ... autres outils ...
+    messages.success(request, "Scan relancé avec succès.")
+    return redirect('scans')
+
+from django.http import JsonResponse, Http404
+
+def completed_scan_details(request, scan_id):
+    scan = get_object_or_404(Scan, id=scan_id)
+    # Prépare un dict avec toutes les infos utiles
+    data = {
+        "id": scan.id,
+        "name": scan.name,
+        "tool": scan.tool,
+        "status": scan.status,
+        "start_time": scan.start_time.strftime("%d/%m/%Y %H:%M"),
+        "end_time": scan.end_time.strftime("%d/%m/%Y %H:%M") if scan.end_time else "",
+        "project": scan.project.name if scan.project else "",
+        "target": scan.target_ip or (scan.project.url if scan.project else ""),
+        "created_by": scan.created_by.get_full_name() if scan.created_by else "",
+        "vulnerability_count": scan.vulnerability_count,
+        # Ajoute ici les champs spécifiques à chaque outil si besoin
+    }
+    # Ajoute les résultats spécifiques selon l’outil
+    if scan.tool.upper() == "NMAP" and hasattr(scan, "nmap_results"):
+        result = scan.nmap_results.first()
+        if result:
+            data["result"] = {
+                "command": result.command_used,
+                "option": result.option,
+                "os_detected": result.os_detected,
+                "open_tcp_ports": result.open_tcp_ports,
+                "service_details": result.service_details,
+                "full_output": result.full_output[:2000],
+            }
+    elif scan.tool.upper() == "NIKTO" and hasattr(scan, "nikto_results"):
+        result = scan.nikto_results.first()
+        if result:
+            data["result"] = {
+                "uri": result.uri,
+                "vulnerability": result.vulnerability,
+                "server": result.server,
+                "ssl_subject": result.ssl_subject,
+                "ssl_issuer": result.ssl_issuer,
+                "nikto_raw_output": result.nikto_raw_output[:2000],
+            }
+    elif scan.tool.upper() == "SQLMAP" and hasattr(scan, "sqlmap_results"):
+        result = scan.sqlmap_results.first()
+        if result:
+            data["result"] = {
+                "target_url": result.target_url,
+                "options_used": result.options_used,
+                "is_vulnerable": result.is_vulnerable,
+                "injection_type": result.injection_type,
+                "dbms": result.dbms,
+                "payloads": result.payloads,
+                "raw_output": result.raw_output[:2000],
+            }
+    return JsonResponse(data)

@@ -6,7 +6,7 @@
     <title>EthicalPulse - Plateforme de Sécurité</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-       <style>
+<style>
         :root {
             --navy-dark: rgba(34, 39, 54, 0.9);
             --navy-medium: rgba(34, 39, 54, 0.9);
@@ -53,6 +53,108 @@
             gap: 0.75rem;
             color: #f7fafc;
             text-decoration: none;
+        }
+        /* User Panel Styles */
+        .sidebar-user {
+            padding: 1rem;
+            background: rgba(34, 39, 54, 0.8);
+            border-top: 1px solid rgba(249, 115, 22, 0.2);
+            margin-top: auto;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .user-avatar {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+            font-size: 0.6rem;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .user-info h6 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-info small {
+            color: rgba(248, 250, 252, 0.7);
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
+        .badge {
+            padding: 0.2em 0.4em;  /* Réduit le padding des badges */
+            font-size: 0.65rem;  /* Réduit la taille de police des badges */
+        }
+
+        /* User Actions */
+        .sidebar-user .mt-3 .sidebar-nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-user .mt-3 .sidebar-nav-link:hover {
+            opacity: 1;
+            background: rgba(249, 115, 22, 0.1);
+            transform: translateX(4px);
+        }
+
+        .sidebar-user .mt-3 .sidebar-nav-icon {
+            font-size: 1rem;
+            width: 1.5rem;
+            display: inline-flex;
+            justify-content: center;
+        }
+
+        /* Badge Styles */
+        .badge {
+            padding: 0.25em 0.5em;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+        }
+
+        .badge.bg-success {
+            background: rgba(16, 185, 129, 0.9) !important;
+        }
+
+        .badge.bg-secondary {
+            background: rgba(156, 163, 175, 0.9) !important;
         }
 
         .sidebar-brand:hover {
@@ -287,15 +389,18 @@
                 <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                 <span>Tableau de bord<active/span>
             </a>
-            <a href="{% url 'users'%}" class="sidebar-nav-link">
-                <i class="bi bi-people-fill sidebar-nav-icon"></i>
-                <span>Utilisateurs</span>
-            </a>
-            <a href="{% url 'admin_projets'%}" class="sidebar-nav-link">
-                <i class="bi bi-folder-fill sidebar-nav-icon"></i>
-                <span>Projets</span>
-            </a>
-            <a href="{% url 'scans' %}" class="sidebar-nav-link">
+            {% if user.role == 'ADMIN' %}
+                <!-- Section Admin uniquement -->
+                <a href="{% url 'users'%}" class="sidebar-nav-link">
+                    <i class="bi bi-people-fill sidebar-nav-icon"></i>
+                    <span>Utilisateurs</span>
+                </a>
+                <a href="{% url 'admin_projets'%}" class="sidebar-nav-link">
+                    <i class="bi bi-folder-fill sidebar-nav-icon"></i>
+                    <span>Projets</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'scan_list' %}" class="sidebar-nav-link">
                 <i class="bi bi-search sidebar-nav-icon"></i>
                 <span>Scans</span>
             </a>
@@ -319,9 +424,13 @@
                 <i class="bi bi-clock-history sidebar-nav-icon"></i>
                 <span>Historique</span>
             </a>
-            <a href="{% url 'analytics' %}" class="sidebar-nav-link">
+            <a href="{% url 'analytics_dashboard' %}" class="sidebar-nav-link">
                 <i class="bi bi-graph-up sidebar-nav-icon"></i>
                 <span>Analytique</span>
+            </a>
+            <a href="{% url 'logs' %}" class="sidebar-nav-link">
+                <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                <span>logs</span>
             </a>
             <a href="{% url 'training' %}" class="sidebar-nav-link">
                 <i class="bi bi-mortarboard sidebar-nav-icon"></i>
@@ -355,21 +464,29 @@
                     
                     <!-- Actions utilisateur -->
                     <div class="mt-3">
-                        {% if user.is_authenticated %}
-                            <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
-                                <i class="bi bi-gear sidebar-nav-icon"></i>
-                                <span>Paramètres</span>
-                            </a>
-                            <a href="{% url 'logout' %}" class="sidebar-nav-link">
-                                <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
-                                <span>Déconnexion</span>
-                            </a>
-                        {% else %}
-                            <a href="{% url 'login' %}" class="sidebar-nav-link">
-                                <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
-                                <span>Connexion</span>
-                            </a>
-                        {% endif %}
+                            {% if user.role == 'ADMIN' %}
+                            <!-- Section Admin uniquement -->
+                                <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                                    <span>Paramètres</span>
+                                </a>
+                            {% else %}
+                                <div class="nav-section-title mt-3">Utilisateur</div>
+                                <a href="{% url 'settings_users' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-gear sidebar-nav-icon"></i>
+                                    <span>Paramètres</span>
+                            {% endif %}
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                    <span>Déconnexion</span>
+                                </a>
+                            {% else %}
+                                <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                    <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                    <span>Connexion</span>
+                                </a>
+                            {% endif %}
                     </div>
                 </div>
             </div>
@@ -465,39 +582,39 @@
         </div>
         <div class="offcanvas-body p-0">
             <nav class="sidebar-nav">
-                <a href="/" class="sidebar-nav-link active">
+                <a href="{% url 'dashboard'%}" class="sidebar-nav-link active">
                     <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                     <span>Tableau de bord</span>
                 </a>
-                <a href="/scans" class="sidebar-nav-link">
+                <a href="/{% url 'scan_list'%}" class="sidebar-nav-link">
                     <i class="bi bi-search sidebar-nav-icon"></i>
                     <span>Scans</span>
                 </a>
-                <a href="/vulnerabilities" class="sidebar-nav-link">
+                <a href="/{% url 'vulnerabilities'%}" class="sidebar-nav-link">
                     <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
                     <span>Vulnérabilités</span>
                 </a>
-                <a href="/tools" class="sidebar-nav-link">
+                <a href="/{% url 'tools_admin'%}" class="sidebar-nav-link">
                     <i class="bi bi-tools sidebar-nav-icon"></i>
                     <span>Outils</span>
                 </a>
-                <a href="/remediation" class="sidebar-nav-link">
+                <a href="/{% url 'remediations'%}" class="sidebar-nav-link">
                     <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
                     <span>Remédiation</span>
                 </a>
-                <a href="/reports" class="sidebar-nav-link">
+                <a href="/{% url 'reports'%}" class="sidebar-nav-link">
                     <i class="bi bi-bar-chart sidebar-nav-icon"></i>
                     <span>Rapports</span>
                 </a>
-                <a href="/history" class="sidebar-nav-link">
+                <a href="/{% url 'history'%}" class="sidebar-nav-link">
                     <i class="bi bi-clock-history sidebar-nav-icon"></i>
                     <span>Historique</span>
                 </a>
-                <a href="/analytics" class="sidebar-nav-link">
+                <a href="/{% url 'analytics_dashboard'%}" class="sidebar-nav-link">
                     <i class="bi bi-graph-up sidebar-nav-icon"></i>
                     <span>Analytique</span>
                 </a>
-                <a href="/training" class="sidebar-nav-link">
+                <a href="/{% url 'training'%}" class="sidebar-nav-link">
                     <i class="bi bi-mortarboard sidebar-nav-icon"></i>
                     <span>Formation</span>
                 </a>

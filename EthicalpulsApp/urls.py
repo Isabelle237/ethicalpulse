@@ -17,16 +17,18 @@ urlpatterns = [
     path('projets/chart/trend/', views.projects_chart_trend, name='projects_chart_trend'),
     
     # Scans
-    path('scans/launch/', views.launch_scan, name='launch_scan'),  # Lancer un scan
+    #path('scans/', views.scans, name='scans'),  # Liste des scans
+    path('scans/completed/<int:scan_id>/details/', views.completed_scan_details, name='completed_scan_details'),
+    #path('scans/launch/', views.launch_scan, name='launch_scan'),  # Lancer un scan
     #relancer un scan
-    path('scans/<int:scan_id>/delete/', views.delete_scan, name='delete_scan'),
-    path('generate_scan_report/<int:scan_id>/', views.generate_scan_report, name='generate_scan_report'),
-    path('vulnerabilities/filter/', views.vulnerabilities_filter, name='vulnerabilities_filter'),
-    path('export_vulnerabilities/', views.export_vulnerabilities, name='export_vulnerabilities'),
+   # path('scans/<int:scan_id>/delete/', views.delete_scan, name='delete_scan'),
+    #path('generate_scan_report/<int:scan_id>/', views.generate_scan_report, name='generate_scan_report'),
+    #path('vulnerabilities/filter/', views.vulnerabilities_filter, name='vulnerabilities_filter'),
+    #path('export_vulnerabilities/', views.export_vulnerabilities, name='export_vulnerabilities'),
 
-    path('vulnerabilities/', views.vulnerabilities_view, name='vulnerabilities'),  # Liste des vulnérabilités
-    path('scans/<int:scan_id>/relaunch/', views.relaunch_scan, name='relaunch_scan'),
-    path('scans/schedule/', views.ScheduledScan, name='schedule_scan'),
+    #path('vulnerabilities/', views.vulnerabilities_view, name='vulnerabilities'),  # Liste des vulnérabilités
+    #path('scans/<int:scan_id>/relaunch/', views.relaunch_scan, name='relaunch_scan'),
+    #path('scans/schedule/', views.ScheduledScan, name='ScheduledScan'),
 
     # Outils
 
@@ -43,7 +45,9 @@ urlpatterns = [
     path('remediation/<int:remediation_id>/edit/', views.remediations_edit, name='remediations_edit'),
     path('remediation/<int:remediation_id>/delete/', views.remediations_delete, name='remediations_delete'),
     path('remediation/<int:remediation_id>/execute/', views.remediations_execute, name='remediations_execute'),
-
+    path('logs/', views.logs, name='logs'),
+    path('logs/', views.logs_view, name='logs'),
+    path('logs/export/', views.export_logs, name='export_logs'),
     # Configuration
     path('settings_admin/', views.settings_admin, name='settings_admin'),
     path('settings/', views.settings_users, name='settings_users'),
@@ -54,7 +58,7 @@ urlpatterns = [
     path('history/', views.history, name='history'),
     path('reports/', views.report, name='reports'),
     path('training/', views.training, name='training'),
-    path('analytics/', views.analytics, name='analytics'),
+    path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
 
     # Authentification
     path('login/', views.email_login, name='login'),

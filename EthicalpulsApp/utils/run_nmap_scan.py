@@ -1,3 +1,4 @@
+import re
 import subprocess
 import logging
 import shutil
@@ -127,135 +128,87 @@ def build_nmap_command(target, option=None):
     retry_backoff=True,
     retry_jitter=True
 )
+
 def run_nmap_scan(self, scan_id, option):
-    scan = None
-    target = None
-    command_str = None
+    scan = Scan.objects.get(id=scan_id)
+    project = scan.project
+    target = project.ip_address or project.domain
 
+    if not target:
+        raise ValueError("Aucune cible valide (IP ou domaine)")
+
+    option = option or '-sS -sV -v'
+    cmd = build_nmap_command(target, option)
+    command_str = ' '.join(cmd)
+
+    scan.status = 'in_progress'
+    scan.start_time = timezone.now()
+    scan.progress = 0
+    scan.save()
+
+    logger.info(f"Exécution Nmap : {command_str}")
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+
+    output = ""
     try:
-        scan = Scan.objects.get(id=scan_id)
-        project = scan.project
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
 
-        if project.ip_address:
-            target = project.ip_address
-        elif project.domain:
-            target = project.domain
-        else:
-            raise ValueError("Aucune cible valide (IP ou domaine) pour Nmap")
+            output += line
 
-        option = option or '-sS -sV -v'
+            # Exemple de détection de progression réelle
+            match = re.search(r'(\d{1,3})\.\d+\% done', line)
+            if match:
+                percent = int(match.group(1))
+                scan.progress = min(percent, 95)
+                scan.save()
 
-        cmd = build_nmap_command(target, option)
-        command_str = ' '.join(cmd)
+        process.wait()
 
-        scan.status = 'in_progress'
-        scan.start_time = timezone.now()
-        scan.save()
+        # Analyser le résultat ici (nécessite que Nmap soit lancé avec -oX - pour XML)
+        parsed_results = parse_nmap_xml(output, target)
 
-        logger.info(f"Exécution de la commande Nmap : {command_str}")
-
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=NMAP_TIMEOUT
-        )
-
-        parsed_results = parse_nmap_xml(result.stdout, target)
-        scan_success = (result.returncode == 0 and parsed_results is not None)
-
+        # Résultat Nmap enregistré
         NmapResult.objects.create(
             scan=scan,
             target=target,
             command_used=command_str,
             option=option,
-            returncode=result.returncode,
+            returncode=process.returncode,
             start_time=scan.start_time,
             end_time=timezone.now(),
+            full_output=output,
             os_detected='\n'.join(parsed_results['os_detected']) if parsed_results else "",
             os_accuracy=parsed_results['os_accuracy'] if parsed_results else "0",
             traceroute='\n'.join(parsed_results['traceroute']) if parsed_results else "",
             script_results='\n'.join(parsed_results['script_results']) if parsed_results else "",
-            full_output=result.stdout + "\n" + result.stderr,
             open_tcp_ports='\n'.join(parsed_results['open_tcp_ports']) if parsed_results else "",
             open_udp_ports='\n'.join(parsed_results['open_udp_ports']) if parsed_results else "",
             service_details='\n'.join(parsed_results['service_details']) if parsed_results else "",
-            scan_status='finished' if scan_success else 'error',
-            error_log=result.stderr if result.returncode != 0 else ""
+            scan_status='finished' if process.returncode == 0 else 'error',
+            error_log="" if process.returncode == 0 else output
         )
 
-        scan.status = 'completed' if scan_success else 'failed'
+        scan.progress = 100
+        scan.status = 'completed' if process.returncode == 0 else 'failed'
         scan.end_time = timezone.now()
         scan.duration = (scan.end_time - scan.start_time).total_seconds()
         scan.save()
 
-        if scan.created_by and scan.created_by.email:
-            subject = f"[EthicalPulse] Scan Nmap terminé pour {project.name}"
-            site_url = getattr(settings, 'SITE_URL', 'http://localhost:8001')
-            web_url = f"{site_url}/scans/{scan.id}/"
-
-            message = f"""
-Bonjour {scan.created_by.username},
-
-Le scan Nmap demandé pour le projet "{project.name}" est terminé.
-
-Cible analysée : {target}
-Option utilisée : {option}
-Durée du scan : {scan.duration:.2f} secondes
-Statut final : {scan.status.upper()}
-
-Résumé :
-- OS détectés : {len(parsed_results['os_detected']) if parsed_results else 0}
-- Ports TCP ouverts : {len(parsed_results['open_tcp_ports']) if parsed_results else 0}
-- Ports UDP ouverts : {len(parsed_results['open_udp_ports']) if parsed_results else 0}
-- Services détectés : {len(parsed_results['service_details']) if parsed_results else 0}
-- Scripts exécutés : {len(parsed_results['script_results']) if parsed_results else 0}
-
-Consultez les résultats complets ici :
-{web_url}
-
-Merci de votre confiance,
-L'équipe EthicalPulse
-"""
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [scan.created_by.email],
-                fail_silently=True
-            )
-
-        return scan_success
-
-    except subprocess.TimeoutExpired:
-        error_msg = f"Le scan Nmap a dépassé le délai de {NMAP_TIMEOUT} secondes"
-        logger.error(error_msg)
-
-        if scan:
-            scan.status = 'failed'
-            scan.end_time = timezone.now()
-            scan.error_log = error_msg
-            scan.save()
-
-            NmapResult.objects.create(
-                scan=scan,
-                target=target or "",
-                command_used=command_str or "",
-                option=option or "",
-                returncode=None,
-                scan_status='error',
-                error_log=error_msg
-            )
-        raise self.retry(countdown=300)
+        return scan.status == 'completed'
 
     except Exception as e:
-        logger.exception(f"Erreur critique du scan Nmap : {e}")
-
-        if scan:
-            scan.status = 'failed'
-            scan.end_time = timezone.now()
-            scan.error_log = str(e)
-            scan.save()
-
+        logger.exception(f"Erreur pendant le scan Nmap : {e}")
+        scan.status = 'failed'
+        scan.error_log = str(e)
+        scan.progress = 0
+        scan.end_time = timezone.now()
+        scan.save()
         raise

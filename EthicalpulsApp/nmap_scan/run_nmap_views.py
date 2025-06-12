@@ -22,9 +22,10 @@ from reportlab.lib import colors # type: ignore
 from reportlab.lib.pagesizes import letter # type: ignore
 
 from EthicalpulsApp.models import NmapResult, Scan
-from EthicalpulsApp.views import afficher_sortie_scan
 
 def handle_nmap_scan(project, option, request):
+    from EthicalpulsApp.views import afficher_sortie_scan
+
     """Gère le lancement d'un scan Nmap"""
     try:
         valid_options = [opt[0] for opt in NmapResult._meta.get_field('option').choices]

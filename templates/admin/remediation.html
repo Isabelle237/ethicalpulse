@@ -1,5 +1,5 @@
-{% extends 'admin/admin_base.html' %}
 
+{% extends "admin/admin_base.html" %}
 {% block title %}Remédiation - Ethical Pulse Shield{% endblock %}
 
 {% block content %}
@@ -844,6 +844,91 @@
     </div>
 </div>
 {% endblock %}
+
+ {% block extra_css %}
+ <style>
+/* Cards */
+.card, .card.stats-card, .card .card-body, .card .card-header, .card .card-footer {
+    background: #fff !important;
+    color: #212529 !important;
+}
+
+/* Titres et textes dans les cards */
+.card .card-title,
+.card .card-body,
+.card .card-header,
+.card .card-footer,
+.card .card-body h6,
+.card .card-body h3,
+.card .card-body p,
+.card .card-body span {
+    color: #212529 !important;
+}
+
+/* Table */
+.table, .table th, .table td {
+    background: #fff !important;
+    color: #212529 !important;
+}
+
+/* Badges */
+.badge.bg-success,
+.badge.bg-danger,
+.badge.bg-warning,
+.badge.bg-info,
+.badge.bg-primary,
+.badge.bg-secondary,
+.badge.bg-dark {
+    color: #fff !important;
+}
+.badge.bg-light {
+    color: #212529 !important;
+}
+
+/* Boutons */
+.btn, .btn-outline-primary, .btn-outline-success, .btn-outline-danger, .btn-outline-secondary {
+    color: #212529;
+    background: #fff;
+    border-color: #dee2e6;
+}
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-danger:hover,
+.btn-outline-secondary:hover {
+    background: #e9ecef;
+    color: #0d6efd;
+}
+
+/* Modals */
+.modal-content {
+    background: #fff !important;
+    color: #212529 !important;
+}
+.modal-header, .modal-footer {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+.modal-title {
+    color: #212529 !important;
+}
+
+/* Pré/code dans les modals */
+pre.bg-dark, code.bg-dark {
+    background: #212529 !important;
+    color: #f8f9fa !important;
+}
+pre.bg-light, code.bg-light {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+/* Pour éviter le texte blanc sur fond blanc */
+.bg-white, .bg-light {
+    color: #212529 !important;
+}
+</style>
+{% endblock %}
+
 
 {% block extra_js %}
 <script>

@@ -106,6 +106,69 @@ class ProjectForm(forms.ModelForm):
         return url
 
 
+# Formulaire de scan planifié
+
+
+from django import forms
+from .models import ScheduledScan
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+class ScheduledScanForm(forms.ModelForm):
+    class Meta:
+        model = ScheduledScan
+        fields = ['name', 'description', 'tool', 'target', 'frequency', 
+                 'next_run_time', 'email_notification']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+            'next_run_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'tool': forms.Select(attrs={'class': 'form-select'}),
+            'target': forms.Select(attrs={'class': 'form-select'}),
+            'frequency': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def clean_next_run_time(self):
+        next_run_time = self.cleaned_data.get('next_run_time')
+        if next_run_time and next_run_time < timezone.now():
+            raise ValidationError("La date d'exécution doit être dans le futur")
+        return next_run_time
+
+    def __init__(self, *args, **kwargs):
+        super(ScheduledScanForm, self).__init__(*args, **kwargs)
+
+        # Récupérer les choix TOOL_CHOICES depuis le modèle
+        self.fields['tool'].choices = ScheduledScan._meta.get_field('tool').choices
+        self.fields['tool'].widget.attrs.update({'class': 'form-select'})
+
+        self.fields['target'].empty_label = "Sélectionnez une cible"
+
+from django import forms
+from .models import SystemLog
+
+class LogExportForm(forms.Form):
+    FORMAT_CHOICES = [
+        ('csv', 'CSV'),
+        ('json', 'JSON'),
+        ('xml', 'XML'),
+    ]
+    
+    format = forms.ChoiceField(choices=FORMAT_CHOICES)
+    date_from = forms.DateField(required=False)
+    date_to = forms.DateField(required=False)
+    include_auth = forms.BooleanField(required=False, initial=True)
+    include_scan = forms.BooleanField(required=False, initial=True)
+    include_vuln = forms.BooleanField(required=False, initial=True)
+    include_system = forms.BooleanField(required=False, initial=True)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        date_from = cleaned_data.get('date_from')
+        date_to = cleaned_data.get('date_to')
+        
+        if date_from and date_to and date_from > date_to:
+            raise forms.ValidationError("La date de début doit être antérieure à la date de fin")
+            
+        return cleaned_data
 # Formulaire de scan
 class ScanForm(forms.ModelForm):
     class Meta:

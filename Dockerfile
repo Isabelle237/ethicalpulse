@@ -4,6 +4,7 @@ FROM python:3.10-slim
 # Définir le répertoire de travail
 WORKDIR /app
 
+
 # Installer les dépendances système nécessaires
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -22,9 +23,6 @@ RUN apt-get update && apt-get install -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Installer sqlmap
-RUN git clone --depth=1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
- && ln -s /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap
 
 # Installer Nikto
 RUN git clone https://github.com/sullo/Nikto /opt/nikto \
@@ -40,6 +38,15 @@ RUN wget https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1
  && ln -s /root/ZAP_2.16.1/zap.sh /usr/local/bin/zap \
  && rm ZAP_2_16_1_unix.sh
 
+
+ # Copier sqlmap localement dans l'image (tu dois avoir le dossier sqlmap au même niveau que ce Dockerfile)
+COPY sqlmap /opt/sqlmap
+
+# Rendre sqlmap exécutable et créer un lien symbolique
+RUN ln -s /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap \
+    && chmod +x /opt/sqlmap/sqlmap.py
+
+
 # Copier les dépendances Python
 COPY requirements.txt .
 
@@ -48,6 +55,23 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copier tout le code de l'application
 COPY . .
+
+# Créer les dossiers nécessaires pour les fichiers statiques
+RUN mkdir -p /app/static /app/staticfiles /app/media
+
+# Copier d'abord les fichiers statiques
+COPY static/ /app/static/
+
+# Copier le reste du code de l'application
+COPY . .
+
+# Définir les permissions
+RUN chmod -R 755 /app/static /app/staticfiles /app/media \
+    && chown -R www-data:www-data /app/static /app/staticfiles /app/media
+
+# Collecter les fichiers statiques
+RUN python manage.py collectstatic --noinput
+
 
 # Commande de démarrage
 CMD ["sh", "-c", "\

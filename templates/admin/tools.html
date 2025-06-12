@@ -1,5 +1,7 @@
 
-{% extends 'admin/admin_base.html' %}
+
+{% extends "admin/admin_base.html" %}
+
 {% load scan_filters %}
 {% block title %}Outils de Sécurité - Ethical Pulse Shield{% endblock %}
 
@@ -83,6 +85,7 @@
                             <div class="mb-3">
                                 <label for="nmapOption" class="form-label fw-bold small">Cible:</label>
                                 <select class="form-select form-select-sm" id="nmapOption" name="project_id" required>
+                                    <option value="all">Tous les projets</option>
                                     {% for project in projects %}
                                     <option value="{{ project.id }}">
                                         {{ project.name }} — 
@@ -147,6 +150,7 @@
                             <div class="mb-3">
                                 <label for="niktoOption" class="form-label fw-bold small">Cible:</label>
                                 <select class="form-select form-select-sm" id="niktoOption" name="project_id" required>
+                                    <option value="all">Tous les projets</option>
                                     {% for project in projects %}
                                     <option value="{{ project.id }}">
                                         {{ project.name }} — 
@@ -194,39 +198,53 @@
                 </div>
                 <div class="card-body">
                     <p class="card-text small">Outil de test de pénétration automatisant la détection et l'exploitation des vulnérabilités d'injection SQL.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Options:</label>
-                        <select class="form-select form-select-sm tool-option" data-tool="sqlmap">
-                            {% for value, label in sqlmap_options %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Cible:</label>
-                        <input type="text" class="form-control form-control-sm tool-target" placeholder="URL (ex: http://example.com/page.php?id=1)" data-tool="sqlmap">
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-sm run-tool" data-tool="sqlmap">
-                            <i class="bi bi-play-fill me-1"></i>Exécuter
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#sqlmapDoc" aria-expanded="false">
-                            <i class="bi bi-file-text me-1"></i>Documentation
-                        </button>
-                    </div>
-                    <div class="collapse mt-3" id="sqlmapDoc">
-                        <div class="card card-body bg-light small">
-                            <h6>Documentation SQLMap</h6>
-                            <p>SQLMap est un outil open source de test de pénétration qui automatise la détection et l'exploitation d'injection SQL.</p>
-                            <p><strong>Fonctionnalités:</strong></p>
-                            <ul>
-                                <li>Support de multiples types de SGBD</li>
-                                <li>Détection et exploitation automatiques</li>
-                                <li>Extraction de données de base de données</li>
-                                <li>Accès au système de fichiers</li>
-                            </ul>
-                        </div>
-                    </div>
+                    <form method="post" action="{% url 'tools_admin' %}" class="mb-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="tool" value="SQLMap" />
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Options:</label>
+                                <select class="form-select form-select-sm" name="option" required>
+                                    {% for value, label in sqlmap_options %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="sqlmap_options" class="form-label fw-bold small">Cible:</label>
+                                <select class="form-select form-select-sm" id="sqlmap_options" name="project_id" required>
+                                <option value="all">Tous les projets</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">
+                                        {{ project.name }} — 
+                                        {% if project.url %}{{ project.url }}{% else %}{{ project.ip_address }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play-fill me-1"></i>Exécuter
+                                </button>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#sqlmapDoc" aria-expanded="false">
+                                    <i class="bi bi-file-text me-1"></i>Documentation
+                                </button>
+                            </div>
+                            </div>
+                                <div class="collapse mt-3" id="sqlmapDoc">
+                                    <div class="card card-body bg-light small">
+                                        <h6>Documentation SQLMap</h6>
+                                        <p>SQLMap est un outil open source de test de pénétration qui automatise la détection et l'exploitation d'injection SQL.</p>
+                                        <p><strong>Fonctionnalités:</strong></p>
+                                        <ul>
+                                            <li>Support de multiples types de SGBD</li>
+                                            <li>Détection et exploitation automatiques</li>
+                                            <li>Extraction de données de base de données</li>
+                                            <li>Accès au système de fichiers</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -983,7 +1001,7 @@
                     <div class="col-md-1">
                         <label class="form-label d-block">&nbsp;</label>
                         <button class="btn btn-primary btn-sm" id="clearFilters">
-                            <i class="bi bi-x-circle"></i> Réinitialiser
+                            <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
                 </div>
@@ -1013,17 +1031,22 @@
                                                 {% with result=scan.nmap_results.first %}
                                                     {% if result %}
                                                         nmap {{ result.option }} {{ result.target }}
-                                                    {% else %}
-                                                        nmap {% if scan.project.ip_address %}{{ scan.project.ip_address }}{% else %}{{ scan.project.domain }}{% endif %}
                                                     {% endif %}
                                                 {% endwith %}
                                             {% elif scan.tool|upper == 'NIKTO' %}
-                                                {% with nikto_result=scan.nikto_results.first %}
-                                                    nikto -h {{ scan.project.url|default_if_none:scan.project.ip_address }}
-                                                    {% if nikto_result and nikto_result.option %}
-                                                        {{ nikto_result.option }}
+                                                {% with result=scan.nikto_results.first %}
+                                                    {% if result %}
+                                                        nikto -h {{ result.uri }}
                                                     {% endif %}
                                                 {% endwith %}
+                                            {% elif scan.tool|upper == 'SQLMAP' %}
+                                                {% with result=scan.sqlmap_result.first %}
+                                                    {% if result %}
+                                                        sqlmap {{ result.options_used }}
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                -
                                             {% endif %}
                                         </td>
                                         <td>{{ scan.project.url|default_if_none:scan.project.ip_address }}</td>
@@ -1042,6 +1065,19 @@
                                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalScan{{ scan.id }}">
                                                 <i class="bi bi-eye"></i> Voir
                                             </button>
+                                            {% if scan.tool|upper == 'NMAP' and scan.nmap_results.first %}
+                                                <a href="{% url 'download_nmap_report' scan.id %}" class="btn btn-success btn-sm">
+                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                                </a>
+                                            {% elif scan.tool|upper == 'NIKTO' and scan.nikto_results.first %}
+                                                <a href="{% url 'download_nikto_report' scan.id %}" class="btn btn-warning btn-sm">
+                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                                </a>
+                                            {% elif scan.tool|upper == 'SQLMAP' and scan.sqlmap_result.first %}
+                                                <a href="{% url 'sqlmap_report_pdf' scan.id %}" class="btn btn-danger btn-sm">
+                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                                </a>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -1055,127 +1091,89 @@
                     <!-- Après la fermeture de la table d'historique, ajoutez ceci -->
 
                     <!-- Modals pour chaque scan -->
-                    {% for scan in scans_history %}
-                        <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true">
-                            <div class="modal-dialog modal-xl">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-dark text-white">
-                                        <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
-                                            <i class="bi bi-search me-2"></i>
-                                            Détails du Scan {{ scan.tool }}
-                                        </h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        {% if scan.tool|upper == 'NMAP' %}
-                                            {% with result=scan.nmap_results.first %}
-                                                {% if result %}
-                                                    <!-- Informations générales -->
-                                                    <div class="card mb-4">
-                                                        <div class="card-header bg-primary text-white">
-                                                            <h6 class="mb-0">Informations générales</h6>
-                                                        </div>
-                                                        <div class="card-body">
-                                                            <div class="row">
-                                                                <div class="col-md-6">
-                                                                    <p><strong>Cible :</strong> {{ result.target }}</p>
-                                                                    <p><strong>Options :</strong> {{ result.option }}</p>
-                                                                    <p><strong>Commande :</strong> {{ result.command_used }}</p>
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    <p><strong>Début :</strong> {{ scan.start_time|date:"d/m/Y H:i:s" }}</p>
-                                                                    <p><strong>Fin :</strong> {{ scan.end_time|date:"d/m/Y H:i:s" }}</p>
-                                                                    <p><strong>Durée :</strong> {{ scan.duration|floatformat:2 }} secondes</p>
-                                                                </div>
+                        {% for scan in scans_history %}
+                            <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true">
+                                <div class="modal-dialog modal-xl">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-dark text-white">
+                                            <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
+                                                <i class="bi bi-search me-2"></i>
+                                                Détails du Scan {{ scan.tool }}
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            {% if scan.tool|upper == 'NMAP' %}
+                                                {% with result=scan.nmap_results.first %}
+                                                    {% if result %}
+                                                        <!-- Affiche ici les détails Nmap comme déjà fait -->
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% elif scan.tool|upper == 'NIKTO' %}
+                                                {% with result=scan.nikto_results.first %}
+                                                    {% if result %}
+                                                        <!-- Affiche ici les détails Nikto -->
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% elif scan.tool|upper == 'SQLMAP' %}
+                                                {% with result=scan.sqlmap_result.first %}
+                                                    {% if result %}
+                                                        <!-- Affiche ici les détails SQLMap -->
+                                                        <div class="card mb-4">
+                                                            <div class="card-header bg-primary text-white">
+                                                                <h6 class="mb-0">Informations générales</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <p><strong>Cible :</strong> {{ result.target_url }}</p>
+                                                                <p><strong>Commande :</strong> {{ result.options_used }}</p>
+                                                                <p><strong>Début :</strong> {{ scan.start_time|date:"d/m/Y H:i:s" }}</p>
+                                                                <p><strong>Fin :</strong> {{ scan.end_time|date:"d/m/Y H:i:s" }}</p>
                                                             </div>
                                                         </div>
-                                                    </div>
-
-                                                    <!-- Ports TCP -->
-                                                    {% if result.open_tcp_ports %}
-                                                    <div class="card mb-4">
-                                                        <div class="card-header bg-info text-white">
-                                                            <h6 class="mb-0">Ports TCP ouverts</h6>
-                                                        </div>
-                                                        <div class="card-body">
-                                                            <div class="table-responsive">
-                                                                <table class="table table-sm">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>Port</th>
-                                                                            <th>Service</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        {% for port in result.open_tcp_ports.split %}
-                                                                            <tr>
-                                                                                <td>{{ port|split:"/"|first }}</td>
-                                                                                <td>{{ port|split:"/"|last }}</td>
-                                                                            </tr>
-                                                                        {% endfor %}
-                                                                    </tbody>
-                                                                </table>
+                                                        <div class="card mb-4">
+                                                            <div class="card-header bg-danger text-white">
+                                                                <h6 class="mb-0">Vulnérabilité détectée</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                {% if result.is_vulnerable %}
+                                                                    <span class="badge bg-danger">VULNÉRABLE</span>
+                                                                    <ul>
+                                                                        <li><strong>Type d'injection :</strong> {{ result.injection_type }}</li>
+                                                                        <li><strong>DBMS :</strong> {{ result.dbms }}</li>
+                                                                        <li><strong>Payloads :</strong>
+                                                                            <ul>
+                                                                            {% for payload in result.payloads.splitlines %}
+                                                                                <li><code>{{ payload }}</code></li>
+                                                                            {% empty %}
+                                                                                <li>Aucun</li>
+                                                                            {% endfor %}
+                                                                            </ul>
+                                                                        </li>
+                                                                    </ul>
+                                                                {% else %}
+                                                                    <span class="badge bg-success">Aucune vulnérabilité détectée</span>
+                                                                {% endif %}
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                        <div class="card">
+                                                            <div class="card-header bg-secondary text-white">
+                                                                <h6 class="mb-0">Sortie complète</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <pre class="bg-light p-3 rounded"><code>{{ result.raw_output }}</code></pre>
+                                                            </div>
+                                                        </div>
                                                     {% endif %}
-
-                                                    <!-- Détection OS -->
-                                                    {% if result.os_detected %}
-                                                    <div class="card mb-4">
-                                                        <div class="card-header bg-success text-white">
-                                                            <h6 class="mb-0">Système d'exploitation détecté</h6>
-                                                        </div>
-                                                        <div class="card-body">
-                                                            <p><strong>OS :</strong> {{ result.os_detected }}</p>
-                                                            <p><strong>Précision :</strong> {{ result.os_accuracy }}%</p>
-                                                        </div>
-                                                    </div>
-                                                    {% endif %}
-
-                                                    <!-- Scripts -->
-                                                    {% if result.script_results %}
-                                                    <div class="card mb-4">
-                                                        <div class="card-header bg-warning text-dark">
-                                                            <h6 class="mb-0">Résultats des scripts</h6>
-                                                        </div>
-                                                        <div class="card-body">
-                                                            <pre>{{ result.script_results }}</pre>
-                                                        </div>
-                                                    </div>
-                                                    {% endif %}
-
-                                                    <!-- Sortie brute -->
-                                                    <div class="card">
-                                                        <div class="card-header bg-secondary text-white">
-                                                            <h6 class="mb-0">Sortie complète</h6>
-                                                        </div>
-                                                        <div class="card-body">
-                                                            <pre class="bg-light p-3 rounded"><code>{{ result.full_output }}</code></pre>
-                                                        </div>
-                                                    </div>
-                                                {% else %}
-                                                    <p class="text-muted">Aucun résultat détaillé trouvé pour ce scan.</p>
-                                                {% endif %}
-                                            {% endwith %}
-                                        {% endif %}
-                                    </div>
-                                    <div class="modal-footer">
-                                        {% if scan.tool|upper == 'NMAP' %}
-                                            {% with result=scan.nmap_results.first %}
-                                                {% if result %}
-                                                    <a href="{% url 'download_nmap_report' scan.id %}" class="btn btn-success">
-                                                        <i class="bi bi-file-pdf me-1"></i>Télécharger le rapport
-                                                    </a>
-                                                {% endif %}
-                                            {% endwith %}
-                                        {% endif %}
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                {% endwith %}
+                                            {% endif %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
                 </div>
                 
                 <!-- Pagination -->

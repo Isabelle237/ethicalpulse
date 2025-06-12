@@ -1,4 +1,5 @@
-{% extends 'admin/admin_base.html' %}
+
+{% extends "admin/admin_base.html" %}
 
 {% block title %}Gestion des projets - Ethical Pulse Shield{% endblock %}
 
@@ -25,19 +26,37 @@
 
     <div class="admin-card card mb-4">
         <div class="card-header bg-white">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <ul class="nav nav-tabs card-header-tabs">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#">Tous les projets</a>
-                        </li>
-                    </ul>
-                </div>
+            <div class="row align-items-center g-3">
                 <div class="col-md-4">
                     <div class="input-group">
-                        <input type="text" id="searchInput" class="form-control" placeholder="Rechercher..." aria-label="Rechercher des projets">
-                        <button class="btn btn-outline-secondary" type="button" aria-label="Rechercher des projets">
+                        <span class="input-group-text bg-transparent">
                             <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Rechercher un projet...">
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="d-flex gap-2">
+                        <select class="form-select" id="typeFilter">
+                            <option value="">Tous les types</option>
+                            {% for value, label in form.project_type.field.choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">Tous les statuts</option>
+                            <option value="active">Actif</option>
+                            <option value="inactive">Inactif</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group w-100">
+                        <button type="button" class="btn btn-outline-primary active" id="listViewBtn">
+                            <i class="bi bi-list-ul"></i> Liste
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="gridViewBtn">
+                            <i class="bi bi-grid-3x3-gap"></i> Grille
                         </button>
                     </div>
                 </div>
@@ -102,6 +121,92 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+            <!-- Grid View -->
+            <div id="gridView" class="row g-4 p-4" style="display: none;">
+                {% for project in projects %}
+                <div class="col-xl-3 col-lg-4 col-md-6 project-grid-item"
+                    data-name="{{ project.name|lower }}"
+                    data-type="{{ project.project_type|lower }}"
+                    data-domain="{{ project.domain|lower }}"
+                    data-status="{{ project.is_active|yesno:'active,inactive' }}">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="project-icon me-3">
+                                    <i class="bi bi-folder2"></i>
+                                </div>
+                                <div>
+                                    <h5 class="card-title mb-0">{{ project.name }}</h5>
+                                    <small class="text-muted">{{ project.get_project_type_display }}</small>
+                                </div>
+                            </div>
+                            <div class="project-info-grid">
+                                <div class="project-info-item">
+                                    <span class="text-muted">Domaine</span>
+                                    <span>{{ project.domain|default:"N/A" }}</span>
+                                </div>
+                                <div class="project-info-item">
+                                    <span class="text-muted">IP</span>
+                                    <span>{{ project.ip_address|default:"N/A" }}</span>
+                                </div>
+                                <div class="project-info-item">
+                                    <span class="text-muted">Créé le</span>
+                                    <span>{{ project.created_at|date:"d/m/Y" }}</span>
+                                </div>
+                                <div class="project-info-item">
+                                    <span class="text-muted">URL</span>
+                                    <span>{{ project.url|default:"N/A" }}</span>
+                                </div>
+                                
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary flex-grow-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editProjectModal"
+                                        data-project-id="{{ project.id }}">
+                                    <i class="bi bi-pencil"></i> Éditer
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger flex-grow-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteProjectModal"
+                                        data-project-id="{{ project.id }}">
+                                    <i class="bi bi-trash"></i> Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            <div class="card-footer bg-white border-0">
+                <nav aria-label="Navigation des pages" id="pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if projects.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="javascript:void(0)" data-page="{{ projects.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in projects.paginator.page_range %}
+                        <li class="page-item {% if projects.number == num %}active{% endif %}">
+                            <a class="page-link" href="javascript:void(0)" data-page="{{ num }}">{{ num }}</a>
+                        </li>
+                        {% endfor %}
+
+                        {% if projects.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="javascript:void(0)" data-page="{{ projects.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
         </div>
     </div>
@@ -279,6 +384,94 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const tableView = document.querySelector('.table-responsive');
+    const gridView = document.getElementById('gridView');
+    const pagination = document.getElementById('pagination');
+
+    // View Toggle
+    function toggleView(showGrid) {
+        if (showGrid) {
+            tableView.style.display = 'none';
+            gridView.style.display = 'flex';
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+        } else {
+            tableView.style.display = 'block';
+            gridView.style.display = 'none';
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+        }
+        localStorage.setItem('projectViewPreference', showGrid ? 'grid' : 'list');
+    }
+
+    // Load Projects with AJAX
+    async function loadProjects(page = 1) {
+        const searchTerm = searchInput.value;
+        const type = typeFilter.value;
+        const status = statusFilter.value;
+
+        try {
+            const response = await fetch(`/projects/api/?page=${page}&search=${searchTerm}&type=${type}&status=${status}`);
+            const data = await response.json();
+            
+            // Update table/grid content
+            updateContent(data);
+            
+            // Update pagination
+            updatePagination(data.pagination);
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    // Filter Function
+    function filterProjects() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const typeValue = typeFilter.value.toLowerCase();
+        const statusValue = statusFilter.value.toLowerCase();
+
+        document.querySelectorAll('tbody tr, .project-grid-item').forEach(item => {
+            const matchesSearch = item.textContent.toLowerCase().includes(searchTerm);
+            const matchesType = !typeValue || item.dataset.type === typeValue;
+            const matchesStatus = !statusValue || item.dataset.status === statusValue;
+
+            item.style.display = matchesSearch && matchesType && matchesStatus ? '' : 'none';
+        });
+    }
+
+    // Event Listeners
+    listViewBtn.addEventListener('click', () => toggleView(false));
+    gridViewBtn.addEventListener('click', () => toggleView(true));
+    
+    searchInput.addEventListener('input', filterProjects);
+    typeFilter.addEventListener('change', filterProjects);
+    statusFilter.addEventListener('change', filterProjects);
+
+    // Pagination click handling
+    pagination.addEventListener('click', (e) => {
+        if (e.target.classList.contains('page-link')) {
+            e.preventDefault();
+            const page = e.target.dataset.page;
+            if (page) {
+                loadProjects(page);
+            }
+        }
+    });
+
+    // Initialize view preference
+    const savedView = localStorage.getItem('projectViewPreference');
+    toggleView(savedView === 'grid');
+
+    // Initial load
+    loadProjects(1);
+});
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize Bootstrap Tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

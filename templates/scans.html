@@ -1,5 +1,6 @@
 
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
+{% load scan_filters %}
 
 {% block title %}Scans de sécurité | Ethical Pulse Shield{% endblock %}
 
@@ -39,534 +40,1509 @@
 
     <!-- Contenu des onglets -->
     <div class="tab-content">
+        {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Onglet Actifs -->
         <div class="tab-pane fade show active" id="active" role="tabpanel">
-            <div class="mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="mb-2">Statut des scans</h4>
+                <p class="text-secondary">Suivez vos scans de sécurité récents et planifiés</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary btn-sm me-2">Historique</button>
+                <button class="btn btn-primary btn-sm">
+                    <i class="bi bi-play-fill me-1"></i> Nouveau scan
+                </button>
+            </div>
+        </div>
+
+        <div class="scan-list">
+            {% for scan in active_scans %}
+            <div class="card mb-3" id="scan-{{ scan.id }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-2">Statut des scans</h4>
-                        <p class="text-secondary">Suivez vos scans de sécurité récents et planifiés</p>
+                        <h5 class="mb-0 d-flex align-items-center">
+                            {% if scan.tool|upper == 'NMAP' %}
+                                <i class="bi bi-diagram-3 me-2"></i>
+                            {% elif scan.tool|upper == 'NIKTO' %}
+                                <i class="bi bi-shield-check me-2"></i>
+                            {% elif scan.tool|upper == 'SQLMAP' %}
+                                <i class="bi bi-database-gear me-2"></i>
+                            {% elif scan.tool|upper == 'ZAP' %}
+                                <i class="bi bi-bug me-2"></i>
+                            {% else %}
+                                <i class="bi bi-tools me-2"></i>
+                            {% endif %}
+                            {{ scan.name }}
+                        </h5>
+                        <div class="text-secondary small">
+                            <i class="bi bi-gear-fill me-1"></i>{{ scan.get_tool_display|default:scan.tool }}
+                        </div>
                     </div>
-                    <div>
-                        <button class="btn btn-outline-secondary btn-sm me-2">Historique</button>
-                        <button class="btn btn-primary btn-sm">
-                            <i class="bi bi-play-fill me-1"></i> Nouveau scan
-                        </button>
+                    <span class="badge 
+                        {% if scan.status == 'completed' %}bg-success
+                        {% elif scan.status == 'scheduled' %}bg-primary
+                        {% elif scan.status == 'in_progress' %}bg-warning text-dark
+                        {% elif scan.status == 'failed' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        <i class="bi 
+                            {% if scan.status == 'completed' %}bi-check-circle
+                            {% elif scan.status == 'scheduled' %}bi-calendar
+                            {% elif scan.status == 'in_progress' %}bi-arrow-repeat
+                            {% elif scan.status == 'failed' %}bi-x-circle
+                            {% else %}bi-dash-circle{% endif %} me-1"></i>
+                        {{ scan.get_status_display|default:scan.status }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-folder me-2 text-primary"></i>
+                                <div>
+                                    <div class="text-secondary small">Projet associé</div>
+                                    <div>{{ scan.project.name }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person me-2 text-primary"></i>
+                                <div>
+                                    <div class="text-secondary small">Lancé par</div>
+                                    <div>{{ scan.created_by.get_full_name|default:scan.created_by.username }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-bullseye me-2 text-primary"></i>
+                                <div>
+                                    <div class="text-secondary small">Cible</div>
+                                    <div>
+                                        {{ scan.target_ip|default:scan.project.url|default:scan.project.ip_address }}
+                                        {% if scan.target_url %}
+                                            <span class="text-secondary">({{ scan.target_url }})</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-terminal me-2 text-primary"></i>
+                                <div>
+                                    <div class="text-secondary small">Commande exécutée</div>
+                                    <div class="command-preview">
+                                        {% if scan.tool|upper == 'NMAP' %}
+                                            <code>nmap {{ scan.get_nmap_command }}</code>
+                                        {% elif scan.tool|upper == 'NIKTO' %}
+                                            <code>nikto {{ scan.get_nikto_command }}</code>
+                                        {% elif scan.tool|upper == 'SQLMAP' %}
+                                            <code>sqlmap {{ scan.get_sqlmap_command }}</code>
+                                        {% elif scan.tool|upper == 'ZAP' %}
+                                            <code>zap-cli {{ scan.get_zap_command }}</code>
+                                        {% else %}
+                                            <code>{{ scan.command|default:"-" }}</code>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if scan.status == 'in_progress' %}
+                    <div class="mt-4">
+                        <div class="progress-info d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-secondary">Progression du scan</span>
+                            <span class="progress-percentage" data-progress="{{ scan.id }}">{{ scan.progress|default:"0" }}%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 role="progressbar"
+                                 data-progress-bar="{{ scan.id }}"
+                                 style="width: {{ scan.progress|default:0 }}%"
+                                 aria-valuenow="{{ scan.progress|default:0 }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 small text-secondary">
+                            <span>Début : {{ scan.start_time|date:"H:i d/m/Y" }}</span>
+                            <span data-elapsed-time="{{ scan.id }}">
+                                Temps écoulé : {{ scan.get_elapsed_time }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-secondary">
+                            {% if scan.vulnerability_count %}
+                                <span class="me-3">
+                                    <i class="bi bi-shield-fill-exclamation me-1"></i>
+                                    {{ scan.vulnerability_count }} vulnérabilités détectées
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            {% if scan.status == 'in_progress' %}
+                                <form method="post" action="{% url 'stop_scan' scan.id %}" 
+                                      onsubmit="return confirm('Êtes-vous sûr de vouloir arrêter ce scan ?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="bi bi-stop-fill me-1"></i>Arrêter
+                                    </button>
+                                </form>
+                            {% elif scan.status == 'scheduled' %}
+                                <button class="btn btn-outline-primary btn-sm" 
+                                        onclick="editScan({{ scan.id }})">
+                                    <i class="bi bi-pencil me-1"></i>Modifier
+                                </button>
+                                <button class="btn btn-primary btn-sm start-scan-btn" 
+                                        data-scan-id="{{ scan.id }}">
+                                    <i class="bi bi-play-fill me-1"></i>Lancer
+                                </button>
+                            {% elif scan.status == 'completed' %}
+                                <a href="{% url 'download_sqlmap_report' scan.id %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-file-text me-1"></i>Rapport
+                                </a>
+                                <button class="btn btn-primary btn-sm" 
+                                        onclick="relaunchScan({{ scan.id }})">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Relancer
+                                </button>
+                            {% endif %}
+                            <form method="post" action="{% url 'delete_scan' scan.id %}" 
+                                  class="d-inline"
+                                  onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce scan ?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash me-1"></i>Supprimer
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="bi bi-search display-4 text-secondary mb-3"></i>
+                <p class="text-muted mb-0">Aucun scan actif pour le moment.</p>
+                <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#newScanModal">
+                    <i class="bi bi-plus-circle me-2"></i>Lancer un nouveau scan
+                </button>
+            </div>
+            {% endfor %}
+        </div>
 
-                <!-- Liste des scans actifs -->
-                <div class="scan-list">
-                    {% for scan in scans %}
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="mb-0">{{ scan.name }}</h5>
-                                    <small class="text-secondary">{{ scan.scan_type }}</small>
-                                </div>
-                                {% if scan.status == 'completed' %}
-                                <span class="badge bg-success">Terminé</span>
-                                {% elif scan.status == 'scheduled' %}
-                                <span class="badge bg-primary">Planifié</span>
-                                {% elif scan.status == 'in_progress' %}
-                                <span class="badge bg-warning">En cours</span>
-                                {% elif scan.status == 'failed' %}
-                                <span class="badge bg-danger">Échoué</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Inconnu</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            {% if scan.status == 'in_progress' %}
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Progression</span>
-                                    <span class="progress-value" data-scan-id="{{ scan.id }}">0%</span>
-                                </div>
-                                <div class="progress mb-2">
-                                    <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-{{ scan.id }}"></div>
-                                </div>
-                                <div class="d-flex justify-content-between small text-secondary">
-                                    <span>Début: {{ scan.start_time|date:"H:i d/m/Y" }}</span>
-                                    <span>Fin estimée: {{ scan.start_time|date:"H:i d/m/Y" }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
 
-                            <div class="row">
-                                {% if scan.status == 'completed' %}
-                                <div class="col-md-3 mb-3">
-                                    <p class="text-secondary mb-1">Dernier scan</p>
-                                    <p>{{ scan.end_time|date:"H:i d/m/Y" }}</p>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <p class="text-secondary mb-1">Durée</p>
-                                    <p>
-                                        {% if scan.start_time and scan.end_time %}
-                                        {{ scan.duration|default:"45" }} minutes
-                                        {% else %}
-                                        45 minutes
-                                        {% endif %}
-                                    </p>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <p class="text-secondary mb-1">Résultats</p>
-                                    <p>
-                                        {% if scan.findings_summary %}
-                                        {{ scan.findings_summary.critical }} critiques, {{ scan.findings_summary.high }} élevées, {{ scan.findings_summary.medium }} moyennes
-                                        {% else %}
-                                        2 critiques, 5 élevées, 8 moyennes
-                                        {% endif %}
-                                    </p>
-                                </div>
-                                {% endif %}
-
-                                {% if scan.status == 'scheduled' %}
-                                <div class="col-md-4 mb-3">
-                                    <p class="text-secondary mb-1">Dernier scan</p>
-                                    <p>{{ scan.created_at|date:"H:i d/m/Y" }}</p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <p class="text-secondary mb-1">Prochain scan</p>
-                                    <p>{{ scan.next_scan|default:"Demain, 03:30"|safe }}</p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <p class="text-secondary mb-1">Résultats précédents</p>
-                                    <p>0 critiques, 3 élevées, 5 moyennes</p>
-                                </div>
-                                {% endif %}
-
-                                {% if scan.status == 'in_progress' %}
-                                <div class="col-md-6 mb-3">
-                                    <p class="text-secondary mb-1">Cible</p>
-                                    <p>{{ scan.target_url }}</p>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <p class="text-secondary mb-1">Type de scan</p>
-                                    <p>{{ scan.scan_type }}</p>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="card-footer bg-white border-top">
-                            <div class="d-flex justify-content-end">
-                                {% if scan.status == 'in_progress' %}
-                                <button class="btn btn-outline-danger btn-sm">Arrêter</button>
-                                {% endif %}
-                                
-                                {% if scan.status == 'scheduled' %}
-                                <button class="btn btn-outline-secondary btn-sm me-2">Modifier</button>
-                                <button class="btn btn-primary btn-sm start-scan-btn" data-scan-id="{{ scan.id }}">Lancer maintenant</button>
-                                {% endif %}
-                                
-                                {% if scan.status == 'completed' %}
-                                <button class="btn btn-outline-secondary btn-sm me-2">Rapport</button>
-                                <button class="btn btn-primary btn-sm">Relancer</button>
-                                {% endif %}
-                            </div>
-                        </div>
+        <!-- filepath: /home/kengni/EthicalPulse/templates/scans/includes/scan_list.html -->
+<div class="scan-list">
+    {% for scan in scans %}
+    <div class="card mb-3" id="scan-{{ scan.id }}">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0 d-flex align-items-center">
+                        {% if scan.tool|upper == 'NMAP' %}
+                            <i class="bi bi-diagram-3 me-2"></i>
+                        {% elif scan.tool|upper == 'NIKTO' %}
+                            <i class="bi bi-shield-check me-2"></i>
+                        {% elif scan.tool|upper == 'ZAP' %}
+                            <i class="bi bi-bug me-2"></i>
+                        {% else %}
+                            <i class="bi bi-tools me-2"></i>
+                        {% endif %}
+                        {{ scan.name }}
+                    </h5>
+                    <div class="text-secondary small">
+                        <i class="bi bi-gear-fill me-1"></i>{{ scan.get_tool_display }}
+                        {% if scan.scheduled_scan %}
+                        <span class="ms-2">
+                            <i class="bi bi-calendar-event me-1"></i>Planifié
+                        </span>
+                        {% endif %}
                     </div>
-                    {% endfor %}
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge me-2
+                        {% if scan.status == 'completed' %}bg-success
+                        {% elif scan.status == 'scheduled' %}bg-primary
+                        {% elif scan.status == 'in_progress' %}bg-warning
+                        {% elif scan.status == 'failed' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        <i class="bi {% if scan.status == 'completed' %}bi-check-circle
+                                    {% elif scan.status == 'scheduled' %}bi-calendar
+                                    {% elif scan.status == 'in_progress' %}bi-arrow-repeat
+                                    {% elif scan.status == 'failed' %}bi-x-circle
+                                    {% else %}bi-dash-circle{% endif %} me-1"></i>
+                        {{ scan.get_status_display }}
+                    </span>
                 </div>
             </div>
         </div>
+
+        <div class="card-body">
+            {% if scan.status == 'in_progress' %}
+            <div class="mb-4">
+                <div class="progress-info d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-secondary">Progression du scan</span>
+                    <span class="progress-percentage" data-progress="{{ scan.id }}">{{ scan.progress|default:"0" }}%</span>
+                </div>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar"
+                         data-progress-bar="{{ scan.id }}"
+                         style="width: {{ scan.progress|default:0 }}%"
+                         aria-valuenow="{{ scan.progress|default:0 }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2 small text-secondary">
+                    <span>Début : {{ scan.start_time|date:"H:i d/m/Y" }}</span>
+                    <span data-elapsed-time="{{ scan.id }}">
+                        Temps écoulé : {{ scan.get_elapsed_time }}
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-folder me-2 text-primary"></i>
+                        <div>
+                            <div class="text-secondary small">Projet associé</div>
+                            <div>{{ scan.project.name }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-terminal me-2 text-primary"></i>
+                        <div>
+                            <div class="text-secondary small">Commande exécutée</div>
+                            <div class="command-preview">
+                                {% if scan.tool|upper == 'NMAP' %}
+                                    <code>nmap {{ scan.get_nmap_command }}</code>
+                                {% elif scan.tool|upper == 'NIKTO' %}
+                                    <code>nikto {{ scan.get_nikto_command }}</code>
+                                {% elif scan.tool|upper == 'ZAP' %}
+                                    <code>zap-cli {{ scan.get_zap_command }}</code>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-bullseye me-2 text-primary"></i>
+                        <div>
+                            <div class="text-secondary small">Cible</div>
+                            <div>
+                                {{ scan.target_ip }}
+                                {% if scan.target_url %}
+                                    <span class="text-secondary">({{ scan.target_url }})</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person me-2 text-primary"></i>
+                        <div>
+                            <div class="text-secondary small">Lancé par</div>
+                            <div>{{ scan.created_by.get_full_name|default:scan.created_by.username }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if scan.status == 'completed' %}
+                <div class="col-12">
+                    <div class="completion-info bg-light rounded p-3">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="text-secondary small">Durée totale</div>
+                                <div><strong>{{ scan.get_formatted_duration }}</strong></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-secondary small">Début</div>
+                                <div>{{ scan.start_time|date:"H:i d/m/Y" }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-secondary small">Fin</div>
+                                <div>{{ scan.end_time|date:"H:i d/m/Y" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if scan.status == 'failed' and scan.error_log %}
+                <div class="col-12">
+                    <div class="alert alert-danger mb-0">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Erreur détectée
+                        </h6>
+                        <pre class="error-log mb-0 mt-2">{{ scan.error_log }}</pre>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-footer bg-light border-top">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="small text-secondary">
+                    {% if scan.vulnerability_count %}
+                        <span class="me-3">
+                            <i class="bi bi-shield-fill-exclamation me-1"></i>
+                            {{ scan.vulnerability_count }} vulnérabilités détectées
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <div class="btn-group">
+                    {% if scan.status == 'in_progress' %}
+                        <form method="post" action="{% url 'stop_scan' scan.id %}" 
+                              onsubmit="return confirm('Êtes-vous sûr de vouloir arrêter ce scan ?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning btn-sm">
+                                <i class="bi bi-stop-fill me-1"></i>Arrêter
+                            </button>
+                        </form>
+                    {% elif scan.status == 'scheduled' %}
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="editScan({{ scan.id }})">
+                            <i class="bi bi-pencil me-1"></i>Modifier
+                        </button>
+                        <button class="btn btn-primary btn-sm start-scan-btn" 
+                                data-scan-id="{{ scan.id }}">
+                            <i class="bi bi-play-fill me-1"></i>Lancer
+                        </button>
+                    {% elif scan.status == 'completed' %}
+                        <a href="{% url 'scan_report' scan.id %}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-text me-1"></i>Rapport
+                        </a>
+                        <button class="btn btn-primary btn-sm" 
+                                onclick="relaunchScan({{ scan.id }})">
+                            <i class="bi bi-arrow-repeat me-1"></i>Relancer
+                        </button>
+                    {% endif %}
+                    
+                    <form method="post" action="{% url 'delete_scan' scan.id %}" 
+                          class="d-inline"
+                          onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce scan ?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash me-1"></i>Supprimer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5">
+        <i class="bi bi-search display-4 text-secondary mb-3"></i>
+        <p class="text-muted mb-0">Aucun scan actif pour le moment.</p>
+        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#newScanModal">
+            <i class="bi bi-plus-circle me-2"></i>Lancer un nouveau scan
+        </button>
+    </div>
+    {% endfor %}
+</div>
+
+    </div>
+</div>
+
 
         <!-- Onglet Planifiés -->
-        <div class="tab-pane fade" id="scheduled" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Scans planifiés</h5>
-                    <p class="mb-0 text-secondary">Visualisez et gérez vos scans automatiques programmés</p>
+<!-- filepath: /home/kengni/EthicalPulse/templates/scans/includes/scheduled_scans.html -->
+ <div class="tab-pane fade" id="scheduled" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-check me-2"></i>Scans planifiés
+                    <span class="badge bg-primary ms-2">{{ scheduled_scans.count }}</span>
+                </h5>
+                <p class="mb-0 text-secondary">Gérez vos scans automatiques et leur planification</p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleScanModal">
+                <i class="bi bi-plus-circle me-2"></i>Nouveau scan planifié
+            </button>
+        </div>
+
+        <div class="card-body">
+            <div class="scheduled-scan-list">
+                {% for scan in scheduled_scans %}
+                <div class="card mb-3 border {% if not scan.is_active %}border-secondary{% endif %}" 
+                     id="scheduled-scan-{{ scan.id }}">
+                    <div class="card-header bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="scan-icon me-3">
+                                    {% if scan.tool == 'ZAP' %}
+                                        <i class="bi bi-bug-fill fs-4 text-warning"></i>
+                                    {% elif scan.tool == 'NMAP' %}
+                                        <i class="bi bi-diagram-3-fill fs-4 text-info"></i>
+                                    {% elif scan.tool == 'NIKTO' %}
+                                        <i class="bi bi-shield-fill-check fs-4 text-success"></i>
+                                    {% else %}
+                                        <i class="bi bi-tools fs-4 text-primary"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <h5 class="mb-1">{{ scan.name }}</h5>
+                                    <p class="text-secondary mb-0">
+                                        {{ scan.get_tool_display }} - {{ scan.get_frequency_display }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="badge {% if scan.is_active %}bg-success{% else %}bg-secondary{% endif %} 
+                                        d-flex align-items-center p-2">
+                                <i class="bi {% if scan.is_active %}bi-play-circle{% else %}bi-pause-circle{% endif %} me-1"></i>
+                                {{ scan.is_active|yesno:"Actif,Inactif" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Prochaine exécution</div>
+                                    <div class="fw-bold">{{ scan.next_run_time|date:"d/m/Y H:i" }}</div>
+                                    <div class="small text-primary mt-1" 
+                                         data-remaining-time 
+                                         data-scan-id="{{ scan.id }}">
+                                        <i class="bi bi-clock me-1"></i>
+                                        {{ scan.get_remaining_time }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Projet cible</div>
+                                    <div class="fw-bold">{{ scan.target.name }}</div>
+                                    <div class="small text-secondary mt-1">
+                                        <i class="bi bi-link-45deg me-1"></i>
+                                        {{ scan.target.url|default:"Pas d'URL" }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Dernière exécution</div>
+                                    <div class="fw-bold">
+                                        {% if scan.last_run %}
+                                            {{ scan.last_run|date:"d/m/Y H:i" }}
+                                            <div class="small text-{% if scan.last_scan_status == 'success' %}success{% else %}danger{% endif %} mt-1">
+                                                <i class="bi bi-circle-fill me-1"></i>
+                                                {{ scan.get_last_scan_status_display }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Jamais exécuté</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-between align-items-center">
+                            <div class="small text-muted">
+                                <i class="bi bi-person me-1"></i>
+                                Créé par {{ scan.created_by.get_full_name|default:scan.created_by.username }}
+                                le {{ scan.created_at|date:"d/m/Y" }}
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form method="post" action="{% url 'toggle_scheduled_scan' scan.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" 
+                                            class="btn btn-sm {% if scan.is_active %}btn-warning{% else %}btn-success{% endif %}"
+                                            title="{{ scan.is_active|yesno:'Suspendre,Activer' }} le scan">
+                                        <i class="bi {% if scan.is_active %}bi-pause-fill{% else %}bi-play-fill{% endif %}"></i>
+                                        {{ scan.is_active|yesno:"Suspendre,Activer" }}
+                                    </button>
+                                </form>
+                                
+                                <button type="button" 
+                                        class="btn btn-sm btn-primary" 
+                                        onclick="runScheduledScanNow({{ scan.id }})"
+                                        title="Lancer le scan maintenant">
+                                    <i class="bi bi-play-fill"></i> Exécuter
+                                </button>
+
+                                <button type="button" 
+                                        class="btn btn-sm btn-info"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editScheduledScanModal"
+                                        data-scan-id="{{ scan.id }}"
+                                        title="Modifier la configuration">
+                                    <i class="bi bi-gear-fill"></i> Configuration
+                                </button>
+
+                                <form method="post" 
+                                      action="{% url 'delete_scheduled_scan' scan.id %}" 
+                                      class="d-inline" 
+                                      onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce scan planifié ?')">
+                                    {% csrf_token %}
+                                    <button type="submit" 
+                                            class="btn btn-sm btn-danger"
+                                            title="Supprimer le scan">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="scheduled-scan-list">
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Scan complet hebdomadaire</h5>
-                                        <p class="text-secondary mb-0">Tous les lundis à 01:00</p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            <i class="bi bi-gear-fill me-1"></i> Modifier
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Lancer
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Type</p>
-                                        <p class="mb-0">Scan complet</p>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Cibles</p>
-                                        <p class="mb-0">Toutes les applications</p>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Prochain scan</p>
-                                        <p class="mb-0">Lundi 19 avril, 01:00</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Scan API journalier</h5>
-                                        <p class="text-secondary mb-0">Tous les jours à 03:30</p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            <i class="bi bi-gear-fill me-1"></i> Modifier
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Lancer
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Type</p>
-                                        <p class="mb-0">Scan ciblé</p>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Cibles</p>
-                                        <p class="mb-0">API Gateway, Auth Service</p>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Prochain scan</p>
-                                        <p class="mb-0">Demain, 03:30</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button class="btn btn-outline-primary w-100 p-3 dashed-border">
-                            <i class="bi bi-plus-circle me-2"></i>
-                            Ajouter une planification
+                {% empty %}
+                <div class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="bi bi-calendar-plus display-1 text-muted mb-3"></i>
+                        <h5>Aucun scan planifié</h5>
+                        <p class="text-muted mb-3">Commencez par créer votre premier scan planifié</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleScanModal">
+                            <i class="bi bi-plus-circle me-2"></i>Créer un scan planifié
                         </button>
                     </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
+    </div>
+</div>
+
 
         <!-- Onglet Terminés -->
-        <div class="tab-pane fade" id="completed" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Scans terminés</h5>
-                    <p class="mb-0 text-secondary">Historique des scans de sécurité précédents</p>
-                </div>
-                <div class="card-body">
-                    <div class="completed-scan-list">
-                        {% for i in "12345" %}
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">
-                                            {% if forloop.counter|divisibleby:2 %}
-                                                Scan ciblé
-                                            {% else %}
-                                                Scan complet
-                                                {% if forloop.first %}
-                                                (problèmes détectés)
-                                                {% endif %}
-                                            {% endif %}
-                                        </h5>
-                                        <p class="text-secondary mb-0">
-                                            {% if forloop.first %}
-                                                Aujourd'hui
-                                            {% elif forloop.counter == 2 %}
-                                                Hier
-                                            {% else %}
-                                                Il y a {{ forloop.counter|add:"1" }} jours
-                                            {% endif %},
-                                            {{ forloop.counter|add:"13" }}:{{ forloop.counter|add:"25" }}
-                                        </p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            Rapport
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Relancer
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Durée</p>
-                                        <p class="mb-0">{{ forloop.counter|add:"25" }} minutes</p>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Vulnérabilités</p>
-                                        <div>
-                                            {% if forloop.first %}
-                                            <p class="mb-0">
-                                                <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
-                                                2 critiques, 5 élevées
-                                            </p>
-                                            {% elif forloop.counter == 2 %}
-                                            <p class="mb-0">3 élevées, 7 moyennes</p>
-                                            {% else %}
-                                            <p class="mb-0">{{ forloop.counter|add:"2" }} moyennes/faibles</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <p class="text-secondary mb-1">Cibles</p>
-                                        <p class="mb-0">
-                                            {% if forloop.counter|divisibleby:3 %}
-                                                Toutes les applications
-                                            {% elif forloop.counter|divisibleby:3 == 1 %}
-                                                API Gateway, Auth Service
-                                            {% else %}
-                                                Frontend, Database
-                                            {% endif %}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+<div class="tab-pane fade" id="completed" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-check-circle me-2"></i>Scans terminés
+                    <span class="badge bg-secondary ms-2">{{ completed_scans.count }}</span>
+                </h5>
+                <p class="mb-0 text-secondary">Historique des scans de sécurité précédents</p>
             </div>
         </div>
+        <div class="card-body">
+            <div class="completed-scan-list">
+                {% for scan in completed_scans %}
+                <div class="card mb-3 border {% if scan.has_critical_vulnerabilities %}border-danger{% endif %}" id="completed-scan-{{ scan.id }}">
+                    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="scan-icon me-3">
+                                {% if scan.tool|upper == 'ZAP' %}
+                                    <i class="bi bi-bug-fill fs-4 text-warning"></i>
+                                {% elif scan.tool|upper == 'NMAP' %}
+                                    <i class="bi bi-diagram-3-fill fs-4 text-info"></i>
+                                {% elif scan.tool|upper == 'NIKTO' %}
+                                    <i class="bi bi-shield-fill-check fs-4 text-success"></i>
+                                {% elif scan.tool|upper == 'SQLMAP' %}
+                                    <i class="bi bi-database-gear fs-4 text-danger"></i>
+                                {% else %}
+                                    <i class="bi bi-tools fs-4 text-primary"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h5 class="mb-1">{{ scan.name }}</h5>
+                                <p class="text-secondary mb-0">
+                                    {{ scan.get_tool_display|default:scan.tool }} -
+                                    <span title="{{ scan.end_time|date:'d/m/Y H:i' }}">
+                                        {{ scan.end_time|timesince }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#completedScanDetailsModal{{ scan.id }}">
+                                <i class="bi bi-eye me-1"></i>Voir
+                            </button>
+                            {% if scan.tool|upper == 'NMAP' and scan.nmap_results.first %}
+                                <a href="{% url 'download_nmap_report' scan.id %}" class="btn btn-success btn-sm" target="_blank">
+                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                </a>
+                            {% elif scan.tool|upper == 'NIKTO' and scan.niktoresults.first %}
+                                <a href="{% url 'download_nikto_report' scan.id %}" class="btn btn-warning btn-sm" target="_blank">
+                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                </a>
+                            {% elif scan.tool|upper == 'SQLMAP' and scan.sqlmapresults.first %}
+                                <a href="{% url 'download_sqlmap_report' scan.id %}" class="btn btn-danger btn-sm" target="_blank">
+                                    <i class="bi bi-file-pdf me-1"></i>Rapport
+                                </a>
+                            {% endif %}
+                            <form method="post" action="{% url 'relaunch_scan' scan.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Relancer
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Durée</div>
+                                    <div class="fw-bold">{{ scan.get_formatted_duration }}</div>
+                                    <div class="small text-secondary mt-1">
+                                        {{ scan.start_time|date:"H:i" }} - {{ scan.end_time|date:"H:i" }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Vulnérabilités détectées</div>
+                                    <div class="fw-bold">
+                                        {% if scan.vulnerability_count %}
+                                            <span class="text-danger">{{ scan.vulnerability_count }}</span>
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </div>
+                                    <div class="small text-secondary mt-1">
+                                        <i class="bi bi-shield-fill me-1"></i>
+                                        {{ scan.get_risk_level_display|default:"-" }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Projet cible</div>
+                                    <div class="fw-bold">{{ scan.project.name }}</div>
+                                    <div class="small text-secondary mt-1">
+                                        <i class="bi bi-link-45deg me-1"></i>
+                                        {{ scan.project.url|default:scan.project.ip_address }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal détails du scan -->
+                <div class="modal fade" id="completedScanDetailsModal{{ scan.id }}" tabindex="-1" aria-labelledby="completedScanDetailsLabel{{ scan.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content bg-dark text-light">
+                            <div class="modal-header border-bottom border-secondary">
+                                <h5 class="modal-title" id="completedScanDetailsLabel{{ scan.id }}">
+                                    <i class="bi bi-search me-2"></i>Détails du scan {{ scan.tool }}
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                {% if scan.tool|upper == 'NMAP' %}
+                                    {% with result=scan.nmap_results.first %}
+                                        {% if result %}
+                                            <h6 class="mb-3">Cible : {{ result.target }}</h6>
+                                            <p><strong>Commande :</strong> {{ result.command_used }}</p>
+                                            <p><strong>Options :</strong> {{ result.option }}</p>
+                                            <p><strong>OS détecté :</strong> {{ result.os_detected }}</p>
+                                            <p><strong>Ports TCP ouverts :</strong><br>
+                                                <code>{{ result.open_tcp_ports|linebreaksbr }}</code>
+                                            </p>
+                                            <p><strong>Services détectés :</strong><br>
+                                                <code>{{ result.service_details|linebreaksbr }}</code>
+                                            </p>
+                                            <p><strong>Sortie brute :</strong></p>
+                                            <pre class="bg-light text-dark p-2 rounded">{{ result.full_output|truncatechars:2000 }}</pre>
+                                        {% else %}
+                                            <p class="text-muted">Aucun résultat Nmap trouvé.</p>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% elif scan.tool|upper == 'NIKTO' %}
+                                    {% with result=scan.niktoresults.first %}
+                                        {% if result %}
+                                            <h6 class="mb-3">Cible : {{ result.uri }}</h6>
+                                            <p><strong>Vulnérabilités :</strong><br>
+                                                <code>{{ result.vulnerability|linebreaksbr }}</code>
+                                            </p>
+                                            <p><strong>Serveur :</strong> {{ result.server }}</p>
+                                            <p><strong>SSL :</strong> {{ result.ssl_subject }} / {{ result.ssl_issuer }}</p>
+                                            <p><strong>Sortie brute :</strong></p>
+                                            <pre class="bg-light text-dark p-2 rounded">{{ result.nikto_raw_output|truncatechars:2000 }}</pre>
+                                        {% else %}
+                                            <p class="text-muted">Aucun résultat Nikto trouvé.</p>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% elif scan.tool|upper == 'SQLMAP' %}
+                                    {% with result=scan.sqlmapresults.first %}
+                                        {% if result %}
+                                            <h6 class="mb-3">Cible : {{ result.target_url|default:scan.project.url }}</h6>
+                                            <p><strong>Commande :</strong> {{ result.options_used }}</p>
+                                            <p><strong>Vulnérable :</strong>
+                                                {% if result.is_vulnerable %}
+                                                    <span class="badge bg-danger">Oui</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">Non</span>
+                                                {% endif %}
+                                            </p>
+                                            <p><strong>Type d'injection :</strong> {{ result.injection_type }}</p>
+                                            <p><strong>DBMS :</strong> {{ result.dbms }}</p>
+                                            <p><strong>Payloads :</strong><br>
+                                                <code>{{ result.payloads|linebreaksbr }}</code>
+                                            </p>
+                                            <p><strong>Sortie brute :</strong></p>
+                                            <pre class="bg-light text-dark p-2 rounded">{{ result.raw_output|truncatechars:2000 }}</pre>
+                                        {% else %}
+                                            <p class="text-muted">Aucun résultat SQLMap trouvé.</p>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    <p class="text-muted">Aucun détail disponible pour cet outil.</p>
+                                {% endif %}
+                            </div>
+                            <div class="modal-footer border-top border-secondary">
+                                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Fermer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="bi bi-clock-history display-1 text-muted mb-3"></i>
+                        <h5>Aucun scan terminé</h5>
+                        <p class="text-muted">Les scans terminés apparaîtront ici</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Onglet Modèles -->
-        <div class="tab-pane fade" id="templates" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Modèles de scan</h5>
-                    <p class="mb-0 text-secondary">Configurez des modèles réutilisables pour vos scans réguliers</p>
+<!-- filepath: /home/kengni/EthicalPulse/templates/scans/includes/templates.html -->
+<div class="tab-pane fade" id="templates" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text me-2"></i>Modèles de scan
+                    <span class="badge bg-primary ms-2">{{ scan_templates.count }}</span>
+                </h5>
+                <p class="mb-0 text-secondary">Configurez des modèles réutilisables pour vos scans réguliers</p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                <i class="bi bi-plus-circle me-2"></i>Nouveau modèle
+            </button>
+        </div>
+
+        <div class="card-body">
+            <div class="template-list">
+                {% for template in scan_templates %}
+                <div class="card mb-3 border" id="template-{{ template.id }}">
+                    <div class="card-header bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="template-icon me-3">
+                                    {% if template.type == 'full' %}
+                                        <i class="bi bi-shield-check fs-4 text-primary"></i>
+                                    {% elif template.type == 'api' %}
+                                        <i class="bi bi-lightning fs-4 text-warning"></i>
+                                    {% elif template.type == 'infrastructure' %}
+                                        <i class="bi bi-hdd-network fs-4 text-info"></i>
+                                    {% else %}
+                                        <i class="bi bi-gear fs-4 text-secondary"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <h5 class="mb-1">{{ template.name }}</h5>
+                                    <p class="text-secondary mb-0">{{ template.description }}</p>
+                                </div>
+                            </div>
+                            <div class="template-actions">
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-secondary btn-sm" 
+                                            onclick="editTemplate({{ template.id }})"
+                                            title="Modifier le modèle">
+                                        <i class="bi bi-gear-fill me-1"></i>Configurer
+                                    </button>
+                                    <button class="btn btn-primary btn-sm"
+                                            onclick="useTemplate({{ template.id }})"
+                                            title="Utiliser ce modèle">
+                                        <i class="bi bi-play-fill me-1"></i>Utiliser
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            onclick="deleteTemplate({{ template.id }})"
+                                            title="Supprimer le modèle">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Outils inclus</div>
+                                    <div class="tools-list">
+                                        {% for tool in template.tools.all %}
+                                        <span class="badge bg-secondary me-1">
+                                            {{ tool.name }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Configuration</div>
+                                    <div class="small">
+                                        <ul class="list-unstyled mb-0">
+                                            {% for key, value in template.configuration.items %}
+                                            <li><i class="bi bi-check2 me-1 text-success"></i>{{ key }}: {{ value }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="info-box p-3 bg-light rounded">
+                                    <div class="small text-muted mb-1">Informations</div>
+                                    <div class="small">
+                                        <p class="mb-1">
+                                            <i class="bi bi-clock me-1"></i>
+                                            Durée estimée: {{ template.estimated_duration }}
+                                        </p>
+                                        <p class="mb-0">
+                                            <i class="bi bi-person me-1"></i>
+                                            Créé par {{ template.created_by.get_full_name }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="template-list">
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Scan complet</h5>
-                                        <p class="text-secondary mb-0">
-                                            Analyse complète incluant toutes les méthodes de test
-                                        </p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            <i class="bi bi-gear-fill me-1"></i> Modifier
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Utiliser
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <p class="text-secondary mb-1">Outils inclus</p>
-                                        <p class="mb-0">OWASP ZAP, Nmap, SQLMap, Nuclei, SSL Scanner</p>
-                                    </div>
-                                    <div class="col-12">
-                                        <p class="text-secondary mb-1">Durée estimée</p>
-                                        <p class="mb-0">45-60 minutes par application</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Scan API rapide</h5>
-                                        <p class="text-secondary mb-0">
-                                            Scan léger pour les API et services REST
-                                        </p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            <i class="bi bi-gear-fill me-1"></i> Modifier
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Utiliser
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <p class="text-secondary mb-1">Outils inclus</p>
-                                        <p class="mb-0">API Security Scanner, JWT Analyzer, CORS Tester</p>
-                                    </div>
-                                    <div class="col-12">
-                                        <p class="text-secondary mb-1">Durée estimée</p>
-                                        <p class="mb-0">15-20 minutes par API</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card mb-3 border">
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Scan d'infrastructure</h5>
-                                        <p class="text-secondary mb-0">
-                                            Analyse des serveurs et de l'infrastructure réseau
-                                        </p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button class="btn btn-outline-secondary btn-sm me-2">
-                                            <i class="bi bi-gear-fill me-1"></i> Modifier
-                                        </button>
-                                        <button class="btn btn-primary btn-sm">
-                                            <i class="bi bi-play-fill me-1"></i> Utiliser
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <p class="text-secondary mb-1">Outils inclus</p>
-                                        <p class="mb-0">Nmap, OpenVAS, ServerScan, SSLyze</p>
-                                    </div>
-                                    <div class="col-12">
-                                        <p class="text-secondary mb-1">Durée estimée</p>
-                                        <p class="mb-0">30-40 minutes par segment réseau</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button class="btn btn-outline-primary w-100 p-3 dashed-border">
-                            <i class="bi bi-plus-circle me-2"></i>
-                            Créer un nouveau modèle
+                {% empty %}
+                <div class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="bi bi-file-earmark-plus display-1 text-muted mb-3"></i>
+                        <h5>Aucun modèle disponible</h5>
+                        <p class="text-muted mb-3">Créez votre premier modèle de scan pour commencer</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                            <i class="bi bi-plus-circle me-2"></i>Créer un modèle
                         </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+ </div>
+<!-- filepath: /home/kengni/EthicalPulse/templates/scans/modals/schedule_scan.html -->
+<!-- Modal: Ajouter une planification -->
+<div class="modal fade" id="scheduleScanModal" tabindex="-1" aria-labelledby="scheduleScanLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark">
+            <form method="post" action="{% url 'create_scheduled_scan' %}" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title text-light" id="scheduleScanLabel">
+                        <i class="bi bi-calendar-plus me-2"></i>Planifier un nouveau scan
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label text-light">
+                                {{ form.name.label }}
+                                {% if form.name.field.required %}
+                                    <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">{{ form.name.errors|join:" " }}</div>
+                            {% endif %}
+                            {% if form.name.help_text %}
+                                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.target.id_for_label }}" class="form-label text-light">
+                                {{ form.target.label }}
+                                {% if form.target.field.required %}
+                                    <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ form.target }}
+                            {% if form.target.errors %}
+                                <div class="invalid-feedback">{{ form.target.errors|join:" " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.tool.id_for_label }}" class="form-label text-light">
+                                {{ form.tool.label }}
+                                {% if form.tool.field.required %}
+                                    <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ form.tool }}
+                            {% if form.tool.errors %}
+                                <div class="invalid-feedback">{{ form.tool.errors|join:" " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.frequency.id_for_label }}" class="form-label text-light">
+                                {{ form.frequency.label }}
+                                {% if form.frequency.field.required %}
+                                    <span class="text-danger">*</span>
+                                {% endif %}
+                            </label>
+                            {{ form.frequency }}
+                            {% if form.frequency.errors %}
+                                <div class="invalid-feedback">{{ form.frequency.errors|join:" " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label text-light">
+                                {{ form.description.label }}
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">{{ form.description.errors|join:" " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label text-light" for="{{ form.is_active.id_for_label }}">
+                                    {{ form.is_active.label }}
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                {{ form.email_notification }}
+                                <label class="form-check-label text-light" for="{{ form.email_notification.id_for_label }}">
+                                    {{ form.email_notification.label }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-calendar-check me-2"></i>Planifier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de modification -->
+<div class="modal fade" id="editScheduledScanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title text-light">
+                        <i class="bi bi-pencil-square me-2"></i>Modifier le scan planifié
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row" id="edit-form-content">
+                        <!-- Le contenu sera chargé dynamiquement via JavaScript -->
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Détails d'un scan actif -->
+<div class="modal fade" id="activeScanDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title text-light">
+                    <i class="bi bi-play-circle me-2"></i>Détails du scan actif
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="activeScanDetails">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
+
+<!-- Modal: Détails d'un scan planifié -->
+<div class="modal fade" id="scheduledScanDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title text-light">
+                    <i class="bi bi-calendar me-2"></i>Détails du scan planifié
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="scheduledScanDetails">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-warning" id="toggleScheduledScanBtn">
+                    <i class="bi bi-pause-circle me-2"></i>Suspendre
+                </button>
+                <button type="button" class="btn btn-primary" id="runScheduledScanBtn">
+                    <i class="bi bi-play-fill me-2"></i>Lancer maintenant
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Détails d'un template -->
+<div class="modal fade" id="templateDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title text-light">
+                    <i class="bi bi-file-text me-2"></i>Détails du modèle
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="templateDetails">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-outline-primary" id="editTemplateBtn">
+                    <i class="bi bi-pencil me-2"></i>Modifier
+                </button>
+                <button type="button" class="btn btn-primary" id="useTemplateBtn">
+                    <i class="bi bi-play-fill me-2"></i>Utiliser ce modèle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
+</div>
+
+{% endblock %}
 {% block extra_css %}
 <style>
-    .dashed-border {
-        border-style: dashed !important;
+        /* Styles pour les formulaires dans les modals */
+    .modal-content .form-control,
+    .modal-content .form-select {
+        background-color: var(--bs-dark);
+        border-color: rgba(249, 115, 22, 0.2);
+        color: #fff;
     }
+
+    .modal-content .form-control:focus,
+    .modal-content .form-select:focus {
+        background-color: var(--bs-dark);
+        border-color: var(--orange-primary);
+        color: #fff;
+        box-shadow: 0 0 0 0.25rem rgba(249, 115, 22, 0.25);
+    }
+        .dashed-border {
+            border-style: dashed !important;
+    /* Styles pour le modal de planification */
+    .modal-content {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+    .modal-content .form-control:focus,
+    .modal-content .form-select:focus {
+        border-color: var(--orange-primary);
+        box-shadow: 0 0 0 0.25rem rgba(249, 115, 22, 0.25);
+    }
+
+    .modal-content .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .was-validated .form-control:invalid,
+    .was-validated .form-select:invalid {
+        border-color: #dc3545;
+        background-image: url("data:image/svg+xml,...");
+    }
+
+    .was-validated .form-control:valid,
+    .was-validated .form-select:valid {
+        border-color: #198754;
+        background-image: url("data:image/svg+xml,...");
+    }
+        }
+        .progress-bar {
+            background-color: var(--orange-primary);
+            transition: width 0.3s ease;
+        }
+        .progress {
+            height: 1.5rem;
+            background-color: rgba(249, 115, 22, 0.1);
+        }
 </style>
 {% endblock %}
-
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Simulation de la progression des scans en cours
-        const inProgressScans = document.querySelectorAll('[id^="progress-"]');
-        
-        inProgressScans.forEach(progressBar => {
-            const scanId = progressBar.id.replace('progress-', '');
-            let progress = 0;
-            
-            const interval = setInterval(() => {
-                progress += 5;
-                if (progress <= 100) {
-                    progressBar.style.width = progress + '%';
-                    document.querySelector(`.progress-value[data-scan-id="${scanId}"]`).textContent = progress + '%';
-                    
-                    if (progress === 100) {
-                        clearInterval(interval);
-                        // Simuler la fin du scan
-                        alert(`Le scan ${scanId} est terminé !`);
-                        location.reload();
-                    }
-                } else {
-                    clearInterval(interval);
-                }
-            }, 2000);
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTimers();
+    initializeModals();
+    initializeFormValidation();
+    initializeTemplateManagement();
+});
+
+// Timer Management
+function initializeTimers() {
+    updateRemainingTimes();
+    setInterval(updateRemainingTimes, 60000);
+}
+/ Fonctions pour charger les détails dans les modals
+function loadActiveScanDetails(scanId) {
+    fetch(`/scans/active/${scanId}/details/`)
+        .then(handleResponse)
+        .then(data => {
+            document.getElementById('activeScanDetails').innerHTML = formatActiveScanDetails(data);
+        })
+        .catch(error => handleError('Erreur de chargement des détails', error));
+}
+
+
+function loadScheduledScanDetails(scanId) {
+    fetch(`/scans/scheduled/${scanId}/details/`)
+        .then(handleResponse)
+        .then(data => {
+            document.getElementById('scheduledScanDetails').innerHTML = formatScheduledScanDetails(data);
+            document.getElementById('toggleScheduledScanBtn').onclick = () => toggleScheduledScan(scanId);
+            document.getElementById('runScheduledScanBtn').onclick = () => runScheduledScanNow(scanId);
+        })
+        .catch(error => handleError('Erreur de chargement des détails', error));
+}
+
+function loadTemplateDetails(templateId) {
+    fetch(`/api/scan-templates/${templateId}/details/`)
+        .then(handleResponse)
+        .then(data => {
+            document.getElementById('templateDetails').innerHTML = formatTemplateDetails(data);
+            document.getElementById('editTemplateBtn').onclick = () => editTemplate(templateId);
+            document.getElementById('useTemplateBtn').onclick = () => useTemplate(templateId);
+        })
+        .catch(error => handleError('Erreur de chargement des détails', error));
+}
+
+// Fonctions de formatage HTML des détails
+function formatActiveScanDetails(data) {
+    return `
+        <div class="row g-3">
+            <!-- Ajoutez ici le HTML pour afficher les détails d'un scan actif -->
+        </div>
+    `;
+}
+
+
+function formatScheduledScanDetails(data) {
+    return `
+        <div class="row g-3">
+            <!-- Ajoutez ici le HTML pour afficher les détails d'un scan planifié -->
+        </div>
+    `;
+}
+
+function formatTemplateDetails(data) {
+    return `
+        <div class="row g-3">
+            <!-- Ajoutez ici le HTML pour afficher les détails d'un template -->
+        </div>
+    `;
+}
+
+// Initialisation des modals
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal scan actif
+    const activeScanModal = document.getElementById('activeScanDetailsModal');
+    if (activeScanModal) {
+        activeScanModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const scanId = button.getAttribute('data-scan-id');
+            loadActiveScanDetails(scanId);
         });
-        
-        // Gestion du démarrage des scans planifiés
-        document.querySelectorAll('.start-scan-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const scanId = this.dataset.scanId;
-                alert(`Le scan ${scanId} va démarrer !`);
-                const card = this.closest('.card');
-                
-                // Mettre à jour le statut
-                const statusBadge = card.querySelector('.badge');
-                statusBadge.textContent = 'En cours';
-                statusBadge.className = 'badge bg-warning';
-                
-                // Créer et insérer une barre de progression
-                const cardBody = card.querySelector('.card-body');
-                const progressDiv = document.createElement('div');
-                progressDiv.className = 'mb-4';
-                progressDiv.innerHTML = `
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Progression</span>
-                        <span class="progress-value" data-scan-id="${scanId}">0%</span>
-                    </div>
-                    <div class="progress mb-2">
-                        <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-${scanId}"></div>
-                    </div>
-                    <div class="d-flex justify-content-between small text-secondary">
-                        <span>Début: ${new Date().toLocaleString()}</span>
-                        <span>Fin estimée: ${new Date(Date.now() + 7200000).toLocaleString()}</span>
-                    </div>
-                `;
-                cardBody.insertBefore(progressDiv, cardBody.firstChild);
-                
-                // Mettre à jour les informations
-                cardBody.querySelector('.row').innerHTML = `
-                    <div class="col-md-6 mb-3">
-                        <p class="text-secondary mb-1">Cible</p>
-                        <p>https://api.example.com</p>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <p class="text-secondary mb-1">Type de scan</p>
-                        <p>Scan ciblé</p>
-                    </div>
-                `;
-                
-                // Mettre à jour le footer
-                const footer = card.querySelector('.card-footer');
-                footer.innerHTML = `
-                    <div class="d-flex justify-content-end">
-                        <button class="btn btn-outline-danger btn-sm">Arrêter</button>
-                    </div>
-                `;
-                
-                // Démarrer la simulation de progression
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 5;
-                    if (progress <= 100) {
-                        const progressBar = document.getElementById(`progress-${scanId}`);
-                        if (progressBar) {
-                            progressBar.style.width = progress + '%';
-                            document.querySelector(`.progress-value[data-scan-id="${scanId}"]`).textContent = progress + '%';
-                            
-                            if (progress === 100) {
-                                clearInterval(interval);
-                                alert(`Le scan ${scanId} est terminé !`);
-                                location.reload();
-                            }
-                        } else {
-                            clearInterval(interval);
-                        }
-                    } else {
-                        clearInterval(interval);
-                    }
-                }, 2000);
-            });
+    }
+
+ 
+
+    // Modal scan planifié
+    const scheduledScanModal = document.getElementById('scheduledScanDetailsModal');
+    if (scheduledScanModal) {
+        scheduledScanModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const scanId = button.getAttribute('data-scan-id');
+            loadScheduledScanDetails(scanId);
         });
+    }
+
+    // Modal template
+    const templateModal = document.getElementById('templateDetailsModal');
+    if (templateModal) {
+        templateModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const templateId = button.getAttribute('data-template-id');
+            loadTemplateDetails(templateId);
+        });
+    }
+});
+
+function updateRemainingTimes() {
+    document.querySelectorAll('[data-remaining-time]').forEach(element => {
+        const scanId = element.getAttribute('data-scan-id');
+        fetch(`/scans/scheduled/${scanId}/data/`)
+            .then(handleResponse)
+            .then(data => {
+                element.textContent = data.remaining_time;
+            })
+            .catch(error => handleError('Erreur de mise à jour du temps restant', error));
     });
+}
+
+// Scan Execution
+window.runScheduledScanNow = function(scanId) {
+    if (!confirm('Voulez-vous lancer ce scan maintenant ?')) return;
+
+    fetch(`/scans/scheduled/${scanId}/run-now/`, {
+        method: 'POST',
+        headers: getHeaders(),
+    })
+    .then(handleResponse)
+    .then(data => {
+        if (data.success) {
+            showNotification('Scan lancé avec succès', 'success');
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Erreur lors du lancement du scan');
+        }
+    })
+    .catch(error => handleError('Erreur de lancement du scan', error));
+};
+
+// Modal Management
+function initializeModals() {
+    const editModal = document.getElementById('editScheduledScanModal');
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', handleEditModalShow);
+    }
+}
+
+function handleEditModalShow(event) {
+    const button = event.relatedTarget;
+    const scanId = button.getAttribute('data-scan-id');
+    const form = this.querySelector('form');
+    
+    form.action = `/scans/scheduled/${scanId}/edit/`;
+    loadScanData(scanId, form);
+}
+
+function loadScanData(scanId, form) {
+    fetch(`/scans/scheduled/${scanId}/data/`)
+        .then(handleResponse)
+        .then(data => updateFormFields(form, data))
+        .catch(error => handleError('Erreur de chargement des données', error));
+}
+
+// Template Management
+function initializeTemplateManagement() {
+    window.editTemplate = editTemplate;
+    window.useTemplate = useTemplate;
+    window.deleteTemplate = deleteTemplate;
+}
+
+function editTemplate(templateId) {
+    fetch(`/api/scan-templates/${templateId}/`)
+        .then(handleResponse)
+        .then(data => {
+            const modal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
+            populateTemplateForm(data);
+            modal.show();
+        })
+        .catch(error => handleError('Erreur de modification du modèle', error));
+}
+
+function useTemplate(templateId) {
+    if (!confirm('Voulez-vous créer un nouveau scan basé sur ce modèle ?')) return;
+    
+    fetch(`/api/scan-templates/${templateId}/use/`, {
+        method: 'POST',
+        headers: getHeaders(),
+    })
+    .then(handleResponse)
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/scans/#scan-${data.scan_id}`;
+        } else {
+            throw new Error(data.error || 'Erreur lors de l\'utilisation du modèle');
+        }
+    })
+    .catch(error => handleError('Erreur d\'utilisation du modèle', error));
+}
+
+function deleteTemplate(templateId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce modèle ?')) return;
+    
+    fetch(`/api/scan-templates/${templateId}/`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+    })
+    .then(response => {
+        if (response.ok) {
+            document.getElementById(`template-${templateId}`).remove();
+            showNotification('Modèle supprimé avec succès', 'success');
+        } else {
+            throw new Error('Erreur lors de la suppression du modèle');
+        }
+    })
+    .catch(error => handleError('Erreur de suppression du modèle', error));
+}
+
+// Form Management
+function initializeFormValidation() {
+    document.querySelectorAll('.needs-validation').forEach(form => {
+        form.addEventListener('submit', validateForm);
+    });
+}
+
+function validateForm(event) {
+    if (!this.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    this.classList.add('was-validated');
+}
+
+// Utility Functions
+function getHeaders() {
+    return {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'Content-Type': 'application/json',
+    };
+}
+
+function handleResponse(response) {
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
+}
+
+function handleError(message, error) {
+    console.error('Error:', error);
+    showNotification(message, 'error');
+}
+
+function showNotification(message, type = 'info') {
+    const toast = new bootstrap.Toast(document.createElement('div'));
+    toast._element.classList.add('toast', `bg-${type}`, 'text-white', 'position-fixed', 'bottom-0', 'end-0', 'm-3');
+    toast._element.innerHTML = `
+        <div class="toast-header">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">${message}</div>
+    `;
+    document.body.appendChild(toast._element);
+    toast.show();
+    
+    setTimeout(() => {
+        toast._element.remove();
+    }, 5000);
+}
+
+function updateFormFields(form, data) {
+    Object.entries(data).forEach(([key, value]) => {
+        const input = form.querySelector(`[name="${key}"]`);
+        if (input) {
+            if (input.type === 'checkbox') {
+                input.checked = value;
+            } else {
+                input.value = value;
+            }
+        }
+    });
+}
+
+function populateTemplateForm(data) {
+    const form = document.getElementById('edit-template-form');
+    if (!form) return;
+
+    form.elements['name'].value = data.name;
+    form.elements['description'].value = data.description;
+    // Add other fields as needed
+}
 </script>
 {% endblock %}
