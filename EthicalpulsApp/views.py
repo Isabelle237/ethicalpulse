@@ -20,7 +20,20 @@ from EthicalpulsApp.reconng_scan.reconng_views import handle_reconng_scan
 from EthicalpulsApp.snort_scan.snort_views import handle_snort_scan
 from EthicalpulsApp.sqlmap_scan.sqlmap_views import handle_sqlmap_scan
 from EthicalpulsApp.utils import run_nmap_scan
-from EthicalpulsApp.utils import run_aircrack_scan, run_beef_scan, run_ghidra_analysis, run_hashcat_scan, run_john_scan, run_metasploit_scan, run_reconng_scan, run_snort_scan, run_sqlmap_scan, run_wifite_scan, run_wireshark_capture, run_zap_scan
+from EthicalpulsApp.utils import (
+    run_aircrack_scan,
+    run_beef_scan,
+    run_ghidra_analysis,
+    run_hashcat_scan,
+    run_john_scan,
+    run_metasploit_scan,
+    run_reconng_scan,
+    run_snort_scan,
+    run_sqlmap_scan,
+    run_wifite_scan,
+    run_wireshark_capture,
+    run_zap_scan,
+)
 from EthicalpulsApp.utils.netcat_scan import run_netcat_scan
 from EthicalpulsApp.utils.nikto_scan import run_nikto_scan
 from EthicalpulsApp.wifite_scan.wifite_views import handle_wifite_scan
@@ -37,6 +50,7 @@ logger = logging.getLogger(__name__)
 from django.db import transaction
 import nmap
 from reportlab.lib import colors
+
 # =================== Imports Django ===================
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, JsonResponse, HttpResponse
@@ -61,8 +75,17 @@ from django.core.paginator import Paginator
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
-#from reportlab.lib.colors import HexColor, black, white, colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+
+# from reportlab.lib.colors import HexColor, black, white, colors
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Image,
+    PageBreak,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
@@ -82,34 +105,134 @@ from django.core.paginator import Paginator
 
 from django.core.paginator import Paginator
 
+
 def users(request):
     user_list = User.objects.all()
     paginator = Paginator(user_list, 12)  # 12 utilisateurs par page
-    page_number = request.GET.get('page')
+    page_number = request.GET.get("page")
     users_page = paginator.get_page(page_number)
 
-    return render(request, 'admin/users.html', {
-        'users_list': users_page
-    })
+    return render(request, "admin/users.html", {"users_list": users_page})
+
 
 def log(request):
     """
     View to handle the log page.
     """
     # Here you can implement logic to fetch logs if needed
-    return render(request, 'admin/logs.html')   
+    return render(request, "admin/logs.html")
+
 
 def index(request):
-    return render(request, 'dashboard/index.html')
+    return render(request, "dashboard/index.html")
 
+
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
+from .models import Project, Scan, Vulnerability, SystemLog
+
+
+@login_required
 def dashboard(request):
-    return render(request, 'admin/dashboard.html')
+    # Filtres dynamiques
+    project_id = request.GET.get("project")
+    severity = request.GET.get("severity")
+    vuln_type = request.GET.get("type")
+
+    # Base QuerySets
+    vuln_qs = Vulnerability.objects.all()
+    scan_qs = Scan.objects.all()
+    project_qs = Project.objects.all()
+
+    if project_id:
+        vuln_qs = vuln_qs.filter(scan__project_id=project_id)
+        scan_qs = scan_qs.filter(project_id=project_id)
+    if severity:
+        vuln_qs = vuln_qs.filter(severity=severity)
+    if vuln_type:
+        vuln_qs = vuln_qs.filter(name__icontains=vuln_type)
+
+    # Score global (exemple simple : 100 - % de vulnérabilités critiques/hautes)
+    total_vulns = vuln_qs.count()
+    high_crit = vuln_qs.filter(severity__in=["critical", "high"]).count()
+    core_score = (
+        max(0, 100 - int((high_crit / total_vulns) * 100)) if total_vulns else 100
+    )
+
+    # Vulnérabilités par gravité
+    vuln_by_severity = {
+        s: vuln_qs.filter(severity=s).count()
+        for s in ["critical", "high", "medium", "low", "info"]
+    }
+
+    # Evolution dans le temps (30 derniers jours)
+    today = timezone.now().date()
+    vuln_over_time = []
+    for i in range(29, -1, -1):
+        day = today - timedelta(days=i)
+        count = vuln_qs.filter(discovered_at__date=day).count()
+        vuln_over_time.append({"date": day.strftime("%d/%m"), "count": count})
+
+    # Top vulnérabilités critiques
+    top_vulns = (
+        vuln_qs.filter(severity="critical")
+        .values("name")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+
+    # Projets à risque (score = % de vulnérabilités critiques/hautes)
+    projects_risk = []
+    for p in project_qs:
+        total = Vulnerability.objects.filter(scan__project=p).count()
+        high = Vulnerability.objects.filter(
+            scan__project=p, severity__in=["critical", "high"]
+        ).count()
+        score = max(0, 100 - int((high / total) * 100)) if total else 100
+        projects_risk.append({"name": p.name, "score": score})
+    projects_risk = sorted(projects_risk, key=lambda x: x["score"])
+
+    # Actions recommandées (exemple simple)
+    recommendations = []
+    if vuln_by_severity["critical"] > 0:
+        recommendations.append(
+            "Corrigez immédiatement les vulnérabilités critiques détectées."
+        )
+    if vuln_by_severity["high"] > 0:
+        recommendations.append("Priorisez la correction des vulnérabilités élevées.")
+    if not recommendations:
+        recommendations.append("Aucune action urgente recommandée.")
+
+    # Alertes & notifications (logs récents)
+    alerts = SystemLog.objects.order_by("-timestamp")[:10]
+
+    # Filtres dynamiques
+    severities = ["critical", "high", "medium", "low", "info"]
+    types = list(vuln_qs.values_list("name", flat=True).distinct())
+    projects = project_qs
+
+    context = {
+        "core_score": core_score,
+        "vuln_by_severity": vuln_by_severity,
+        "vuln_over_time": vuln_over_time,
+        "top_vulns": top_vulns,
+        "projects_risk": projects_risk,
+        "recommendations": recommendations,
+        "alerts": alerts,
+        "projects": projects,
+        "severities": severities,
+        "types": types,
+    }
+    return render(request, "admin/dashboard.html", context)
+
 
 # =================== Utilisateurs ===================
 
+
 @csrf_protect
 def create_user_view(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
@@ -118,9 +241,12 @@ def create_user_view(request):
                 user.otp_secret = pyotp.random_base32()
             user.save()
 
-            html_message = render_to_string('emails/account_confirmation.html', {
-                'username': user.username,
-            })
+            html_message = render_to_string(
+                "emails/account_confirmation.html",
+                {
+                    "username": user.username,
+                },
+            )
             plain_message = strip_tags(html_message)
 
             send_mail(
@@ -133,136 +259,264 @@ def create_user_view(request):
             )
 
             messages.success(request, "L'utilisateur a été créé avec succès.")
-            return redirect('users')
+            return redirect("users")
         else:
-            messages.error(request, "Une erreur est survenue lors de la création de l'utilisateur.")
+            messages.error(
+                request, "Une erreur est survenue lors de la création de l'utilisateur."
+            )
     else:
         form = CustomUserCreationForm()
 
     users_list = CustomUser.objects.all()
-    return render(request, 'admin/users.html', {
-        'form': form,
-        'users_list': users_list
-    })
-    
+    return render(request, "admin/users.html", {"form": form, "users_list": users_list})
+
+
 @csrf_protect
 def edit_user_view(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
-    if request.method == 'POST':
+    if request.method == "POST":
         form = CustomUserCreationForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
             messages.success(request, "L'utilisateur a été mis à jour.")
-            return redirect('users')
+            return redirect("users")
         else:
             messages.error(request, "Erreur lors de la mise à jour de l'utilisateur.")
     else:
         form = CustomUserCreationForm(instance=user)
 
-    return render(request, 'admin/edit_user_modal.html', {'form': form, 'user': user})
+    return render(request, "admin/edit_user_modal.html", {"form": form, "user": user})
+
 
 @require_POST
 def delete_user_view(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     user.delete()
     messages.success(request, "L'utilisateur a été supprimé.")
-    return redirect('users')
+    return redirect("users")
+
 
 @require_POST
 def delete_multiple_users_view(request):
-    ids = request.POST.getlist('user_ids[]')
+    ids = request.POST.getlist("user_ids[]")
     if ids:
         CustomUser.objects.filter(id__in=ids).delete()
         messages.success(request, f"{len(ids)} utilisateur(s) supprimé(s).")
     else:
         messages.warning(request, "Aucun utilisateur sélectionné.")
-    return redirect('users')
+    return redirect("users")
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from .models import Project, CustomUser
+from .forms import ProjectForm
+import json
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from .models import Project, CustomUser
+from .forms import ProjectForm
+import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from .models import Project, CustomUser
+from .forms import ProjectForm
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
+
+
+@require_GET
+@login_required
+def get_project_json(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    data = {
+        "id": project.id,
+        "name": project.name,
+        "domain": project.domain,
+        "url": project.url,
+        "ip_address": project.ip_address,
+        "description": project.description,
+        "project_type": getattr(project, "project_type", ""),
+        "is_active": project.is_active,
+        "allowed_users": [u.id for u in project.allowed_users.all()],
+    }
+    return JsonResponse(data)
+
+
+@login_required
+@csrf_protect
 def admin_projets(request):
-    """
-    View to handle project listing, creation, editing, and deletion.
-    """
-    # Handle POST requests for add/edit/delete
-    if request.method == 'POST':
-        if 'add_project' in request.POST:
+    projects = Project.objects.prefetch_related("allowed_users").all()
+    users = CustomUser.objects.all()
+    project_types = Project.objects.values_list("project_type", flat=True).distinct()
+    form = ProjectForm()
+
+    if request.method == "POST":
+        # Ajout d'un projet
+        if "add_project" in request.POST:
             form = ProjectForm(request.POST)
             if form.is_valid():
-                form.save()
-                messages.success(request, "Nouveau projet ajouté.")
-                return redirect('admin_projets')
+                url = form.cleaned_data["url"]
+                ip = form.cleaned_data["ip_address"]
+                domain = form.cleaned_data["domain"]
+                # Vérification unicité
+                if (
+                    Project.objects.filter(url=url).exists()
+                    or Project.objects.filter(ip_address=ip).exists()
+                    or Project.objects.filter(domain=domain).exists()
+                ):
+                    messages.error(
+                        request, "Un projet existe déjà avec cette URL, IP ou domaine."
+                    )
+                else:
+                    project = form.save(commit=False)
+                    if "is_active" in form.cleaned_data:
+                        project.is_active = form.cleaned_data["is_active"]
+                    project.save()
+                    form.save_m2m()
+                    messages.success(request, "Nouveau projet ajouté.")
+                return redirect("admin_projets")
             else:
-                messages.error(request, "Erreur lors de l’ajout du projet.")
-        elif 'edit_project' in request.POST:
-            project_id = request.POST.get('project_id')
-            if not project_id or not project_id.isdigit():
-                messages.error(request, "ID de projet invalide.")
-                return redirect('admin_projets')
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                return redirect("admin_projets")
+
+        # Edition d'un projet
+        elif "edit_project" in request.POST:
+            project_id = request.POST.get("project_id")
             project = get_object_or_404(Project, id=project_id)
             form = ProjectForm(request.POST, instance=project)
+
             if form.is_valid():
-                form.save()
-                messages.success(request, "Projet modifié avec succès.")
-                return redirect('admin_projets')
+                url = form.cleaned_data["url"]
+                ip = form.cleaned_data["ip_address"]
+                domain = form.cleaned_data["domain"]
+
+                if (
+                    Project.objects.exclude(id=project.id).filter(url=url).exists()
+                    or Project.objects.exclude(id=project.id)
+                    .filter(ip_address=ip)
+                    .exists()
+                    or Project.objects.exclude(id=project.id)
+                    .filter(domain=domain)
+                    .exists()
+                ):
+                    messages.error(
+                        request, "Un projet existe déjà avec cette URL, IP ou domaine."
+                    )
+                else:
+                    form.save()
+                    messages.success(request, "Projet modifié avec succès.")
+                return redirect("admin_projets")
             else:
                 messages.error(request, "Erreur lors de la modification du projet.")
-        elif 'delete_project' in request.POST:
-            project_id = request.POST.get('project_id')
-            if not project_id or not project_id.isdigit():
-                messages.error(request, "ID de projet invalide.")
-                return redirect('admin_projets')
-            project = get_object_or_404(Project, id=project_id)
-            project.delete()
-            messages.success(request, f"Le projet « {project.name} » a été supprimé.")
-            return redirect('admin_projets')
-    else:
-        form = ProjectForm()
+                return redirect("admin_projets")
 
-    # Handle search query
-    search_query = request.GET.get('search', '')
-    projects = Project.objects.all()
-    if search_query:
-        projects = projects.filter(
-            Q(name__icontains=search_query) |
-            Q(domain__icontains=search_query) |
-            Q(ip_address__icontains=search_query) |
-            Q(url__icontains=search_query) |
-            Q(mac_address__icontains=search_query)
-        )
-
-    # Sorting (optional, as template handles client-side sorting)
-    sort_by = request.GET.get('sort', 'created_at')
-    order = request.GET.get('order', 'desc')
-    if sort_by in ['name', 'project_type', 'domain', 'created_at']:
-        if order == 'desc':
-            projects = projects.order_by(f'-{sort_by}')
         else:
-            projects = projects.order_by(sort_by)
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+            return redirect("admin_projets")
+
+        # Suppression d'un projet
+    elif "delete_project" in request.POST:
+        project_id = request.POST.get("project_id")
+        project = get_object_or_404(Project, id=project_id)
+        project.delete()
+        messages.success(request, f"Le projet « {project.name} » a été supprimé.")
+        return redirect("admin_projets")
+
+    # Préparation des données pour le JS
+    projects_json = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "domain": p.domain,
+            "url": p.url,
+            "ip_address": p.ip_address,
+            "description": p.description,
+            "project_type": getattr(p, "project_type", ""),
+            "is_active": getattr(p, "is_active", True),
+            "allowed_users": [u.id for u in p.allowed_users.all()],
+        }
+        for p in projects
+    ]
+    users_json = [{"id": u.id, "username": u.username, "email": u.email} for u in users]
+    status_chart = {
+        "labels": ["Actif", "Inactif"],
+        "data": [
+            (
+                projects.filter(is_active=True).count()
+                if hasattr(Project, "is_active")
+                else projects.count()
+            ),
+            (
+                projects.filter(is_active=False).count()
+                if hasattr(Project, "is_active")
+                else 0
+            ),
+        ],
+    }
+    user_chart = {
+        "labels": [u.username for u in users],
+        "data": [
+            u.allowed_projects.count() for u in users
+        ],  # adapte le related_name si besoin
+    }
 
     context = {
-        'projects': projects,
-        'form': form,
-        'search_query': search_query,
+        "projects": projects,
+        "form": form,
+        "users": users,
+        "project_types": project_types,
+        "projects_json": json.dumps(projects_json),
+        "users_json": json.dumps(users_json),
+        "status_chart": json.dumps(status_chart),
+        "user_chart": json.dumps(user_chart),
     }
-    return render(request, 'admin/projects.html', context)
+    return render(request, "admin/projects.html", context)
+
+
+@require_POST
+@login_required
+def delete_project(request):
+    project_id = request.POST.get("project_id")
+    project = get_object_or_404(Project, id=project_id)
+    project.delete()
+    messages.success(request, f"Le projet « {project.name} » a été supprimé.")
+    return redirect("admin_projets")
+
 
 def projects_chart_type(request):
     """
     API view to provide data for the project type doughnut chart.
     """
     data = (
-        Project.objects.values('project_type')
-        .annotate(count=Count('id'))
-        .order_by('project_type')
+        Project.objects.values("project_type")
+        .annotate(count=Count("id"))
+        .order_by("project_type")
     )
     chart_data = [
         {
-            'project_type': dict(PROJECT_TYPES).get(item['project_type'], item['project_type']),
-            'count': item['count']
+            "project_type": dict(PROJECT_TYPES).get(
+                item["project_type"], item["project_type"]
+            ),
+            "count": item["count"],
         }
         for item in data
     ]
-    return JsonResponse({'data': chart_data})
+    return JsonResponse({"data": chart_data})
 
 
 def projects_chart_trend(request):
@@ -276,15 +530,12 @@ def projects_chart_trend(request):
     while current_date <= end_date:
         next_date = current_date + datetime.timedelta(days=30)  # Approx 1 month
         count = Project.objects.filter(
-            created_at__gte=current_date,
-            created_at__lt=next_date
+            created_at__gte=current_date, created_at__lt=next_date
         ).count()
-        data.append({
-            'month': current_date.strftime('%Y-%m'),
-            'count': count
-        })
+        data.append({"month": current_date.strftime("%Y-%m"), "count": count})
         current_date = next_date
-    return JsonResponse({'data': data})
+    return JsonResponse({"data": data})
+
 
 @csrf_protect
 def email_login(request):
@@ -295,7 +546,9 @@ def email_login(request):
             password = form.cleaned_data["password"]
             user = authenticate(request, email=email, password=password)
             if user:
-                otp_code = str(random.randint(100000, 999999))  # Nouveau code à chaque connexion
+                otp_code = str(
+                    random.randint(100000, 999999)
+                )  # Nouveau code à chaque connexion
 
                 user.otp_code = otp_code  # Stocke le code OTP dans l'utilisateur
                 user.otp_created_at = timezone.now()  # Stocke la date de création
@@ -305,14 +558,14 @@ def email_login(request):
                 send_otp_email(user.email, otp_code, user)
 
                 # Enregistre l'ID utilisateur dans la session pour la vérification ultérieure
-                request.session['otp_user_id'] = user.id
-                return redirect('verify_otp')
+                request.session["otp_user_id"] = user.id
+                return redirect("verify_otp")
             else:
                 messages.error(request, "Identifiants invalides.")
     else:
         form = EmailLoginForm()
 
-    return render(request, 'registration/login.html', {'form': form})
+    return render(request, "registration/login.html", {"form": form})
 
 
 @csrf_protect
@@ -321,52 +574,65 @@ def otp_verification(request):
         form = OTPVerificationForm(request.POST)
         if form.is_valid():
             otp_code = form.cleaned_data["otp_code"]
-            user_id = request.session.get("otp_user_id")  # Récupère l'ID utilisateur depuis la session
-            
+            user_id = request.session.get(
+                "otp_user_id"
+            )  # Récupère l'ID utilisateur depuis la session
+
             if user_id:  # Vérifie que l'ID utilisateur existe dans la session
                 try:
                     user = CustomUser.objects.get(id=user_id)
-                    
+
                     # Vérification de l'OTP et de la validité dans le temps
-                    if user.otp_code == otp_code and user.otp_created_at and timezone.now() - user.otp_created_at <= timedelta(minutes=10):
+                    if (
+                        user.otp_code == otp_code
+                        and user.otp_created_at
+                        and timezone.now() - user.otp_created_at
+                        <= timedelta(minutes=10)
+                    ):
                         auth_login(request, user)  # Connecte l'utilisateur
                         user.otp_code = None  # Supprime le code OTP après la validation
                         user.otp_created_at = None
                         user.save()  # Sauvegarde les modifications dans la base de données
-                        
+
                         # Redirige en fonction du rôle de l'utilisateur
                         if user.is_staff:  # Si l'utilisateur est un admin
                             return redirect("dashboard")
                         else:  # Sinon, redirige vers les utilisateurs
                             return redirect("index")
                     else:
-                        messages.error(request, "Code OTP invalide ou expiré.")  # Message d'erreur
+                        messages.error(
+                            request, "Code OTP invalide ou expiré."
+                        )  # Message d'erreur
                 except CustomUser.DoesNotExist:
-                    messages.error(request, "Utilisateur introuvable.")  # Si l'utilisateur n'existe pas
+                    messages.error(
+                        request, "Utilisateur introuvable."
+                    )  # Si l'utilisateur n'existe pas
             else:
-                messages.error(request, "Session expirée. Veuillez recommencer.")  # Si l'ID utilisateur n'est pas dans la session
+                messages.error(
+                    request, "Session expirée. Veuillez recommencer."
+                )  # Si l'ID utilisateur n'est pas dans la session
     else:
         form = OTPVerificationForm()
 
-    return render(request, 'registration/otp_verification.html', {'form': form})
+    return render(request, "registration/otp_verification.html", {"form": form})
+
 
 def send_otp_email(email, otp_code, user):
     context = {
-        'otp_code': otp_code,
-        'user': user,
-        'current_year': datetime.now().year,
+        "otp_code": otp_code,
+        "user": user,
+        "current_year": datetime.now().year,
     }
     subject = "Votre code OTP - Ethical Pulse Shield"
-    message = render_to_string('emails/otp_confirmation.html', context)
-    send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [email], html_message=message)
+    message = render_to_string("emails/otp_confirmation.html", context)
+    send_mail(subject, "", settings.DEFAULT_FROM_EMAIL, [email], html_message=message)
+
 
 def logout_view(request):
     logout(request)
     request.session.flush()
     messages.success(request, "Vous avez été déconnecté avec succès.")
-    return redirect('login')
-
-
+    return redirect("login")
 
     from django.shortcuts import render, redirect, get_object_or_404
 
@@ -378,12 +644,13 @@ def get_project_details(request, project_id):
     """
     project = get_object_or_404(Project, id=project_id)
     data = {
-        'name': project.name,
-        'url': project.url,
-        'ip_address': project.ip_address,
-        'domain': project.domain,
+        "name": project.name,
+        "url": project.url,
+        "ip_address": project.ip_address,
+        "domain": project.domain,
     }
     return JsonResponse(data)
+
 
 from collections import Counter
 
@@ -400,68 +667,109 @@ from .forms import ScanForm
 
 def get_base_context(request):
     return {
-        'projects': Project.objects.all(),
-        'current_project': request.session.get('current_project'),
+        "projects": Project.objects.all(),
+        "current_project": request.session.get("current_project"),
     }
 
 
-
 def tools_edit(request, tool_id):
-    return redirect('tools')
+    return redirect("tools")
+
 
 def tools_delete(request, tool_id):
-    return redirect('tools')
+    return redirect("tools")
+
 
 def tools_run(request, tool_id):
-    return redirect('tools')
+    return redirect("tools")
+
 
 def remediations(request):
-    return render(request, 'remediation.html')
+    return render(request, "remediation.html")
+
 
 def remediations_admin(request):
-    return render(request, 'admin/remediation.html')
+    return render(request, "admin/remediation.html")
+
 
 def remediation_detail(request, remediation_id):
-    return render(request, 'admin/remediation_detail.html')
+    return render(request, "admin/remediation_detail.html")
+
 
 def remediations_create(request):
-    return redirect('remediations')
+    return redirect("remediations")
+
 
 def remediations_edit(request, remediation_id):
-    return redirect('remediations')
+    return redirect("remediations")
+
 
 def remediations_delete(request, remediation_id):
-    return redirect('remediations')
+    return redirect("remediations")
+
 
 def remediations_execute(request, remediation_id):
-    return redirect('remediations')
+    return redirect("remediations")
 
+
+def admin_required(user):
+    return user.is_superuser or user.is_staff
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from EthicalpulsApp.settings_app import get_app_config, set_app_config
+
+
+def admin_required(user):
+    return user.is_superuser or user.is_staff
+
+
+@login_required
 def settings_admin(request):
-    return render(request, 'admin/settings.html')
+    settings = SystemSettings.objects.first()
+    logs = SystemLog.objects.order_by("-timestamp")[:50]  # 50 derniers logs
+    return render(
+        request,
+        "admin/settings.html",
+        {
+            "config": settings,
+            "logs": logs,
+        },
+    )
+
 
 def settings_users(request):
-    return render(request, 'settings.html')
+    return render(request, "settings.html")
+
 
 def logs(request):
-    return render(request, 'admin/logs.html')
+    return render(request, "admin/logs.html")
+
 
 def errorPage(request):
-    return render(request, 'dashboard/404.html')
+    return render(request, "dashboard/404.html")
+
 
 def history(request):
-    return render(request, 'history.html')
+    return render(request, "history.html")
+
 
 def report(request):
-    return render(request, 'reports.html')
+    return render(request, "reports.html")
+
 
 def training(request):
-    return render(request, 'training.html')
+    return render(request, "training.html")
+
 
 def analytics(request):
-    return render(request, 'analytics.html')
+    return render(request, "analytics.html")
 
 
 logger = logging.getLogger(__name__)
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -474,36 +782,35 @@ def tools_admin(request):
 
         if not project_id.isdigit():
             messages.error(request, "ID de projet invalide.")
-            return redirect('tools_admin')
+            return redirect("tools_admin")
 
         project = get_object_or_404(Project, id=int(project_id))
 
         tool_handlers = {
-            'NETCAT': lambda: handle_netcat_scan(project, option, target_port, request),
-            'NIKTO': lambda: handle_nikto_scan(project, option, request),
-            'NMAP': lambda: handle_nmap_scan(project, option, request),
-            'ZAP': lambda: handle_zap_scan(project, option, request),
-            'SQLMAP': lambda: handle_sqlmap_scan(request),  # retourne une redirection, pas un tuple
-            'AIRCRACK': lambda: handle_aircrack_scan(project, option, request),
-            'BEEF': lambda: handle_beef_scan(project, option, request),
-            'METASPLOIT': lambda: handle_metasploit_scan(project, option, request),
-            'HASHCAT': lambda: handle_hashcat_scan(project, option, request),
-            'JOHN': lambda: handle_john_scan(project, option, request),
-            'RECONNG': lambda: handle_reconng_scan(project, option, request),
-            'WIRESHARK': lambda: handle_wireshark_scan(project, option, request),
-            'WIFITE': lambda: handle_wifite_scan(project, option, request),
-            'GHIDRA': lambda: handle_ghidra_scan(project, option, request),
-            'SNORT': lambda: handle_snort_scan(project, option, request),
+            "NETCAT": lambda: handle_netcat_scan(project, option, target_port, request),
+            "NIKTO": lambda: handle_nikto_scan(project, option, request),
+            "NMAP": lambda: handle_nmap_scan(project, option, request),
+            "ZAP": lambda: handle_zap_scan(project, option, request),
+            "SQLMAP": lambda: handle_sqlmap_scan(
+                request
+            ),  # retourne une redirection, pas un tuple
+            "AIRCRACK": lambda: handle_aircrack_scan(project, option, request),
+            "BEEF": lambda: handle_beef_scan(project, option, request),
+            "METASPLOIT": lambda: handle_metasploit_scan(project, option, request),
+            "HASHCAT": lambda: handle_hashcat_scan(project, option, request),
+            "JOHN": lambda: handle_john_scan(project, option, request),
+            "RECONNG": lambda: handle_reconng_scan(project, option, request),
+            "WIRESHARK": lambda: handle_wireshark_scan(project, option, request),
+            "WIFITE": lambda: handle_wifite_scan(project, option, request),
+            "GHIDRA": lambda: handle_ghidra_scan(project, option, request),
+            "SNORT": lambda: handle_snort_scan(project, option, request),
         }
 
         handler = tool_handlers.get(tool_name)
 
         if handler:
-            # ✅ SQLMAP retourne directement une réponse, on ne décompose pas
             if tool_name == "SQLMAP":
                 return handler()  # retourne HttpResponseRedirect
-
-            # ✅ Autres outils : on suppose qu'ils retournent (success, message)
             success, message = handler()
             if success:
                 messages.success(request, message)
@@ -512,17 +819,66 @@ def tools_admin(request):
         else:
             messages.error(request, f"Outil '{tool_name}' non pris en charge.")
 
-        return redirect('tools_admin')
+        return redirect("tools_admin")
 
-    # GET
+    # GET : Prépare le contexte pour le tableau et le terminal
+    scans = Scan.objects.select_related("project").order_by("-start_time")
+    structured_results = []
+    for scan in scans:
+        structured_results.append(
+            {
+                "id": scan.id,
+                "tool": scan.tool,
+                "target_hostname": getattr(scan, "target_hostname", ""),
+                "target_port": getattr(scan, "target_port", ""),
+                "start_time": scan.start_time,
+                "status": scan.status,
+                "vulnerability": getattr(scan, "main_vuln", ""),
+            }
+        )
+
+    # Résultat brut du dernier scan lancé (terminal)
+    last_scan = scans.first() if scans else None
+    last_raw_output = None
+    if last_scan:
+        tool = last_scan.tool.upper()
+        # NMAP
+        if tool == "NMAP" and hasattr(last_scan, "nmap_results"):
+            result = last_scan.nmap_results.last()
+            if result and getattr(result, "full_output", None):
+                last_raw_output = result.full_output
+        # NIKTO
+        elif tool == "NIKTO" and hasattr(last_scan, "nikto_results"):
+            result = last_scan.nikto_results.last()
+            if result and getattr(result, "nikto_raw_output", None):
+                last_raw_output = result.nikto_raw_output
+        # SQLMAP
+        elif tool == "SQLMAP" and hasattr(last_scan, "sqlmap_results"):
+            result = last_scan.sqlmap_results.last()
+            if result and getattr(result, "raw_output", None):
+                last_raw_output = result.raw_output
+        # ➕ Ajoute ici les autres outils si besoin (exemple pour Metasploit, etc.)
+        # elif tool == "METASPLOIT" and hasattr(last_scan, "metasploit_results"):
+        #     result = last_scan.metasploit_results.last()
+        #     if result and getattr(result, "raw_output", None):
+        #         last_raw_output = result.raw_output
+
     context = prepare_tools_context()
-    return render(request, 'admin/tools.html', context)
+    context.update(
+        {
+            "structured_results": structured_results,
+            "last_raw_output": last_raw_output,
+        }
+    )
+    return render(request, "admin/tools.html", context)
+
 
 def prepare_tools_context():
     """Prépare le contexte pour la vue tools_admin"""
+
     def get_options(model):
         try:
-            return model._meta.get_field('option').choices
+            return model._meta.get_field("option").choices
         except Exception as e:
             logger.error(f"Erreur options pour {model.__name__}: {e}")
             return []
@@ -545,33 +901,46 @@ def prepare_tools_context():
         "nikto_options": get_options(NiktoResult),
     }
 
-    nikto_results = NiktoResult.objects.select_related('scan').order_by('-scan__start_time')[:10]
+    nikto_results = NiktoResult.objects.select_related("scan").order_by(
+        "-scan__start_time"
+    )[:10]
 
     return {
         "projects": Project.objects.all(),
-        'scans_history': Scan.objects.select_related('project')
-            .prefetch_related(
-                'nmap_results',
-                'niktoresults',
-                'sqlmapresults',
-                # Ajoute ici les related_name de tous tes outils si besoin
-            ).order_by('-start_time')[:100],  # Mets une valeur assez grande pour voir tous les scans
+        "scans_history": Scan.objects.select_related("project")
+        .prefetch_related(
+            "nmap_results",
+            "nikto_results",
+            "sqlmap_results",
+            # Ajoute ici les related_name de tous tes outils si besoin
+        )
+        .order_by("-start_time")[:100],
         "nikto_results": nikto_results,
         **options,
     }
 
 
+# Action : supprimer un scan
+@require_POST
+@login_required
+def delete_scan(request, scan_id):
+    scan = get_object_or_404(Scan, id=scan_id)
+    scan.delete()
+    messages.success(request, "Scan supprimé avec succès.")
+    return redirect("tools_admin")
 
 
 def tools(request):
-    return render(request, 'tools/index.html')
+    return render(request, "tools/index.html")
+
 
 def tools_create(request):
-    return redirect('tools')
+    return redirect("tools")
+
 
 def afficher_sortie_scan(scan):
     try:
-        if scan.tool == 'NMAP':
+        if scan.tool == "NMAP":
             result = scan.nmap_results.last()
             if result:
                 print("\n--- Sortie brute Nmap ---")
@@ -579,7 +948,7 @@ def afficher_sortie_scan(scan):
                 print("--- Fin de sortie Nmap ---\n")
             else:
                 print("Aucun résultat Nmap disponible pour ce scan.")
-        elif scan.tool == 'NIKTO':
+        elif scan.tool == "NIKTO":
             result = scan.nikto_results.last()
             if result:
                 print("\n--- Sortie brute Nikto ---")
@@ -593,6 +962,7 @@ def afficher_sortie_scan(scan):
     except Exception as e:
         print(f"Erreur lors de l'affichage de la sortie brute : {e}")
 
+
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
@@ -605,34 +975,35 @@ import xml.etree.ElementTree as ET
 from .models import SystemLog
 from .decorators import admin_required
 
+
 @login_required
 @admin_required
 def logs_view(request):
     # Filtres
-    log_type = request.GET.get('type')
-    log_level = request.GET.get('level')
-    
+    log_type = request.GET.get("type")
+    log_level = request.GET.get("level")
+
     # Query de base
     logs = SystemLog.objects.all()
-    
+
     # Application des filtres
     if log_type:
         logs = logs.filter(type=log_type)
     if log_level:
         logs = logs.filter(level=log_level)
-    
+
     # Pagination
     paginator = Paginator(logs, 25)  # 25 logs par page
-    page_number = request.GET.get('page')
+    page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
-    
+
     context = {
-        'logs': page_obj,
-        'current_type': log_type,
-        'current_level': log_level,
+        "logs": page_obj,
+        "current_type": log_type,
+        "current_level": log_level,
     }
-    
-    return render(request, 'admin/logs.html', context)
+
+    return render(request, "admin/logs.html", context)
 
 
 from django.contrib.auth.decorators import login_required
@@ -643,85 +1014,92 @@ import csv
 import json
 from datetime import datetime
 
+
 @login_required
 def export_logs(request):
-    if request.method != 'POST':
-        messages.error(request, 'Méthode non autorisée')
-        return redirect('logs')
-        
+    if request.method != "POST":
+        messages.error(request, "Méthode non autorisée")
+        return redirect("logs")
+
     # Get export parameters
-    export_format = request.POST.get('format', 'csv')
-    date_from = request.POST.get('date_from')
-    date_to = request.POST.get('date_to')
-    
+    export_format = request.POST.get("format", "csv")
+    date_from = request.POST.get("date_from")
+    date_to = request.POST.get("date_to")
+
     # Build query
     logs = SystemLog.objects.all()
     if date_from:
         logs = logs.filter(timestamp__gte=date_from)
     if date_to:
         logs = logs.filter(timestamp__lte=date_to)
-        
+
     # Handle different export formats
-    if export_format == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="logs.csv"'
-        
+    if export_format == "csv":
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="logs.csv"'
+
         writer = csv.writer(response)
-        writer.writerow(['Date', 'Type', 'Niveau', 'Utilisateur', 'IP', 'Message'])
-        
+        writer.writerow(["Date", "Type", "Niveau", "Utilisateur", "IP", "Message"])
+
         for log in logs:
-            writer.writerow([
-                log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                log.get_type_display(),
-                log.get_level_display(),
-                str(log.user) if log.user else 'Système',
-                log.ip_address or '-',
-                log.message
-            ])
-            
+            writer.writerow(
+                [
+                    log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    log.get_type_display(),
+                    log.get_level_display(),
+                    str(log.user) if log.user else "Système",
+                    log.ip_address or "-",
+                    log.message,
+                ]
+            )
+
         return response
-        
-    elif export_format == 'json':
-        data = [{
-            'date': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            'type': log.get_type_display(),
-            'level': log.get_level_display(),
-            'user': str(log.user) if log.user else 'Système',
-            'ip': log.ip_address or '-',
-            'message': log.message,
-            'data': log.data
-        } for log in logs]
-        
+
+    elif export_format == "json":
+        data = [
+            {
+                "date": log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                "type": log.get_type_display(),
+                "level": log.get_level_display(),
+                "user": str(log.user) if log.user else "Système",
+                "ip": log.ip_address or "-",
+                "message": log.message,
+                "data": log.data,
+            }
+            for log in logs
+        ]
+
         response = HttpResponse(
-            json.dumps(data, indent=2),
-            content_type='application/json'
+            json.dumps(data, indent=2), content_type="application/json"
         )
-        response['Content-Disposition'] = 'attachment; filename="logs.json"'
+        response["Content-Disposition"] = 'attachment; filename="logs.json"'
         return response
-        
+
     else:  # xml format
         # Add XML export handling if needed
-        messages.error(request, 'Format XML non supporté pour le moment')
-        return redirect('logs')
-
+        messages.error(request, "Format XML non supporté pour le moment")
+        return redirect("logs")
 
 
 from django.contrib import messages
 from EthicalpulsApp.models import Scan
 
+
 def dashboard_view(request):
     if request.user.is_authenticated:
         recent_scans = Scan.objects.filter(
-            scheduled_scan__created_by=request.user,
-            status='completed',
-            notified=False
+            scheduled_scan__created_by=request.user, status="completed", notified=False
         )
         for scan in recent_scans:
-            messages.info(request, f"Le scan '{scan.name}' s’est terminé avec succès à {scan.end_time.strftime('%d/%m/%Y %H:%M')}.")
+            messages.info(
+                request,
+                f"Le scan '{scan.name}' s’est terminé avec succès à {scan.end_time.strftime('%d/%m/%Y %H:%M')}.",
+            )
             scan.notified = True
             scan.save()
-    
+
     # Reste du code
+
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -741,185 +1119,243 @@ from django.db.models.functions import TruncDate, Greatest
 from .models import Scan, Vulnerability, Project
 from .utils.json_encoder import CustomJSONEncoder
 
+
 @login_required
 def analytics_dashboard(request):
     # Get period parameters
-    period = request.GET.get('period', '30d')
-    project_id = request.GET.get('project')
+    period = request.GET.get("period", "30d")
+    project_id = request.GET.get("project")
     end_date = timezone.now()
-    
+
     # Calculate start date based on period
-    if period == '7d':
+    if period == "7d":
         start_date = end_date - timedelta(days=7)
-    elif period == '90d':
+    elif period == "90d":
         start_date = end_date - timedelta(days=90)
-    elif period == '1y':
+    elif period == "1y":
         start_date = end_date - timedelta(days=365)
-    elif period == 'custom':
+    elif period == "custom":
         try:
-            start_date = timezone.datetime.strptime(request.GET.get('start_date'), '%Y-%m-%d')
-            end_date = timezone.datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d')
+            start_date = timezone.datetime.strptime(
+                request.GET.get("start_date"), "%Y-%m-%d"
+            )
+            end_date = timezone.datetime.strptime(
+                request.GET.get("end_date"), "%Y-%m-%d"
+            )
         except (TypeError, ValueError):
             start_date = end_date - timedelta(days=30)
     else:  # default 30d
         start_date = end_date - timedelta(days=30)
 
     # Base filters
-    scan_filters = {'created_at__range': [start_date, end_date]}
-    vuln_filters = {'discovered_at__range': [start_date, end_date]}
-    
+    scan_filters = {"created_at__range": [start_date, end_date]}
+    vuln_filters = {"discovered_at__range": [start_date, end_date]}
+
     if project_id:
-        scan_filters['project_id'] = project_id
-        vuln_filters['scan__project_id'] = project_id
+        scan_filters["project_id"] = project_id
+        vuln_filters["scan__project_id"] = project_id
 
     # Get data for scan metrics
     scans = Scan.objects.filter(**scan_filters)
     scan_metrics = {
-        'total_count': scans.count(),
-        'trend_data': list(
-            scans.annotate(date=TruncDate('created_at'))
-            .values('date')
-            .annotate(count=Count('id'))
-            .order_by('date')
-            .values_list('count', flat=True)
+        "total_count": scans.count(),
+        "trend_data": list(
+            scans.annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+            .values_list("count", flat=True)
         ),
-        'trend_labels': list(
-            scans.annotate(date=TruncDate('created_at'))
-            .values('date')
-            .annotate(count=Count('id'))
-            .order_by('date')
-            .values_list('date', flat=True)
-        )
+        "trend_labels": list(
+            scans.annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+            .values_list("date", flat=True)
+        ),
     }
 
     # Get data for vulnerability metrics
     vulnerabilities = Vulnerability.objects.filter(**vuln_filters)
     total_vulns = vulnerabilities.count()
     vuln_metrics = {
-        'total_count': total_vulns,
-        'by_severity': {
-            'critical': vulnerabilities.filter(severity='critical').count(),
-            'high': vulnerabilities.filter(severity='high').count(),
-            'medium': vulnerabilities.filter(severity='medium').count(),
-            'low': vulnerabilities.filter(severity='low').count()
+        "total_count": total_vulns,
+        "by_severity": {
+            "critical": vulnerabilities.filter(severity="critical").count(),
+            "high": vulnerabilities.filter(severity="high").count(),
+            "medium": vulnerabilities.filter(severity="medium").count(),
+            "low": vulnerabilities.filter(severity="low").count(),
         },
-        'by_status': {
-            'open': vulnerabilities.filter(status='open').count(),
-            'in_progress': vulnerabilities.filter(status='in_progress').count(),
-            'resolved': vulnerabilities.filter(status='resolved').count(),
-            'closed': vulnerabilities.filter(status='closed').count()
+        "by_status": {
+            "open": vulnerabilities.filter(status="open").count(),
+            "in_progress": vulnerabilities.filter(status="in_progress").count(),
+            "resolved": vulnerabilities.filter(status="resolved").count(),
+            "closed": vulnerabilities.filter(status="closed").count(),
         },
-        'resolution_rate': (vulnerabilities.filter(status__in=['resolved', 'closed']).count() / total_vulns * 100) if total_vulns > 0 else 0
+        "resolution_rate": (
+            (
+                vulnerabilities.filter(status__in=["resolved", "closed"]).count()
+                / total_vulns
+                * 100
+            )
+            if total_vulns > 0
+            else 0
+        ),
     }
 
     # Get data for tool metrics
-    tool_metrics = {
-        'labels': [],
-        'data': [],
-        'detection_rate': [],
-        'success_rate': []
-    }
-    
-    tools_data = scans.values('tool').annotate(
-        count=Count('id'),
-        success_count=Count('id', filter=Q(status='completed')),
-        vuln_count=Count('vulnerabilities')
-    ).order_by('-count')
-    
-    for tool in tools_data:
-        tool_metrics['labels'].append(tool['tool'])
-        tool_metrics['data'].append(tool['count'])
-        tool_metrics['success_rate'].append(
-            (tool['success_count'] / tool['count'] * 100) if tool['count'] > 0 else 0
+    tool_metrics = {"labels": [], "data": [], "detection_rate": [], "success_rate": []}
+
+    tools_data = (
+        scans.values("tool")
+        .annotate(
+            count=Count("id"),
+            success_count=Count("id", filter=Q(status="completed")),
+            vuln_count=Count("vulnerabilities"),
         )
-        tool_metrics['detection_rate'].append(
-            (tool['vuln_count'] / tool['success_count']) if tool['success_count'] > 0 else 0
+        .order_by("-count")
+    )
+
+    for tool in tools_data:
+        tool_metrics["labels"].append(tool["tool"])
+        tool_metrics["data"].append(tool["count"])
+        tool_metrics["success_rate"].append(
+            (tool["success_count"] / tool["count"] * 100) if tool["count"] > 0 else 0
+        )
+        tool_metrics["detection_rate"].append(
+            (tool["vuln_count"] / tool["success_count"])
+            if tool["success_count"] > 0
+            else 0
         )
 
     # Get data for project metrics
-    project_metrics = {
-        'labels': [],
-        'data': [],
-        'details': []
-    }
+    project_metrics = {"labels": [], "data": [], "details": []}
 
-    projects = Project.objects.filter(
-        scans__created_at__range=[start_date, end_date]
-    ).distinct().annotate(
-        scan_count=Count('scans', filter=Q(scans__created_at__range=[start_date, end_date])),
-        vuln_count=Count('scans__vulnerabilities', filter=Q(scans__created_at__range=[start_date, end_date])),
-        critical_count=Count('scans__vulnerabilities', 
-                           filter=Q(scans__vulnerabilities__severity='critical',
-                                  scans__created_at__range=[start_date, end_date])),
-        high_count=Count('scans__vulnerabilities',
-                        filter=Q(scans__vulnerabilities__severity='high',
-                               scans__created_at__range=[start_date, end_date])),
-        resolved_count=Count('scans__vulnerabilities',
-                           filter=Q(scans__vulnerabilities__status__in=['resolved', 'closed'],
-                                  scans__created_at__range=[start_date, end_date]))
-    ).annotate(
-        resolution_rate=ExpressionWrapper(
-            F('resolved_count') * 100.0 / Greatest(F('vuln_count'), 1),
-            output_field=fields.FloatField()
+    projects = (
+        Project.objects.filter(scans__created_at__range=[start_date, end_date])
+        .distinct()
+        .annotate(
+            scan_count=Count(
+                "scans", filter=Q(scans__created_at__range=[start_date, end_date])
+            ),
+            vuln_count=Count(
+                "scans__vulnerabilities",
+                filter=Q(scans__created_at__range=[start_date, end_date]),
+            ),
+            critical_count=Count(
+                "scans__vulnerabilities",
+                filter=Q(
+                    scans__vulnerabilities__severity="critical",
+                    scans__created_at__range=[start_date, end_date],
+                ),
+            ),
+            high_count=Count(
+                "scans__vulnerabilities",
+                filter=Q(
+                    scans__vulnerabilities__severity="high",
+                    scans__created_at__range=[start_date, end_date],
+                ),
+            ),
+            resolved_count=Count(
+                "scans__vulnerabilities",
+                filter=Q(
+                    scans__vulnerabilities__status__in=["resolved", "closed"],
+                    scans__created_at__range=[start_date, end_date],
+                ),
+            ),
         )
-    ).order_by('-vuln_count')
+        .annotate(
+            resolution_rate=ExpressionWrapper(
+                F("resolved_count") * 100.0 / Greatest(F("vuln_count"), 1),
+                output_field=fields.FloatField(),
+            )
+        )
+        .order_by("-vuln_count")
+    )
 
     for project in projects:
-        project_metrics['labels'].append(project.name)
-        project_metrics['data'].append(project.vuln_count)
-        project_metrics['details'].append({
-            'name': project.name,
-            'scan_count': project.scan_count,
-            'vuln_count': project.vuln_count,
-            'critical_count': project.critical_count,
-            'high_count': project.high_count,
-            'resolution_rate': project.resolution_rate
-        })
+        project_metrics["labels"].append(project.name)
+        project_metrics["data"].append(project.vuln_count)
+        project_metrics["details"].append(
+            {
+                "name": project.name,
+                "scan_count": project.scan_count,
+                "vuln_count": project.vuln_count,
+                "critical_count": project.critical_count,
+                "high_count": project.high_count,
+                "resolution_rate": project.resolution_rate,
+            }
+        )
 
     # Calculate variations with previous period
     previous_start = start_date - (end_date - start_date)
     previous_end = start_date - timedelta(days=1)
-    
-    previous_scans = Scan.objects.filter(created_at__range=[previous_start, previous_end])
-    previous_vulns = Vulnerability.objects.filter(discovered_at__range=[previous_start, previous_end])
-    
+
+    previous_scans = Scan.objects.filter(
+        created_at__range=[previous_start, previous_end]
+    )
+    previous_vulns = Vulnerability.objects.filter(
+        discovered_at__range=[previous_start, previous_end]
+    )
+
     variations = {
-        'scan_count': ((scan_metrics['total_count'] - previous_scans.count()) / 
-                      previous_scans.count() * 100) if previous_scans.count() > 0 else 0,
-        'vuln_count': ((vuln_metrics['total_count'] - previous_vulns.count()) / 
-                      previous_vulns.count() * 100) if previous_vulns.count() > 0 else 0,
-        'resolution_rate': vuln_metrics['resolution_rate'] - (
-            (previous_vulns.filter(status__in=['resolved', 'closed']).count() / 
-             previous_vulns.count() * 100) if previous_vulns.count() > 0 else 0
+        "scan_count": (
+            (
+                (scan_metrics["total_count"] - previous_scans.count())
+                / previous_scans.count()
+                * 100
+            )
+            if previous_scans.count() > 0
+            else 0
+        ),
+        "vuln_count": (
+            (
+                (vuln_metrics["total_count"] - previous_vulns.count())
+                / previous_vulns.count()
+                * 100
+            )
+            if previous_vulns.count() > 0
+            else 0
+        ),
+        "resolution_rate": vuln_metrics["resolution_rate"]
+        - (
+            (
+                previous_vulns.filter(status__in=["resolved", "closed"]).count()
+                / previous_vulns.count()
+                * 100
+            )
+            if previous_vulns.count() > 0
+            else 0
         ),
     }
 
     context = {
-        'period': period,
-        'start_date': start_date,
-        'end_date': end_date,
-        'projects': Project.objects.all(),
-        'selected_project': project_id,
-        'variations': variations,
+        "period": period,
+        "start_date": start_date,
+        "end_date": end_date,
+        "projects": Project.objects.all(),
+        "selected_project": project_id,
+        "variations": variations,
         # JSON data for charts
-        'scan_metrics_json': json.dumps(scan_metrics, cls=CustomJSONEncoder),
-        'vuln_metrics_json': json.dumps(vuln_metrics, cls=CustomJSONEncoder),
-        'tool_metrics_json': json.dumps(tool_metrics, cls=CustomJSONEncoder),
-        'project_metrics_json': json.dumps(project_metrics, cls=CustomJSONEncoder),
+        "scan_metrics_json": json.dumps(scan_metrics, cls=CustomJSONEncoder),
+        "vuln_metrics_json": json.dumps(vuln_metrics, cls=CustomJSONEncoder),
+        "tool_metrics_json": json.dumps(tool_metrics, cls=CustomJSONEncoder),
+        "project_metrics_json": json.dumps(project_metrics, cls=CustomJSONEncoder),
         # Raw data for template
-        'scan_metrics': scan_metrics,
-        'vuln_metrics': vuln_metrics,
-        'tool_metrics': tool_metrics,
-        'project_metrics': project_metrics
+        "scan_metrics": scan_metrics,
+        "vuln_metrics": vuln_metrics,
+        "tool_metrics": tool_metrics,
+        "project_metrics": project_metrics,
     }
 
-    return render(request, 'analytics.html', context)
+    return render(request, "analytics.html", context)
 
 
 # views.py
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
+
 
 @require_POST
 @login_required
@@ -930,26 +1366,49 @@ def relaunch_scan(request, scan_id):
         name=f"{scan.name} (Relancé {timezone.now():%Y-%m-%d %H:%M:%S})",
         project=scan.project,
         tool=scan.tool,
-        status='scheduled',
+        status="scheduled",
         start_time=timezone.now(),
-        created_by=request.user
+        created_by=request.user,
     )
     # Relance la tâche selon l'outil
-    if scan.tool == 'NMAP':
+    if scan.tool == "NMAP":
         from EthicalpulsApp.utils.run_nmap_scan import run_nmap_scan
-        transaction.on_commit(lambda: run_nmap_scan.delay(new_scan.id, scan.nmap_results.first.option if scan.nmap_results.exists() else None))
-    elif scan.tool == 'NIKTO':
+
+        transaction.on_commit(
+            lambda: run_nmap_scan.delay(
+                new_scan.id,
+                scan.nmap_results.first.option if scan.nmap_results.exists() else None,
+            )
+        )
+    elif scan.tool == "NIKTO":
         from EthicalpulsApp.utils.nikto_scan import run_nikto_scan
-        transaction.on_commit(lambda: run_nikto_scan.delay(new_scan.id, scan.nikto_results.first.option if scan.nikto_results.exists() else None))
-    elif scan.tool == 'SQLMAP':
+
+        transaction.on_commit(
+            lambda: run_nikto_scan.delay(
+                new_scan.id,
+                (
+                    scan.nikto_results.first.option
+                    if scan.nikto_results.exists()
+                    else None
+                ),
+            )
+        )
+    elif scan.tool == "SQLMAP":
         from EthicalpulsApp.utils.run_sqlmap_scan import run_sqlmap_scan
-        options = scan.sqlmap_results.first.options_used.split() if scan.sqlmap_results.exists() else []
+
+        options = (
+            scan.sqlmap_results.first.options_used.split()
+            if scan.sqlmap_results.exists()
+            else []
+        )
         transaction.on_commit(lambda: run_sqlmap_scan.delay(new_scan.id, options))
     # ... autres outils ...
     messages.success(request, "Scan relancé avec succès.")
-    return redirect('scans')
+    return redirect("scans")
+
 
 from django.http import JsonResponse, Http404
+
 
 def completed_scan_details(request, scan_id):
     scan = get_object_or_404(Scan, id=scan_id)

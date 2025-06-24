@@ -1,688 +1,383 @@
-
-
 {% extends "admin/admin_base.html" %}
-
-{% load static scan_filters %}
-{% block title %}Gestion des vulnérabilités - Ethical Pulse Shield{% endblock %}
-
+{% block title %}Analyse globale des vulnérabilités{% endblock %}
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Gestion des vulnérabilités</h1>
-      
-    </div>
-    
-    <!-- Statistiques des vulnérabilités -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="stats-box danger shadow-sm p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6>Critiques</h6>
-                        <h3>{{ critical_vulns }}</h3>
-                    </div>
-                    <i class="bi bi-exclamation-triangle-fill text-danger fs-1"></i>
-                </div>
-                <div class="progress mt-2" style="height: 5px;">
-                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ critical_percentage }}%"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box warning shadow-sm p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6>Élevées</h6>
-                        <h3>{{ high_vulns }}</h3>
-                    </div>
-                    <i class="bi bi-exclamation-circle-fill text-warning fs-1"></i>
-                </div>
-                <div class="progress mt-2" style="height: 5px;">
-                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ high_percentage }}%"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box primary shadow-sm p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6>Moyennes</h6>
-                        <h3>{{ medium_vulns }}</h3>
-                    </div>
-                    <i class="bi bi-info-circle-fill text-primary fs-1"></i>
-                </div>
-                <div class="progress mt-2" style="height: 5px;">
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ medium_percentage }}%"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box success shadow-sm p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6>Faibles</h6>
-                        <h3>{{ low_vulns }}</h3>
-                    </div>
-                    <i class="bi bi-shield-fill-check text-success fs-1"></i>
-                </div>
-                <div class="progress mt-2" style="height: 5px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ low_percentage }}%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Filtres et recherche -->
-    <div class="admin-card card mb-4">
-    <div class="card-body">
-        <form method="GET">
-            <div class="row">
-                <!-- Filtre par projet -->
-                <div class="col-md-2 mb-3">
-                    <select class="form-select" id="projectFilter" name="project">
-                        <option value="">Tous les projets</option>
-                        {% for project in projects %}
-                            <option value="{{ project.id }}" {% if request.GET.project == project.id|stringformat:"s" %}selected{% endif %}>
-                                {{ project.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Filtre par sévérité -->
-                <div class="col-md-2 mb-3">
-                    <select class="form-select" id="severityFilter" name="severity">
-                        <option value="">Toutes les sévérités</option>
-                        <option value="critical" {% if request.GET.severity == 'critical' %}selected{% endif %}>Critique</option>
-                        <option value="high" {% if request.GET.severity == 'high' %}selected{% endif %}>Élevée</option>
-                        <option value="medium" {% if request.GET.severity == 'medium' %}selected{% endif %}>Moyenne</option>
-                        <option value="low" {% if request.GET.severity == 'low' %}selected{% endif %}>Faible</option>
-                    </select>
-                </div>
-
-                <!-- Filtre par statut -->
-                <div class="col-md-2 mb-3">
-                    <select class="form-select" id="statusFilter" name="status">
-                        <option value="">Tous les statuts</option>
-                        <option value="open" {% if request.GET.status == 'open' %}selected{% endif %}>Planifié</option>
-                        <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>En cours</option>
-                        <option value="resolved" {% if request.GET.status == 'resolved' %}selected{% endif %}>Terminé</option>
-                        <option value="closed" {% if request.GET.status == 'closed' %}selected{% endif %}>Échoué</option>
-                    </select>
-                </div>
-
-                <!-- Date de début -->
-                <div class="col-md-2 mb-3">
-                    <input type="date" class="form-control" name="from" placeholder="Date de début" value="{{ request.GET.from }}">
-                </div>
-
-                <!-- Date de fin -->
-                <div class="col-md-2 mb-3">
-                    <input type="date" class="form-control" name="to" placeholder="Date de fin" value="{{ request.GET.to }}">
-                </div>
-
-                <!-- Recherche -->
-                <div class="col-md-2 mb-3">
-                    <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Rechercher..." name="query" value="{{ request.GET.query }}">
-                        <button class="btn btn-outline-secondary" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-    
-    <!-- Liste des vulnérabilités -->
-    <div class="admin-card card">
-        <div class="card-body">
-            <div class="table-responsive">
-                {% if messages %}
-                    <div class="container mt-3">
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                <table class="table admin-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nom</th>
-                            <th>Projet</th>
-                            <th>Sévérité</th>
-                            <th>Statut</th>
-                            <th>Date de debut</th>
-                            <th>Date de fin</th>
-                            <th>Durée</th>
-                            <th>Outils</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for scan in scans %}
-                        <tr>
-                            <td>{{ scan.id }}</td>
-                            <td>{{ scan.name }}</td>
-                            <td>{{ scan.project.name }}</td>
-                            <td>
-                                {% if scan.severities.items %}
-                                    {% for severity, count in scan.severities.items %}
-                                        {% if count > 0 %}
-                                            <span class="badge 
-                                                {% if severity == 'critical' %}bg-danger
-                                                {% elif severity == 'high' %}bg-warning text-dark
-                                                {% elif severity == 'medium' %}bg-primary
-                                                {% elif severity == 'low' %}bg-success
-                                                {% else %}bg-secondary
-                                                {% endif %}">
-                                                {{ severity|title }}: {{ count }}
-                                            </span>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">Aucune sévérité</span>
-                                {% endif %}
-
-                            </td>
-                            <td>
-                                <span class="badge 
-                                    {% if scan.status == 'scheduled' %}bg-warning text-dark
-                                    {% elif scan.status == 'in_progress' %}bg-primary
-                                    {% elif scan.status == 'completed' %}bg-success
-                                    {% elif scan.status == 'failed' %}bg-danger
-                                    {% else %}bg-secondary
-                                    {% endif %}">
-                                    {{ scan.status|title }}
-                                </span>
-                            </td>
-                            <td>{{ scan.start_time|date:"d/m/Y" }}</td>
-                            <td>{{ scan.end_time|date:"d/m/Y" }}</td>
-                            <td>{{ scan.duration }}</td>
-                            <td>{{ scan.tool }}</td>
-                            <td>
-                                <div class="btn-group">
-                                    <!-- Bouton Voir -->
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewScanModal{{ scan.id }}">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-
-                                    <!-- Bouton Supprimer -->
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteScanModal{{ scan.id }}">
-                                        <i class="bi bi-trash"></i> 
-                                    </button>
-
-                                    <!-- Bouton Imprimer -->
-                                    <a href="{% url 'generate_scan_report' scan.id %}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-printer"></i> 
-                                    </a>
-                                    
-                                    <!-- Bouton Relancer -->
-                                    <a href="{% url 'relaunch_scan' scan.id %}" class="btn btn-sm btn-warning">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </a>
-
-                                    
-
-
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="text-center">Aucune vulnérabilité trouvée</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination -->
-       <!-- Update the pagination section -->
-        <nav class="mt-3">
-            <ul class="pagination justify-content-center">
-                {% if scans.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ scans.previous_page_number }}&{{ request.GET.urlencode }}">Précédent</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <a class="page-link" href="#">Précédent</a>
-                </li>
-                {% endif %}
-
-                {% for page_num in scans.paginator.page_range %}
-                <li class="page-item {% if scans.number == page_num %}active{% endif %}">
-                    <a class="page-link" href="?page={{ page_num }}&{{ request.GET.urlencode }}">{{ page_num }}</a>
-                </li>
-                {% endfor %}
-
-                {% if scans.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ scans.next_page_number }}&{{ request.GET.urlencode }}">Suivant</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <a class="page-link" href="#">Suivant</a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-            <!-- Fin de la pagination -->
-
-        </div>
-    </div>
-</div>
-
-
-
-<!-- Modal d'exportation -->
-<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Exporter les vulnérabilités</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form>
-                    <div class="mb-3">
-                        <label for="exportFormat" class="form-label">Format</label>
-                        <select class="form-select" id="exportFormat">
-                            <option value="pdf">PDF</option>
-                            <option value="csv">CSV</option>
-                            <option value="json">JSON</option>
-                            <option value="xml">XML</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Inclure</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeDetails" checked>
-                            <label class="form-check-label" for="includeDetails">
-                                Détails complets
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeSteps" checked>
-                            <label class="form-check-label" for="includeSteps">
-                                Étapes de reproduction
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeRemediation" checked>
-                            <label class="form-check-label" for="includeRemediation">
-                                Recommandations de remédiation
-                            </label>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary">Exporter</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de suppression de scan -->
-{% for scan in scans %}
-<div class="modal fade" id="deleteScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Supprimer le scan {{ scan.name }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Êtes-vous sûr de vouloir supprimer ce scan ? Cette action est irréversible.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form method="POST" action="{% url 'delete_scan' scan.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Supprimer</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% endfor %}
-<!-- Modal de visualisation de scan -->
-{% for scan in scans %}
-<div class="modal fade" id="viewScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Détails du scan {{ scan.name }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Détails du scan -->
-                <p><strong>Nom :</strong> {{ scan.name }}</p>
-                <p><strong>Projet :</strong> {{ scan.project.name }}</p>
-                <p><strong>Sévérités :</strong></p>
-                {% for severity, count in scan.severities.items %}
-                    <li>{{ severity|title }} : {{ count }}</li>
-                {% endfor %}
-                </ul>
-                <p><strong>Statut :</strong> {{ scan.status }}</p>
-                <p><strong>Durée :</strong> {{ scan.duration }}</p>
-                <p><strong>Outil :</strong> {{ scan.tool }}</p>
-
-                <!-- Détails du scan planifié -->
-                {% if scan.scheduled_scan %}
-                <hr>
-                <h5>Détails du scan planifié</h5>
-                <p><strong>Date et Heure Planifiées :</strong> {{ scan.scheduled_scan.scheduled_time }}</p>
-                <p><strong>Fréquence :</strong> {{ scan.scheduled_scan.get_frequency_display }}</p>
-                <p><strong>Créé le :</strong> {{ scan.scheduled_scan.created_at }}</p>
-                {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endfor %}
-<!-- Modal de relance de scan -->
-{% for scan in scans %}
-<div class="modal fade" id="relaunchScanModal{{ scan.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Relancer le scan {{ scan.name }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Êtes-vous sûr de vouloir relancer ce scan ?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form method="POST" action="{% url 'relaunch_scan' scan.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-warning">Relancer</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endfor %}
-
-
-
-</div>
-{% endblock %}
-
-{% block extra_css %}
 <style>
-/* Styles généraux du tableau */
-.admin-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-}
-
-/* En-tête du tableau */
-.admin-table thead {
+.card-header {
     background: #f8f9fa;
-}
-
-.admin-table th {
-    padding: 15px;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-    border-bottom: 2px solid #dee2e6;
-    color: #495057;
-    text-align: left;
-    white-space: nowrap;
-}
-
-/* Corps du tableau */
-.admin-table td {
-    padding: 12px 15px;
-    vertical-align: middle;
+    font-weight: 500;
     border-bottom: 1px solid #e9ecef;
-    color: #495057;
-    font-size: 0.9rem;
 }
-
-/* Effet hover sur les lignes */
-.admin-table tbody tr:hover {
-    background-color: #f8f9fa;
-    transition: background-color 0.2s ease;
+.card {
+    border-radius: 0.7rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-
-/* Style pour les badges */
-.admin-table .badge {
-    padding: 5px 10px;
-    font-weight: 500;
-    font-size: 0.75rem;
-    border-radius: 4px;
-    margin-right: 4px;
-    display: inline-block;
+canvas {
+    max-width: 100%;
+    height: 180px !important;
 }
-
-/* Style pour les boutons d'action */
-.admin-table .btn-group {
-    display: flex;
-    gap: 5px;
-}
-
-.admin-table .btn-sm {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-.admin-table .btn-sm:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Style pour les colonnes spécifiques */
-.admin-table td:first-child {  /* Colonne ID */
-    font-weight: 600;
-    color: #6c757d;
-}
-
-.admin-table td:nth-child(3) {  /* Colonne Projet */
-    color: #0d6efd;
-    font-weight: 500;
-}
-
-/* Style pour les états */
-.admin-table .status-badge {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-}
-
-/* Responsive design */
-@media (max-width: 992px) {
-    .admin-table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-    
-    .admin-table thead {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        background: #f8f9fa;
+@media (max-width: 991px) {
+    .row.mb-4 > .col-lg-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
     }
 }
-
-/* Animation de chargement */
-.loading {
-    cursor: wait;
-    opacity: 0.7;
-}
-
-.loading * {
-    pointer-events: none;
-}
-
-/* Style pour la pagination */
-.pagination {
-    margin-top: 20px;
-}
-
-.pagination .page-link {
-    padding: 8px 16px;
-    color: #0d6efd;
-    background-color: #fff;
-    border: 1px solid #dee2e6;
-    transition: all 0.2s ease;
-}
-
-.pagination .page-link:hover {
-    background-color: #e9ecef;
-    border-color: #dee2e6;
-    color: #0a58ca;
-}
-
-.pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    color: #fff;
-}
-
-.pagination .page-item.disabled .page-link {
-    color: #6c757d;
-    pointer-events: none;
-    background-color: #fff;
-    border-color: #dee2e6;
-}
-
-/* Alternance des couleurs des lignes */
-.admin-table tbody tr:nth-child(odd) {
-    background-color: #f8f9fa;
-}
-
-.admin-table tbody tr:nth-child(even) {
-    background-color: #ffffff;
-}
-
-/* Effet hover amélioré */
-.admin-table tbody tr:hover {
-    background-color:rgb(142, 194, 231) !important; /* Bleu clair au survol */
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.2s ease-in-out;
-    cursor: pointer;
-}
-
-/* Animation de transition douce */
-.admin-table tbody tr {
-    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* Ajustement pour les cellules pendant le hover */
-.admin-table tbody tr:hover td {
-    color: #0d6efd; /* Bleu plus foncé pour le texte */
-    background-color: #e3f2fd; /* Bleu clair pour le fond */
-}
-
-/* Style pour les filtres actifs */
-.filter-active {
-    background-color: #e3f2fd;
-    border-color: #90caf9;
-}
-
-/* Animation pour les actions */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.table-action {
-    animation: fadeIn 0.3s ease;
+.toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
 }
 </style>
-{% endblock %}
+<div class="container-fluid">
+    <h1 class="mb-4">Analyse globale des vulnérabilités</h1>
+    <!-- Alertes temps réel -->
+    <div id="alert-toast" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
+      <div class="d-flex">
+        <div class="toast-body">
+          🚨 Nouvelle vulnérabilité critique détectée !
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="document.getElementById('alert-toast').style.display='none';"></button>
+      </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-white bg-danger mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Critiques</h5>
+                    <h2>{{ global_stats.critique }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Élevées</h5>
+                    <h2>{{ global_stats.élevée }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Moyennes</h5>
+                    <h2>{{ global_stats.moyenne }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Faibles</h5>
+                    <h2>{{ global_stats.faible }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-secondary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Info</h5>
+                    <h2>{{ global_stats.info }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-dark bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Projets</h5>
+                    <h2>{{ total_projects }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
 
-{% block extra_js %}
+    <!-- Widgets comparatifs -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header py-2"><small>Projet le plus sûr</small></div>
+                <div class="card-body">
+                    {% if safest_project %}
+                        <b>{{ safest_project.project.name }}</b> ({{ safest_project.stats.critique }} critiques, {{ safest_project.stats.élevée }} élevées)
+                    {% else %}
+                        Aucun projet.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header py-2"><small>Comparaison entre projets</small></div>
+                <div class="card-body">
+                    <span class="badge bg-danger">Plus à risque : {{ top_projects.0.project.name }}</span>
+                    <span class="badge bg-success">Plus sûr : {% if safest_project %}{{ safest_project.project.name }}{% endif %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques en grille compacte -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header py-2"><small>Vulnérabilités par projet</small></div>
+                <div class="card-body p-2">
+                    <canvas id="vulnBarChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header py-2"><small>Répartition globale</small></div>
+                <div class="card-body p-2">
+                    <canvas id="vulnPieChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-12 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header py-2"><small>Évolution des vulnérabilités critiques</small></div>
+                <div class="card-body p-2">
+                    <canvas id="vulnLineChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation d'impact -->
+    <div class="card mb-4">
+        <div class="card-header">Simulation d'impact</div>
+        <div class="card-body">
+            <p>Si vous corrigez toutes les vulnérabilités critiques, votre score global passe à <span id="simu-score" class="badge bg-success">{{ global_stats.élevée|add:global_stats.moyenne|add:global_stats.faible|add:global_stats.info }}</span></p>
+            <button class="btn btn-outline-success btn-sm" onclick="simulateFix()">Simuler la correction</button>
+        </div>
+    </div>
+
+    <!-- Top projets -->
+    <div class="card mb-4">
+        <div class="card-header">Top 5 projets les plus vulnérables (critiques)</div>
+        <div class="card-body">
+            <ul>
+                {% for p in top_projects %}
+                    <li>
+                        <b>{{ p.project.name }}</b> : <span class="text-danger">{{ p.stats.critique }}</span> critiques
+                        <span class="badge bg-info">Scan CI/CD:
+                            {% if p.stats.critique > 0 %}
+                                <span class="badge bg-danger">KO</span>
+                            {% else %}
+                                <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tableau détaillé -->
+    <div class="card mb-4">
+        <div class="card-header">Détail par projet</div>
+        <div class="card-body table-responsive">
+            <div class="mb-2">
+                <input type="text" class="form-control" id="filterInput" placeholder="Filtrer par projet, outil, sévérité...">
+            </div>
+            <table class="table table-bordered table-hover align-middle" id="vulnTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Projet</th>
+                        <th>Critiques</th>
+                        <th>Élevées</th>
+                        <th>Moyennes</th>
+                        <th>Faibles</th>
+                        <th>Info</th>
+                        <th>Total</th>
+                        <th>Voir détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in project_data %}
+                    <tr>
+                        <td>{{ p.project.name }}</td>
+                        <td class="bg-danger text-white">{{ p.stats.critique }}</td>
+                        <td class="bg-warning">{{ p.stats.élevée }}</td>
+                        <td class="bg-info text-white">{{ p.stats.moyenne }}</td>
+                        <td class="bg-success text-white">{{ p.stats.faible }}</td>
+                        <td class="bg-secondary text-white">{{ p.stats.info }}</td>
+                        <td><b>{{ p.total }}</b></td>
+                        <td>
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#details-{{ forloop.counter }}">Détails</button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="details-{{ forloop.counter }}">
+                        <td colspan="8">
+                            <ul>
+                                {% for d in p.stats.details %}
+                                    <div class="mb-3">
+                                        <form method="post" enctype="multipart/form-data" action="{% url 'import_project_report' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="file" name="report_file" accept=".json,.csv" required>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">Importer un rapport</button>
+                                        </form>
+                                        <a href="{% url 'export_project_report' %}?project_id={{ p.project.id }}" class="btn btn-outline-success btn-sm">Télécharger rapport PDF</a>
+                                        <a href="{% url 'export_project_report_csv' %}?project_id={{ p.project.id }}" class="btn btn-outline-secondary btn-sm">Télécharger rapport CSV</a>
+                                    </div>
+                                    
+                                {% empty %}
+                                    <li>Aucune vulnérabilité détectée.</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button class="btn btn-outline-secondary btn-sm" onclick="exportCSV()">Exporter CSV</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Exporter PDF</button>
+        </div>
+    </div>
+    <!-- Résumé personnalisé -->
+    <div class="card mb-4">
+        <div class="card-header">Résumé personnalisé</div>
+        <div class="card-body">
+            {% if user_role == "ADMIN" or user_role == "PROJECT_MANAGER" %}
+                <p><b>Vue management :</b> {{ global_stats.critique }} critiques, {{ global_stats.élevée }} élevées, {{ total_projects }} projets, {{ total_scans }} scans.</p>
+            {% else %}
+                <p><b>Vue technique :</b> Détail complet des vulnérabilités, payloads, scans, etc.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Function to update URL parameters
-    function updateUrlParameter(key, value) {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (value) {
-            urlParams.set(key, value);
-        } else {
-            urlParams.delete(key);
+const barChart = new Chart(document.getElementById('vulnBarChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ chart_labels|safe }},
+        datasets: [
+            { label: 'Critiques', data: {{ chart_critique|safe }}, backgroundColor: 'rgba(220,53,69,0.7)' },
+            { label: 'Élevées', data: {{ chart_elevee|safe }}, backgroundColor: 'rgba(255,193,7,0.7)' },
+            { label: 'Moyennes', data: {{ chart_moyenne|safe }}, backgroundColor: 'rgba(23,162,184,0.7)' },
+            { label: 'Faibles', data: {{ chart_faible|safe }}, backgroundColor: 'rgba(40,167,69,0.7)' },
+            { label: 'Info', data: {{ chart_info|safe }}, backgroundColor: 'rgba(108,117,125,0.7)' },
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+        },
+        scales: {
+            x: { ticks: { font: { size: 11 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 11 } } }
         }
-        return urlParams.toString();
     }
+});
 
-    // Handle filter changes
-    const filters = document.querySelectorAll('select[id$="Filter"], input[type="date"], input[name="query"]');
-    filters.forEach(filter => {
-        filter.addEventListener('change', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.delete('page'); // Reset to first page when filtering
-            urlParams.set(this.name, this.value);
-            window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
-        });
-    });
+const pieChart = new Chart(document.getElementById('vulnPieChart'), {
+    type: 'pie',
+    data: {
+        labels: ['Critiques', 'Élevées', 'Moyennes', 'Faibles', 'Info'],
+        datasets: [{
+            data: [
+                {{ global_stats.critique }},
+                {{ global_stats.élevée }},
+                {{ global_stats.moyenne }},
+                {{ global_stats.faible }},
+                {{ global_stats.info }}
+            ],
+            backgroundColor: [
+                'rgba(220,53,69,0.7)',
+                'rgba(255,193,7,0.7)',
+                'rgba(23,162,184,0.7)',
+                'rgba(40,167,69,0.7)',
+                'rgba(108,117,125,0.7)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+        }
+    }
+});
 
-    // Handle pagination links
-    document.querySelectorAll('.pagination .page-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const page = this.getAttribute('href').split('page=')[1];
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('page', page);
-            window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
-        });
-    });
+const lineChart = new Chart(document.getElementById('vulnLineChart'), {
+    type: 'line',
+    data: {
+        labels: {{ chart_dates|safe }},
+        datasets: [{
+            label: 'Critiques',
+            data: {{ chart_critique_evolution|safe }},
+            borderColor: 'rgba(220,53,69,1)',
+            fill: false,
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: { ticks: { font: { size: 11 } } },
+            y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+        }
+    }
+});
 
-    // Handle export functionality
-    const exportBtn = document.querySelector('#exportModal .btn-primary');
-    exportBtn?.addEventListener('click', function() {
-        const format = document.getElementById('exportFormat').value;
-        const includeDetails = document.getElementById('includeDetails').checked;
-        const includeSteps = document.getElementById('includeSteps').checked;
-        const includeRemediation = document.getElementById('includeRemediation').checked;
-        
-        // Get current filters
-        const urlParams = new URLSearchParams(window.location.search);
-        urlParams.set('format', format);
-        urlParams.set('include_details', includeDetails);
-        urlParams.set('include_steps', includeSteps);
-        urlParams.set('include_remediation', includeRemediation);
-        
-        window.location.href = `{% url 'export_vulnerabilities' %}?${urlParams.toString()}`;
-    });
-
-    // Add loading indicators
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function() {
-        document.body.classList.add('loading');
+// Filtres dynamiques
+document.getElementById('filterInput').addEventListener('keyup', function() {
+    let filter = this.value.toLowerCase();
+    let rows = document.querySelectorAll('#vulnTable tbody tr:not(.collapse)');
+    rows.forEach(function(row) {
+        let text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
     });
 });
-</script>
 
+// Simulation d'impact
+function simulateFix() {
+    document.getElementById('simu-score').innerText = "0";
+    document.getElementById('simu-score').className = "badge bg-success";
+    alert("Score recalculé : toutes les critiques corrigées !");
+}
+
+// Export CSV
+function exportCSV() {
+    let csv = "Projet,Critiques,Élevées,Moyennes,Faibles,Info,Total\n";
+    document.querySelectorAll('#vulnTable tbody tr:not(.collapse)').forEach(function(row) {
+        let cells = row.querySelectorAll('td');
+        if (cells.length >= 7) {
+            csv += Array.from(cells).slice(0,7).map(td => td.innerText).join(",") + "\n";
+        }
+    });
+    let blob = new Blob([csv], {type: "text/csv"});
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "vulnerabilites.csv";
+    link.click();
+}
+
+// Mode collaboratif (exemple)
+function addComment(project, vuln) {
+    alert("Commenter sur " + project + " - " + vuln + " (fonctionnalité à implémenter)");
+}
+function assignVuln(project, vuln) {
+    alert("Assigner " + vuln + " sur " + project + " à un membre (fonctionnalité à implémenter)");
+}
+
+// Alertes temps réel (exemple JS, à relier à WebSocket ou polling)
+function showAlertToast() {
+    document.getElementById('alert-toast').style.display = 'block';
+    setTimeout(() => { document.getElementById('alert-toast').style.display = 'none'; }, 8000);
+}
+// Simule une alerte toutes les 2 minutes (pour démo)
+setInterval(showAlertToast, 120000);
+
+// Exemple d'intégration Slack/email (à faire côté backend)
+// fetch('/api/notify_slack', {method: 'POST', body: JSON.stringify({msg: "Nouvelle vulnérabilité critique détectée"})});
+
+</script>
 {% endblock %}

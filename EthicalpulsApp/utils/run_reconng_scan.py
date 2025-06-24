@@ -11,21 +11,25 @@ from EthicalpulsApp.models import ReconngResult, Scan
 logger = logging.getLogger(__name__)
 
 # Configuration Recon-ng
-RECONNG_PATH = shutil.which(getattr(settings, 'RECONNG_PATH', 'recon-ng'))
-RECONNG_TIMEOUT = getattr(settings, 'RECONNG_TIMEOUT', 3600)  # 1 heure par défaut
+RECONNG_PATH = shutil.which(getattr(settings, "RECONNG_PATH", "recon-ng"))
+RECONNG_TIMEOUT = getattr(settings, "RECONNG_TIMEOUT", 3600)  # 1 heure par défaut
 
 # Options disponibles pour Recon-ng avec leurs commandes
 RECONNG_OPTION_MAP = {
-    'whois': ['recon/domains-contacts/whois_pocs'],
-    'subdomains': ['recon/domains-hosts/bing_domain_web',
-                  'recon/domains-hosts/google_site_web'],
-    'dns': ['recon/domains-hosts/brute_hosts',
-            'recon/domains-hosts/dns_brute'],
-    'email': ['recon/contacts-credentials/hibp_breach'],
-    'social': ['recon/profiles-contacts/linkedin_auth'],
-    'vulns': ['recon/hosts-vulnerabilities/ssl_scan',
-              'recon/hosts-vulnerabilities/web_vulns']
+    "whois": ["recon/domains-contacts/whois_pocs"],
+    "subdomains": [
+        "recon/domains-hosts/bing_domain_web",
+        "recon/domains-hosts/google_site_web",
+    ],
+    "dns": ["recon/domains-hosts/brute_hosts", "recon/domains-hosts/dns_brute"],
+    "email": ["recon/contacts-credentials/hibp_breach"],
+    "social": ["recon/profiles-contacts/linkedin_auth"],
+    "vulns": [
+        "recon/hosts-vulnerabilities/ssl_scan",
+        "recon/hosts-vulnerabilities/web_vulns",
+    ],
 }
+
 
 def parse_reconng_output(output, target):
     """Parse la sortie de Recon-ng"""
@@ -35,7 +39,7 @@ def parse_reconng_output(output, target):
         "contacts": [],
         "hosts": [],
         "vulnerabilities": [],
-        "errors": []
+        "errors": [],
     }
 
     for line in output.splitlines():
@@ -44,19 +48,20 @@ def parse_reconng_output(output, target):
             continue
 
         # Parse les différents types de résultats
-        if '[*]' in line:  # Information
+        if "[*]" in line:  # Information
             parsed["findings"].append(line)
-        elif '[+]' in line:  # Succès
-            if 'host' in line.lower():
+        elif "[+]" in line:  # Succès
+            if "host" in line.lower():
                 parsed["hosts"].append(line)
-            elif 'contact' in line.lower():
+            elif "contact" in line.lower():
                 parsed["contacts"].append(line)
-            elif any(vuln in line.lower() for vuln in ['vulnerability', 'vuln', 'cve']):
+            elif any(vuln in line.lower() for vuln in ["vulnerability", "vuln", "cve"]):
                 parsed["vulnerabilities"].append(line)
-        elif '[-]' in line:  # Erreur
+        elif "[-]" in line:  # Erreur
             parsed["errors"].append(line)
 
     return parsed
+
 
 @shared_task(bind=True)
 def run_reconng_scan(self, scan_id, option):
@@ -75,33 +80,35 @@ def run_reconng_scan(self, scan_id, option):
 
         # Création du workspace
         workspace_name = f"ethicalpulse_{scan_id}"
-        
+
         # Configuration de la commande
-        base_cmd = [RECONNG_PATH, '-w', workspace_name]
+        base_cmd = [RECONNG_PATH, "-w", workspace_name]
         modules = RECONNG_OPTION_MAP.get(option, [])
         if not modules:
             raise ValueError(f"Option invalide pour Recon-ng : {option}")
 
-        scan.status = 'in_progress'
+        scan.status = "in_progress"
         scan.save()
 
         full_output = ""
         for module in modules:
-            cmd = base_cmd + ['-m', module, '-o', f"TARGET={target}", '--no-analytics']
-            
+            cmd = base_cmd + ["-m", module, "-o", f"TARGET={target}", "--no-analytics"]
+
             try:
                 result = subprocess.run(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    timeout=RECONNG_TIMEOUT
+                    timeout=RECONNG_TIMEOUT,
                 )
                 output = result.stdout + "\n" + result.stderr
                 full_output += f"\n--- Module {module} ---\n{output}"
 
             except subprocess.TimeoutExpired:
-                error_msg = f"Timeout pour le module {module} après {RECONNG_TIMEOUT} secondes"
+                error_msg = (
+                    f"Timeout pour le module {module} après {RECONNG_TIMEOUT} secondes"
+                )
                 logger.error(error_msg)
                 full_output += f"\n[ERROR] {error_msg}"
                 continue
@@ -113,7 +120,7 @@ def run_reconng_scan(self, scan_id, option):
         # Mise à jour du scan
         scan.end_time = timezone.now()
         scan.duration = (scan.end_time - scan.start_time).total_seconds()
-        scan.status = 'completed' if scan_success else 'failed'
+        scan.status = "completed" if scan_success else "failed"
         scan.save()
 
         # Création du résultat
@@ -130,7 +137,7 @@ def run_reconng_scan(self, scan_id, option):
             total_hosts=len(parsed["hosts"]),
             total_contacts=len(parsed["contacts"]),
             total_vulnerabilities=len(parsed["vulnerabilities"]),
-            scan_completed=scan_success
+            scan_completed=scan_success,
         )
 
         # Envoi d'email de notification
@@ -147,12 +154,14 @@ def run_reconng_scan(self, scan_id, option):
                 f"- Vulnérabilités : {len(parsed['vulnerabilities'])}\n"
                 f"- Erreurs : {len(parsed['errors'])}"
             )
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [scan.created_by.email])
+            send_mail(
+                subject, message, settings.DEFAULT_FROM_EMAIL, [scan.created_by.email]
+            )
 
     except Exception as e:
         logger.exception(f"Erreur lors du scan Recon-ng : {e}")
         if scan:
-            scan.status = 'failed'
+            scan.status = "failed"
             scan.end_time = timezone.now()
             scan.save()
         raise
@@ -160,6 +169,8 @@ def run_reconng_scan(self, scan_id, option):
     finally:
         # Nettoyage du workspace
         try:
-            subprocess.run([RECONNG_PATH, '-w', workspace_name, '-C', 'workspaces remove'])
+            subprocess.run(
+                [RECONNG_PATH, "-w", workspace_name, "-C", "workspaces remove"]
+            )
         except Exception as e:
             logger.error(f"Erreur lors du nettoyage du workspace : {e}")

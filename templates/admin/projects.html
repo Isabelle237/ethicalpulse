@@ -1,669 +1,691 @@
-
 {% extends "admin/admin_base.html" %}
-
-{% block title %}Gestion des projets - Ethical Pulse Shield{% endblock %}
-
+{% load static %}
 {% block content %}
-<div class="container-fluid">
-    <!-- Display Django Messages -->
-    {% if messages %}
-    <div class="mt-3">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Gestion des projets</h1>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjectModal">
-            <i class="bi bi-plus-circle"></i> Nouveau projet
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold text-orange"><i class="bi bi-folder2-open me-2"></i>Projets</h3>
+        <button class="btn btn-orange" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+            <i class="bi bi-plus-circle"></i> Nouveau Projet
         </button>
     </div>
-
-    <div class="admin-card card mb-4">
-        <div class="card-header bg-white">
-            <div class="row align-items-center g-3">
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-transparent">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Rechercher un projet...">
-                    </div>
-                </div>
-                <div class="col-md-5">
-                    <div class="d-flex gap-2">
-                        <select class="form-select" id="typeFilter">
-                            <option value="">Tous les types</option>
-                            {% for value, label in form.project_type.field.choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                        <select class="form-select" id="statusFilter">
-                            <option value="">Tous les statuts</option>
-                            <option value="active">Actif</option>
-                            <option value="inactive">Inactif</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="btn-group w-100">
-                        <button type="button" class="btn btn-outline-primary active" id="listViewBtn">
-                            <i class="bi bi-list-ul"></i> Liste
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="gridViewBtn">
-                            <i class="bi bi-grid-3x3-gap"></i> Grille
-                        </button>
-                    </div>
-                </div>
-            </div>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table admin-table" id="projectTable">
-                    <thead>
-                        <tr>
-                            <th class="sortable" data-sort="name">Nom <i class="bi bi-arrow-down-up"></i></th>
-                            <th class="sortable" data-sort="type">Type <i class="bi bi-arrow-down-up"></i></th>
-                            <th class="sortable" data-sort="domain">Domaine <i class="bi bi-arrow-down-up"></i></th>
-                            <th>Adresse IP</th>
-                            <th>URL</th>
-                            <th class="sortable" data-sort="created_at">Date de création <i class="bi bi-arrow-down-up"></i></th>
-                            <th class="sortable" data-sort="updated_at">Date de modification <i class="bi bi-arrow-down-up"></i></th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="projectTableBody">
-                        {% for project in projects %}
-                        <tr>
-                            <td>{{ project.name }}</td>
-                            <td>{{ project.get_project_type_display }}</td>
-                            <td>{{ project.domain|default:"" }}</td>
-                            <td>{{ project.ip_address|default:"" }}</td>
-                            <td>{{ project.url|default:"" }}</td>
-                            <td>{{ project.created_at|date:"d/m/Y" }}</td>
-                            <td>{{ project.updated_at|date:"d/m/Y" }}</td>
-                            <td>
-                                <!-- ÉDITER -->
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-primary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editProjectModal"
-                                        data-project-id="{{ project.id }}"
-                                        data-project-name="{{ project.name }}"
-                                        data-project-description="{{ project.description }}"
-                                        data-project-type="{{ project.project_type }}"
-                                        data-project-domain="{{ project.domain }}"
-                                        data-project-ip="{{ project.ip_address }}"
-                                        data-project-url="{{ project.url }}"
-                                        data-project-scope="{{ project.scope }}">
-                                    <i class="bi bi-pencil"></i> Éditer
-                                </button>
-                                <!-- SUPPRIMER -->
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteProjectModal"
-                                        data-project-id="{{ project.id }}"
-                                        data-project-name="{{ project.name }}">
-                                    <i class="bi bi-trash"></i> Supprimer
-                                </button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="text-center">Aucun projet trouvé.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <!-- Grid View -->
-            <div id="gridView" class="row g-4 p-4" style="display: none;">
-                {% for project in projects %}
-                <div class="col-xl-3 col-lg-4 col-md-6 project-grid-item"
-                    data-name="{{ project.name|lower }}"
-                    data-type="{{ project.project_type|lower }}"
-                    data-domain="{{ project.domain|lower }}"
-                    data-status="{{ project.is_active|yesno:'active,inactive' }}">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="project-icon me-3">
-                                    <i class="bi bi-folder2"></i>
-                                </div>
-                                <div>
-                                    <h5 class="card-title mb-0">{{ project.name }}</h5>
-                                    <small class="text-muted">{{ project.get_project_type_display }}</small>
-                                </div>
-                            </div>
-                            <div class="project-info-grid">
-                                <div class="project-info-item">
-                                    <span class="text-muted">Domaine</span>
-                                    <span>{{ project.domain|default:"N/A" }}</span>
-                                </div>
-                                <div class="project-info-item">
-                                    <span class="text-muted">IP</span>
-                                    <span>{{ project.ip_address|default:"N/A" }}</span>
-                                </div>
-                                <div class="project-info-item">
-                                    <span class="text-muted">Créé le</span>
-                                    <span>{{ project.created_at|date:"d/m/Y" }}</span>
-                                </div>
-                                <div class="project-info-item">
-                                    <span class="text-muted">URL</span>
-                                    <span>{{ project.url|default:"N/A" }}</span>
-                                </div>
-                                
-                            </div>
-                            <div class="mt-3 d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-primary flex-grow-1"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editProjectModal"
-                                        data-project-id="{{ project.id }}">
-                                    <i class="bi bi-pencil"></i> Éditer
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger flex-grow-1"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteProjectModal"
-                                        data-project-id="{{ project.id }}">
-                                    <i class="bi bi-trash"></i> Supprimer
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+      {% endfor %}
+    {% endif %}
+    <!-- Filtres et recherche -->
+    <div class="row mb-3">
+        <div class="col-md-3 mb-2">
+            <input type="text" class="form-control" id="searchInput" placeholder="Rechercher par nom...">
+        </div>
+        <div class="col-md-2 mb-2">
+            <select class="form-select" id="statusFilter">
+                <option value="">Tous les statuts</option>
+                <option value="actif">Actif</option>
+                <option value="inactif">Inactif</option>
+            </select>
+        </div>
+        <div class="col-md-2 mb-2">
+            <select class="form-select" id="typeFilter">
+                <option value="">Tous les types</option>
+                {% for t in project_types %}
+                    {% if t %}
+                        <option value="{{ t }}">{{ t }}</option>
+                    {% endif %}
                 {% endfor %}
-            </div>
-
-            <!-- Pagination -->
-            <div class="card-footer bg-white border-0">
-                <nav aria-label="Navigation des pages" id="pagination">
-                    <ul class="pagination justify-content-center mb-0">
-                        {% if projects.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="javascript:void(0)" data-page="{{ projects.previous_page_number }}">
-                                <i class="bi bi-chevron-left"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-
-                        {% for num in projects.paginator.page_range %}
-                        <li class="page-item {% if projects.number == num %}active{% endif %}">
-                            <a class="page-link" href="javascript:void(0)" data-page="{{ num }}">{{ num }}</a>
-                        </li>
-                        {% endfor %}
-
-                        {% if projects.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="javascript:void(0)" data-page="{{ projects.next_page_number }}">
-                                <i class="bi bi-chevron-right"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+            </select>
+        </div>
+        <div class="col-md-3 mb-2">
+            <select class="form-select" id="userFilter">
+                <option value="">Tous les utilisateurs</option>
+                {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 mb-2 text-end">
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-orange btn-sm active" id="listViewBtn"><i class="bi bi-list"></i> Liste</button>
+                <button class="btn btn-outline-orange btn-sm" id="gridViewBtn"><i class="bi bi-grid-3x3-gap"></i> Grille</button>
             </div>
         </div>
     </div>
+ <!-- Styles personnalisés -->
+<style>
+  .bg-navy { background-color: #001f3f !important; }
+  .bg-orange { background-color: #ff851b !important; }
+  .text-orange { color: #ff851b !important; }
+  .btn-outline-orange {
+    border-color: #ff851b;
+    color: #ff851b;
+  }
+  .btn-outline-orange:hover {
+    background-color: #ff851b;
+    color: #fff;
+  }
+  .badge-orange {
+    background-color: #ff851b;
+    color: #fff;
+  }
+  .badge-navy {
+    background-color: #001f3f;
+    color: #fff;
+  }
+</style>
 
-    <!-- Charts Section -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Projets par type</div>
-                <div class="card-body">
-                    <canvas id="projectTypeChart" style="max-height: 300px;"></canvas>
+<!-- Vue Liste -->
+<div id="listView">
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-body p-3">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="projectsTable">
+          <thead class="bg-navy text-white">
+            <tr>
+              <th>Nom</th><th>Type</th><th>URL</th><th>IP</th><th>Utilisateurs</th><th>Statut</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for project in projects %}
+            <tr data-id="{{ project.id }}"
+                data-name="{{ project.name }}"
+                data-type="{{ project.project_type }}"
+                data-url="{{ project.url }}"
+                data-ip="{{ project.ip_address }}"
+                data-domain="{{ project.domain }}"
+                data-active="{{ project.is_active|yesno:"actif,inactif" }}"
+                data-users="{{ project.allowed_users.all|join:',' }}">
+              <td class="fw-semibold">{{ project.name }}</td>
+              <td>{{ project.project_type }}</td>
+              <td><a href="{{ project.url }}" target="_blank" class="text-orange text-break">{{ project.url }}</a></td>
+              <td>{{ project.ip_address }}</td>
+              <td>
+                {% for user in project.allowed_users.all %}
+                  <span class="badge badge-orange">{{ user.username }}</span>
+                {% empty %}
+                  <span class="text-muted">Aucun</span>
+                {% endfor %}
+              </td>
+              <td>
+                {% if project.is_active %}
+                  <span class="badge badge-orange">Actif</span>
+                {% else %}
+                  <span class="badge badge-navy">Inactif</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button class="btn btn-outline-info" onclick="openViewModal(this)">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="btn btn-outline-orange" onclick="openEditModal(this)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-outline-danger" onclick="submitDelete({{ project.id }}, '{{ project.name }}')">
+                    <i class="bi bi-trash"></i>
+                  </button>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Tendance des projets</div>
-                <div class="card-body">
-                    <canvas id="projectTrendChart" style="max-height: 300px;"></canvas>
-                </div>
-            </div>
-        </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted">Aucun projet trouvé.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Add Project Modal -->
-    <div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addProjectModalLabel">Ajouter un nouveau projet</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addProjectForm" method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="add_project" value="1">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                {{ form.name.label_tag }}
-                                {{ form.name }}
-                                <div class="invalid-feedback">Le nom du projet est requis.</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.domain.label_tag }}
-                                {{ form.domain }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                {{ form.project_type.label_tag }}
-                                {{ form.project_type }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.ip_address.label_tag }}
-                                {{ form.ip_address }}
-                                <div class="invalid-feedback">Veuillez entrer une adresse IP valide.</div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                {{ form.url.label_tag }}
-                                {{ form.url }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                {{ form.mac_address.label_tag }}
-                                {{ form.mac_address }}
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            {{ form.description.label_tag }}
-                            {{ form.description }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.scope.label_tag }}
-                            {{ form.scope }}
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                            <button type="submit" class="btn btn-primary">Ajouter</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<!-- Vue Grille -->
+<div id="gridView" class="row g-3" style="display:none;">
+  {% for project in projects %}
+  <div class="col-md-4 project-card"
+       data-id="{{ project.id }}"
+       data-name="{{ project.name }}"
+       data-type="{{ project.project_type }}"
+       data-url="{{ project.url }}"
+       data-ip="{{ project.ip_address }}"
+       data-domain="{{ project.domain }}"
+       data-active="{{ project.is_active|yesno:"actif,inactif" }}"
+       data-users="{{ project.allowed_users.all|join:', ' }}">
+       
+    <div class="card shadow h-100 border-0 bg-navy text-white">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-orange">{{ project.name }}</span>
+        {% if project.is_active %}
+          <span class="badge badge-orange">Actif</span>
+        {% else %}
+          <span class="badge badge-navy">Inactif</span>
+        {% endif %}
+      </div>
+      <div class="card-body text-white">
+        <div><strong>Type:</strong> {{ project.project_type }}</div>
+        <div><i class="bi bi-link-45deg"></i> <a href="{{ project.url }}" target="_blank" class="text-orange">{{ project.url }}</a></div>
+        <div><i class="bi bi-hdd-network"></i> {{ project.ip_address }}</div>
+        <div class="mt-2">
+          {% for user in project.allowed_users.all %}
+            <span class="badge badge-orange">{{ user.username }}</span>
+          {% empty %}
+            <span class="text-muted">Aucun utilisateur</span>
+          {% endfor %}
         </div>
-    </div>
+      </div>
 
-    <!-- Edit Project Modal -->
-    <div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editProjectModalLabel">Modifier le projet</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editProjectForm" method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="edit_project" value="1">
-                        <input type="hidden" name="project_id" id="editProjectId">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="id_name" class="form-label">Nom du projet</label>
-                                <input type="text" name="name" id="id_name" class="form-control" required>
-                                <div class="invalid-feedback">Le nom du projet est requis.</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="id_domain" class="form-label">Nom de domaine</label>
-                                <input type="text" name="domain" id="id_domain" class="form-control">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="id_project_type" class="form-label">Type de projet</label>
-                                <select name="project_type" id="id_project_type" class="form-control">
-                                    {% for value, label in form.project_type.field.choices %}
-                                    <option value="{{ value }}">{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="id_ip_address" class="form-label">Adresse IP</label>
-                                <input type="text" name="ip_address" id="id_ip_address" class="form-control">
-                                <div class="invalid-feedback">Veuillez entrer une adresse IP valide.</div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="id_url" class="form-label">URL</label>
-                                <input type="url" name="url" id="id_url" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_description" class="form-label">Description</label>
-                            <textarea name="description" id="id_description" class="form-control" rows="4"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_scope" class="form-label">Scope</label>
-                            <textarea name="scope" id="id_scope" class="form-control" rows="4"></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+      <div class="card-footer bg-transparent border-top d-flex justify-content-end gap-2">
+        <!-- Bouton Voir -->
+        <button class="btn btn-outline-info btn-sm"
+                onclick="openViewModal(this)"
+                data-name="{{ project.name }}"
+                data-type="{{ project.project_type }}"
+                data-domain="{{ project.domain }}"
+                data-url="{{ project.url }}"
+                data-ip="{{ project.ip_address }}"
+                data-users="{{ project.allowed_users.all|join:', ' }}"
+                data-status="{{ project.is_active|yesno:'Actif,Inactif' }}">
+          <i class="bi bi-eye"></i>
+        </button>
 
-    <!-- Delete Project Modal -->
-    <div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteProjectModalLabel">Confirmer la suppression</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Êtes-vous sûr de vouloir supprimer le projet <strong id="deleteProjectName"></strong> ?
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <form method="post"" id="deleteProjectForm">
-                        {% csrf_token %}
-                        <input type="hidden" name="delete_project" value="1">
-                        <input type="hidden" name="project_id" id="deleteProjectId">
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+        <!-- Bouton Modifier -->
+        <button class="btn btn-outline-orange btn-sm"
+                onclick="openEditModal(this)"
+                data-id="{{ project.id }}"
+                data-name="{{ project.name }}"
+                data-type="{{ project.project_type }}"
+                data-url="{{ project.url }}"
+                data-ip="{{ project.ip_address }}"
+                data-domain="{{ project.domain }}"
+                data-users="{{ project.allowed_users.all|join:',' }}"
+                data-active="{{ project.is_active|yesno:"true,false" }}">
+          <i class="bi bi-pencil-square"></i>
+        </button>
+
+        <!-- Bouton Supprimer -->
+        <button class="btn btn-outline-danger btn-sm"
+                onclick="openDeleteModal(this)"
+                data-id="{{ project.id }}"
+                data-name="{{ project.name }}">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
     </div>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- Modals -->
+<!-- Ajouter -->
+<div class="modal fade" id="addProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'admin_projets' %}" class="modal-content" id="addProjectForm">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter un projet</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">{{ form.as_p }}{% csrf_token %}</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" name="add_project" class="btn btn-orange">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modifier -->
+<div class="modal fade" id="editProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'admin_projets' %}" class="modal-content" id="editProjectForm">
+      <div class="modal-header bg-navy text-white">
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Modifier le projet</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="project_id" id="editProjectId">
+        {{ form.as_p }}{% csrf_token %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" name="edit_project" class="btn btn-orange">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Voir -->
+<div class="modal fade" id="viewProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="bi bi-eye-fill me-2"></i>Détails du projet</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-4">Nom</dt><dd class="col-8" id="viewName"></dd>
+          <dt class="col-4">Type</dt><dd class="col-8" id="viewType"></dd>
+          <dt class="col-4">Domaine</dt><dd class="col-8" id="viewDomain"></dd>
+          <dt class="col-4">URL</dt><dd class="col-8" id="viewUrl"></dd>
+          <dt class="col-4">IP</dt><dd class="col-8" id="viewIp"></dd>
+          <dt class="col-4">Utilisateurs</dt><dd class="col-8" id="viewUsers"></dd>
+          <dt class="col-4">Statut</dt><dd class="col-8" id="viewStatus"></dd>
+        </dl>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Supprimer -->
+<div class="modal fade" id="deleteProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'admin_projets' %}" class="modal-content" id="deleteProjectForm">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer le projet</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% csrf_token %}
+        <input type="hidden" name="project_id" id="deleteProjectId">
+        <p>Êtes-vous sûr de vouloir supprimer le projet <strong id="deleteProjectName" class="text-orange"></strong> ?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" name="delete_project" class="btn btn-danger">Supprimer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Graphiques -->
+<div class="row mt-4">
+  <div class="col-md-6 mb-4">
+    <div class="card shadow border-0">
+      <div class="card-header bg-navy text-white fw-bold py-2">
+        <i class="bi bi-bar-chart-line me-2"></i>Projets par statut
+      </div>
+      <div class="card-body p-3">
+        <canvas id="statusChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 mb-4">
+    <div class="card shadow border-0">
+      <div class="card-header bg-navy text-white fw-bold py-2">
+        <i class="bi bi-pie-chart-fill me-2"></i>Répartition utilisateurs
+      </div>
+      <div class="card-body p-3">
+        <canvas id="userChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div>
 {% endblock %}
+{% block extra_css %}
+<style>
+  /* Couleurs principales */
+  .badge-orange {
+    background-color: rgb(199, 86, 5);
+    color: #fff;
+  }
 
+  .badge-navy {
+    background-color: #0a192f;
+    color: #fff;
+  }
+
+  .bg-navy {
+    background-color: #0a192f !important;
+  }
+
+  .text-orange {
+    color: rgb(199, 86, 5) !important;
+  }
+
+  /* Boutons */
+  .btn-orange {
+    background-color: rgb(199, 86, 5);
+    color: #fff;
+    border: none;
+  }
+
+  .btn-orange:hover,
+  .btn-orange:focus {
+    background-color: rgb(179, 66, 0);
+    color: #fff;
+  }
+
+  .btn-outline-orange {
+    border-color: rgb(199, 86, 5);
+    color: rgb(199, 86, 5);
+  }
+
+  .btn-outline-orange:hover,
+  .btn-outline-orange:focus {
+    background-color: rgb(199, 86, 5);
+    color: #fff;
+  }
+
+  /* Cartes */
+  .card {
+    background-color: #0a192f;
+    border-radius: 0.75rem;
+    border: none;
+    color: #fff;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .card-header {
+    background-color: #0a192f;
+    color: rgb(199, 86, 5);
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .card-body {
+    color: #eee;
+  }
+
+  .card a {
+    color: rgb(199, 86, 5);
+    text-decoration: none;
+  }
+
+  .card a:hover {
+    text-decoration: underline;
+    color: rgb(255, 130, 0);
+  }
+
+  .project-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .project-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 20px rgba(255, 102, 0, 0.1);
+  }
+
+  /* Tableaux */
+  .table th,
+  .table td {
+    vertical-align: middle;
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(199, 86, 5, 0.1);
+  }
+
+  /* Modals */
+  .modal-content {
+    background-color: #0a192f;
+    border: 1px solid rgba(199, 86, 5, 0.4);
+    color: #fff;
+    border-radius: 1rem;
+    backdrop-filter: blur(6px);
+  }
+
+  .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(10, 25, 47, 0.9);
+    color: rgb(199, 86, 5);
+  }
+
+  .modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: #0a192f;
+  }
+
+  .btn-close-white {
+    filter: invert(1);
+  }
+
+  /* Utilisateurs */
+  .badge-user {
+    background-color: rgb(199, 86, 5);
+    color: #fff;
+    font-size: 0.75rem;
+    margin-right: 0.25rem;
+  }
+</style>
+
+{% endblock %}
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Elements
-    const searchInput = document.getElementById('searchInput');
-    const typeFilter = document.getElementById('typeFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const listViewBtn = document.getElementById('listViewBtn');
-    const gridViewBtn = document.getElementById('gridViewBtn');
-    const tableView = document.querySelector('.table-responsive');
-    const gridView = document.getElementById('gridView');
-    const pagination = document.getElementById('pagination');
+const projects = {{ projects_json|safe }};
+const users = {{ users_json|safe }};
+const statusData = {{ status_chart|safe }};
+const userData = {{ user_chart|safe }};
 
-    // View Toggle
-    function toggleView(showGrid) {
-        if (showGrid) {
-            tableView.style.display = 'none';
-            gridView.style.display = 'flex';
-            gridViewBtn.classList.add('active');
-            listViewBtn.classList.remove('active');
-        } else {
-            tableView.style.display = 'block';
-            gridView.style.display = 'none';
-            listViewBtn.classList.add('active');
-            gridViewBtn.classList.remove('active');
-        }
-        localStorage.setItem('projectViewPreference', showGrid ? 'grid' : 'list');
+// Vue liste/grille
+document.getElementById('listViewBtn').onclick = function() {
+    document.getElementById('listView').style.display = '';
+    document.getElementById('gridView').style.display = 'none';
+    this.classList.add('active');
+    document.getElementById('gridViewBtn').classList.remove('active');
+};
+document.getElementById('gridViewBtn').onclick = function() {
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('gridView').style.display = '';
+    this.classList.add('active');
+    document.getElementById('listViewBtn').classList.remove('active');
+};
+
+// Recherche et filtres
+function filterProjects() {
+    let search = document.getElementById('searchInput').value.toLowerCase();
+    let status = document.getElementById('statusFilter').value;
+    let type = document.getElementById('typeFilter').value;
+    let user = document.getElementById('userFilter').value;
+    // Liste
+    document.querySelectorAll('#projectsTable tbody tr').forEach(row => {
+        let name = row.getAttribute('data-name');
+        let stat = row.getAttribute('data-status');
+        let typ = row.getAttribute('data-type');
+        let users = row.getAttribute('data-users');
+        let show = true;
+        if(search && !name.includes(search)) show = false;
+        if(status && stat !== status) show = false;
+        if(type && typ !== type) show = false;
+        if(user && (!users || !users.includes(user))) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+    // Grille
+    document.querySelectorAll('.project-card').forEach(card => {
+        let name = card.getAttribute('data-name');
+        let stat = card.getAttribute('data-status');
+        let typ = card.getAttribute('data-type');
+        let users = card.getAttribute('data-users');
+        let show = true;
+        if(search && !name.includes(search)) show = false;
+        if(status && stat !== status) show = false;
+        if(type && typ !== type) show = false;
+        if(user && (!users || !users.includes(user))) show = false;
+        card.style.display = show ? '' : 'none';
+    });
+}
+document.getElementById('searchInput').oninput = filterProjects;
+document.getElementById('statusFilter').onchange = filterProjects;
+document.getElementById('typeFilter').onchange = filterProjects;
+document.getElementById('userFilter').onchange = filterProjects;
+document.addEventListener('DOMContentLoaded', function () {
+  // Graphique Statut
+  new Chart(document.getElementById('statusChart'), {
+    type: 'line',
+    data: {
+      labels: statusData.labels,
+      datasets: [{
+        label: 'Projets actifs/inactifs',
+        data: statusData.data,
+        fill: true,
+        borderColor: '#ff851b',
+        backgroundColor: 'rgba(255, 133, 27, 0.15)',
+        tension: 0.4,
+        pointBackgroundColor: '#001f3f',
+        pointBorderColor: '#ff851b',
+        pointRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color: '#001f3f' } }
+      },
+      scales: {
+        x: { ticks: { color: '#001f3f', font: { weight: 'bold' } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: '#001f3f', font: { weight: 'bold' } } }
+      }
     }
+  });
 
-    // Load Projects with AJAX
-    async function loadProjects(page = 1) {
-        const searchTerm = searchInput.value;
-        const type = typeFilter.value;
-        const status = statusFilter.value;
-
-        try {
-            const response = await fetch(`/projects/api/?page=${page}&search=${searchTerm}&type=${type}&status=${status}`);
-            const data = await response.json();
-            
-            // Update table/grid content
-            updateContent(data);
-            
-            // Update pagination
-            updatePagination(data.pagination);
-        } catch (error) {
-            console.error('Error loading projects:', error);
+  // Graphique Utilisateurs
+  new Chart(document.getElementById('userChart'), {
+    type: 'pie',
+    data: {
+      labels: userData.labels,
+      datasets: [{
+        data: userData.data,
+        backgroundColor: [
+          '#ff851b', '#001f3f', '#ffc107', '#28a745', '#dc3545', '#17a2b8'
+        ],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#001f3f',
+            font: { weight: 'bold' }
+          }
         }
+      }
     }
-
-    // Filter Function
-    function filterProjects() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const typeValue = typeFilter.value.toLowerCase();
-        const statusValue = statusFilter.value.toLowerCase();
-
-        document.querySelectorAll('tbody tr, .project-grid-item').forEach(item => {
-            const matchesSearch = item.textContent.toLowerCase().includes(searchTerm);
-            const matchesType = !typeValue || item.dataset.type === typeValue;
-            const matchesStatus = !statusValue || item.dataset.status === statusValue;
-
-            item.style.display = matchesSearch && matchesType && matchesStatus ? '' : 'none';
+  });
+});
+// Correction automatique du champ URL
+function correctUrl(inputId) {
+    let input = document.getElementById(inputId);
+    if(input) {
+        input.addEventListener('blur', function() {
+            let val = input.value.trim();
+            if(val && !/^https?:\/\//i.test(val)) {
+                input.value = 'https://' + val;
+            }
         });
     }
+}
+// Pour le formulaire d'ajout
+correctUrl('id_url');
+// Pour le formulaire d'édition (si tu as un autre id, adapte-le)
+correctUrl('id_url');
 
-    // Event Listeners
-    listViewBtn.addEventListener('click', () => toggleView(false));
-    gridViewBtn.addEventListener('click', () => toggleView(true));
-    
-    searchInput.addEventListener('input', filterProjects);
-    typeFilter.addEventListener('change', filterProjects);
-    statusFilter.addEventListener('change', filterProjects);
-
-    // Pagination click handling
-    pagination.addEventListener('click', (e) => {
-        if (e.target.classList.contains('page-link')) {
-            e.preventDefault();
-            const page = e.target.dataset.page;
-            if (page) {
-                loadProjects(page);
-            }
-        }
-    });
-
-    // Initialize view preference
-    const savedView = localStorage.getItem('projectViewPreference');
-    toggleView(savedView === 'grid');
-
-    // Initial load
-    loadProjects(1);
-});
-document.addEventListener('DOMContentLoaded', function () {
-    // Initialize Bootstrap Tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Chart Data Fetching
-    const fetchChartData = async (url, chartId, type, labelName, backgroundColors, borderColor) => {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch chart data');
-            const result = await response.json();
-            const labels = result.data.map(item => item.project_type || item.month.slice(0, 7));
-            const data = result.data.map(item => item.count);
-
-            new Chart(document.getElementById(chartId).getContext('2d'), {
-                type: type,
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: labelName,
-                        data: data,
-                        backgroundColor: backgroundColors,
-                        borderColor: borderColor,
-                        borderWidth: 1,
-                        fill: type === 'line' ? false : true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top'
+// nslookup automatique pour le domaine
+function nslookup(domainInputId, ipInputId) {
+    let domainInput = document.getElementById(domainInputId);
+    let ipInput = document.getElementById(ipInputId);
+    if(domainInput && ipInput) {
+        domainInput.addEventListener('blur', function() {
+            let domain = domainInput.value.trim();
+            if(domain) {
+                fetch('https://dns.google/resolve?name=' + encodeURIComponent(domain))
+                .then(response => response.json())
+                .then(data => {
+                    let ip = '';
+                    if(data && data.Answer) {
+                        for(let ans of data.Answer) {
+                            if(ans.type === 1) { ip = ans.data; break; }
                         }
                     }
-                }
-            });
-        } catch (error) {
-            console.error('Error fetching chart data:', error);
-            document.getElementById(chartId).parentElement.innerHTML = '<p class="text-danger">Erreur lors du chargement du graphique.</p>';
-        }
-    };
-
-    // Initialize Charts
-    fetchChartData("{% url 'projects_chart_type' %}", 'projectTypeChart', 'doughnut', 'Projets par type', [
-        '#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6c757d', '#198754'
-    ], '#fff');
-    fetchChartData("{% url 'projects_chart_trend' %}", 'projectTrendChart', 'line', 'Nouveaux projets', [
-        '#0d6efd'
-    ], '#0d6efd');
-
-    // Search Functionality
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', function () {
-        const filter = searchInput.value.toLowerCase();
-        const rows = document.querySelectorAll('#projectTableBody tr');
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(filter) ? '' : 'none';
-        });
-    });
-
-    // Table Sorting
-    const sortableHeaders = document.querySelectorAll('.sortable');
-    sortableHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const sortKey = header.dataset.sort;
-            const table = document.getElementById('projectTable');
-            const tbody = document.getElementById('projectTableBody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const isAscending = !header.classList.contains('asc');
-            
-            rows.sort((a, b) => {
-                let aValue = a.querySelector(`td:nth-child(${Array.from(header.parentElement.children).indexOf(header) + 1})`).textContent;
-                let bValue = b.querySelector(`td:nth-child(${Array.from(header.parentElement.children).indexOf(header) + 1})`).textContent;
-                
-                if (sortKey === 'created_at') {
-                    aValue = new Date(aValue.split('/').reverse().join('-'));
-                    bValue = new Date(bValue.split('/').reverse().join('-'));
-                }
-                
-                return isAscending 
-                    ? aValue.localeCompare(bValue, undefined, { numeric: true })
-                    : bValue.localeCompare(aValue, undefined, { numeric: true });
-            });
-
-            sortableHeaders.forEach(h => h.classList.remove('asc', 'desc'));
-            header.classList.add(isAscending ? 'asc' : 'desc');
-            tbody.innerHTML = '';
-            rows.forEach(row => tbody.appendChild(row));
-        });
-    });
-
-    // Form Validation for Add Project
-    const addProjectForm = document.getElementById('addProjectForm');
-    addProjectForm.addEventListener('submit', function (e) {
-        let isValid = true;
-        const nameInput = addProjectForm.querySelector('#id_name');
-        const ipInput = addProjectForm.querySelector('#id_ip_address');
-        const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
-
-        // Reset validation states
-        nameInput.classList.remove('is-invalid');
-        ipInput.classList.remove('is-invalid');
-
-        // Validate name
-        if (!nameInput.value.trim()) {
-            nameInput.classList.add('is-invalid');
-            isValid = false;
-        }
-
-        // Validate IP address (if provided)
-        if (ipInput.value && !ipRegex.test(ipInput.value)) {
-            ipInput.classList.add('is-invalid');
-            isValid = false;
-        }
-
-        if (!isValid) {
-            e.preventDefault();
-        }
-    });
-
-    // Edit Modal Handling
-    const editButtons = document.querySelectorAll('[data-bs-target="#editProjectModal"]');
-    editButtons.forEach(button => {
-        button.addEventListener('click', function () {
-            const projectId = this.dataset.projectId;
-            const projectName = this.dataset.projectName;
-            const projectDescription = this.dataset.projectDescription;
-            const projectType = this.dataset.projectType;
-            const projectDomain = this.dataset.projectDomain;
-            const projectIp = this.dataset.projectIp;
-            const projectUrl = this.dataset.projectUrl;
-            const projectMac = this.dataset.projectMac;
-            const projectScope = this.dataset.projectScope;
-
-            console.log('Edit button clicked:', { projectId, projectName }); // Debug
-            if (!projectId || isNaN(projectId)) {
-                alert('Erreur : ID de projet invalide.');
-                return;
-            }
-
-            document.getElementById('editProjectId').value = projectId;
-            document.getElementById('id_name').value = projectName || '';
-            document.getElementById('id_description').value = projectDescription || '';
-            document.getElementById('id_project_type').value = projectType || '';
-            document.getElementById('id_domain').value = projectDomain || '';
-            document.getElementById('id_ip_address').value = projectIp || '';
-            document.getElementById('id_url').value = projectUrl || '';
-            document.getElementById('id_mac_address').value = projectMac || '';
-            document.getElementById('id_scope').value = projectScope || '';
-            document.getElementById('editProjectModalLabel').textContent = `Modifier le projet : ${projectName || 'Inconnu'}`;
-        });
-    });
-
-    // Delete Modal Handling
-    const deleteButtons = document.querySelectorAll('[data-bs-target="#deleteProjectModal"]');
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function () {
-            const projectId = this.dataset.projectId;
-            const projectName = this.dataset.projectName;
-            console.log('Delete button clicked:', { projectId, projectName }); // Debug
-            if (!projectId || isNaN(projectId)) {
-                alert('Erreur : ID de projet invalide.');
-                return;
-            }
-            document.getElementById('deleteProjectId').value = projectId;
-            document.getElementById('deleteProjectName').textContent = projectName || 'Inconnu';
-        });
-    });
-
-    // Prevent Empty project_id Submission
-    const forms = document.querySelectorAll('#editProjectForm, #deleteProjectForm');
-    forms.forEach(form => {
-        form.addEventListener('submit', function (e) {
-            const projectIdInput = form.querySelector('input[name="project_id"]');
-            if (!projectIdInput.value || isNaN(projectIdInput.value)) {
-                e.preventDefault();
-                alert('Erreur : ID de projet invalide.');
+                    if(ip) ipInput.value = ip;
+                });
             }
         });
-    });
-});
-</script>
-<style>
-.sortable {
-    cursor: pointer;
+    }
 }
-.sortable.asc .bi-arrow-down-up::before { content: "\f146"; }
-.sortable.desc .bi-arrow-down-up::before { content: "\f145"; }
-</style>
+// Pour le formulaire d'ajout
+nslookup('id_domain', 'id_ip_address');
+// Pour le formulaire d'édition (si tu as d'autres ids, adapte-les)
+nslookup('id_domain', 'id_ip_address');
+
+function openEditModal(button) {
+  const row = button.closest('tr');
+  const form = document.getElementById('editProjectForm');
+
+  // Remplir les champs cachés et visibles
+  document.getElementById('editProjectId').value = row.dataset.id;
+
+  // Exemple de champs standards (si tu as un formulaire Django personnalisé, adapte ici)
+  if (form.querySelector('[name="name"]')) {
+    form.querySelector('[name="name"]').value = row.dataset.name;
+  }
+  if (form.querySelector('[name="project_type"]')) {
+    form.querySelector('[name="project_type"]').value = row.dataset.type;
+  }
+  if (form.querySelector('[name="url"]')) {
+    form.querySelector('[name="url"]').value = row.dataset.url;
+  }
+  if (form.querySelector('[name="ip_address"]')) {
+    form.querySelector('[name="ip_address"]').value = row.dataset.ip;
+  }
+  if (form.querySelector('[name="domain"]')) {
+    form.querySelector('[name="domain"]').value = row.dataset.domain;
+  }
+  if (form.querySelector('[name="is_active"]')) {
+    form.querySelector('[name="is_active"]').checked = row.dataset.active === 'actif';
+  }
+
+  // Afficher le modal
+  const modal = new bootstrap.Modal(document.getElementById('editProjectModal'));
+  modal.show();
+}
+
+function submitDelete(id, name) {
+  document.getElementById('deleteProjectId').value = id;
+  document.getElementById('deleteProjectName').textContent = name;
+  new bootstrap.Modal(document.getElementById('deleteProjectModal')).show();
+}
+
+function openViewModal(button) {
+  const modal = new bootstrap.Modal(document.getElementById('viewProjectModal'));
+
+  // Lecture des données depuis le bouton
+  const name = button.getAttribute('data-name');
+  const type = button.getAttribute('data-type');
+  const domain = button.getAttribute('data-domain');
+  const url = button.getAttribute('data-url');
+  const ip = button.getAttribute('data-ip');
+  const users = button.getAttribute('data-users');
+  const status = button.getAttribute('data-status');
+
+  // Remplir le contenu du modal
+  document.getElementById('viewName').textContent = name;
+  document.getElementById('viewType').textContent = type;
+  document.getElementById('viewDomain').textContent = domain;
+  document.getElementById('viewUrl').innerHTML = `<a href="${url}" target="_blank" class="text-orange">${url}</a>`;
+  document.getElementById('viewIp').textContent = ip;
+  document.getElementById('viewUsers').textContent = users;
+  document.getElementById('viewStatus').textContent = status;
+
+  // Afficher le modal
+  modal.show();
+}
+
+</script>
 {% endblock %}

@@ -857,11 +857,8 @@
                     <div class="row">
                         <div class="col-lg-8">
                             <div class="terminal bg-dark text-light p-3 rounded mb-3" id="terminalOutput" style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace;">
-                                {% if nmap_raw_output %}
-                                    <div class="text-success"><pre>{{ nmap_raw_output|escape }}</pre></div>
-                                {% elif nikto_raw_output %}
-                                    <div class="text-success"><pre>{{ nikto_raw_output|escape }}</pre></div>
-                                {% else %}
+                                {% if last_raw_output %}
+                                    <div class="text-success"><pre>{{ last_raw_output|escape }}</pre></div>
                                     <div class="text-success">Terminal prêt. Sélectionnez un outil et cliquez sur Exécuter pour commencer.</div>
                                 {% endif %}
                             </div>
@@ -876,10 +873,10 @@
                         <div class="col-lg-4">
                             <ul class="nav nav-tabs" id="resultsTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="structured-tab" data-bs-toggle="tab" data-bs-target="#structuredResults" type="button" role="tab">Résultats Structurés</button>
+                                    <button class="nav-link active" id="structured-tab" data-bs-toggle="tab" data-bs-target="#structuredResults" type="button" role="tab">resultat </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#rawResults" type="button" role="tab">Résultats Bruts</button>
+                                    <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#rawResults" type="button" role="tab">resultat brut</button>
                                 </li>
                             </ul>
                             <div class="tab-content p-3 border border-top-0 rounded-bottom" style="height: 400px; overflow-y: auto;">
@@ -887,61 +884,77 @@
                                     <table class="table table-sm table-hover" id="resultsTable">
                                         <thead>
                                             <tr>
-                                                <th>Type</th>
+                                                <th>Outil</th>
                                                 <th>Cible</th>
+                                                <th>Date</th>
+                                                <th>Statut</th>
                                                 <th>Sévérité</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {% if structured_results %}
-                                                {% for result in structured_results %}
-                                                    <tr>
-                                                        <td>{{ result.option|default:"N/A" }}</td>
-                                                        <td>
-                                                            {{ result.target_hostname|default:"-" }}
-                                                            {% if result.target_port %}
-                                                                :{{ result.target_port }}
-                                                            {% endif %}
-                                                        </td>
-                                                        <td>
-                                                            {% with vuln=result.vulnerability|lower %}
-                                                                {% if "critical" in vuln %}
-                                                                    <span class="badge bg-danger">Critique</span>
-                                                                {% elif "high" in vuln %}
-                                                                    <span class="badge bg-danger">Haute</span>
-                                                                {% elif "medium" in vuln %}
-                                                                    <span class="badge bg-warning text-dark">Moyenne</span>
-                                                                {% elif "low" in vuln %}
-                                                                    <span class="badge bg-info text-dark">Faible</span>
-                                                                {% else %}
-                                                                    <span class="badge bg-secondary">Inconnue</span>
-                                                                {% endif %}
-                                                            {% endwith %}
-                                                        </td>
-                                                        <td>
-                                                            <button class="btn btn-sm btn-outline-secondary"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#resultDetailModal"
-                                                                    onclick="showResultDetails('{{ result.id }}')">
-                                                                Voir
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                {% endfor %}
-                                            {% else %}
+                                        {% if structured_results %}
+                                            {% for result in structured_results %}
                                                 <tr>
-                                                    <td colspan="4" class="text-center text-muted">Aucun résultat disponible</td>
+                                                    <td>{{ result.tool|default:"N/A" }}</td>
+                                                    <td>
+                                                        {{ result.target_hostname|default:"-" }}
+                                                        {% if result.target_port %}:{{ result.target_port }}{% endif %}
+                                                    </td>
+                                                    <td>{{ result.start_time|date:"Y-m-d H:i" }}</td>
+                                                    <td>
+                                                        {% if result.status == "completed" %}
+                                                            <span class="badge bg-success">Terminé</span>
+                                                        {% elif result.status == "running" %}
+                                                            <span class="badge bg-warning text-dark">En cours</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Inconnu</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% with vuln=result.vulnerability|lower %}
+                                                            {% if "critical" in vuln %}
+                                                                <span class="badge bg-danger">Critique</span>
+                                                            {% elif "high" in vuln %}
+                                                                <span class="badge bg-danger">Haute</span>
+                                                            {% elif "medium" in vuln %}
+                                                                <span class="badge bg-warning text-dark">Moyenne</span>
+                                                            {% elif "low" in vuln %}
+                                                                <span class="badge bg-info text-dark">Faible</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">Inconnue</span>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#resultDetailModal" onclick="showResultDetails('{{ result.id }}')">
+                                                            Voir
+                                                        </button>
+                                                        <a href="{% url 'export_project_report' %}?scan_id={{ result.id }}" class="btn btn-sm btn-outline-success" title="Imprimer rapport">
+                                                            <i class="bi bi-printer"></i>
+                                                        </a>
+                                                        <form method="post" action="{% url 'delete_scan' result.id %}" style="display:inline;">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="return confirm('Supprimer ce scan ?');">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </td>
                                                 </tr>
-                                            {% endif %}
-                                        </tbody>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">Aucun résultat disponible</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
                                     </table>                                  
                                 </div>
 
                                 <div class="tab-pane fade" id="rawResults" role="tabpanel">
                                     <div class="small" id="rawResultsContent">
-                                        {% if nikto_raw_output %}
-                                            <pre class="text-success">{{ nikto_raw_output|escape }}</pre>
+                                        {% if last_raw_output %}
+                                            <pre class="text-success">{{ last_raw_output|escape }}</pre>
                                         {% else %}
                                             <div class="text-muted fst-italic">Exécutez un outil pour voir les résultats bruts</div>
                                         {% endif %}
@@ -965,250 +978,7 @@
                 <span>Historique des Analyses</span>
             </div>
             
-            <!-- Filtres -->
-            <div class="card-body border-bottom">
-                <div class="row g-3">
-                    <div class="col-md-2">
-                        <label class="form-label small">Date début</label>
-                        <input type="date" class="form-control form-control-sm" id="filterStartDate">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Date fin</label>
-                        <input type="date" class="form-control form-control-sm" id="filterEndDate">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Outil</label>
-                        <select class="form-select form-select-sm" id="filterTool">
-                            <option value="">Tous</option>
-                            <option value="NMAP">Nmap</option>
-                            <option value="NIKTO">Nikto</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Statut</label>
-                        <select class="form-select form-select-sm" id="filterStatus">
-                            <option value="">Tous</option>
-                            <option value="completed">Terminé</option>
-                            <option value="in_progress">En cours</option>
-                            <option value="failed">Échec</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Recherche</label>
-                        <input type="text" class="form-control form-control-sm" id="tableSearch" 
-                               placeholder="Rechercher une cible...">
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label d-block">&nbsp;</label>
-                        <button class="btn btn-primary btn-sm" id="clearFilters">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="historyTable">
-                        <thead>
-                            <tr>
-                                <th>Date/Heure</th>
-                                <th>Outil</th>
-                                <th>Commande</th>
-                                <th>Cible</th>
-                                <th>Résultat</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if scans_history %}
-                                {% for scan in scans_history %}
-                                    <tr>
-                                        <td>{{ scan.start_time|date:"d/m/Y H:i" }}</td>
-                                        <td>{{ scan.tool }}</td>
-                                        <td>
-                                            {% if scan.tool|upper == 'NMAP' %}
-                                                {% with result=scan.nmap_results.first %}
-                                                    {% if result %}
-                                                        nmap {{ result.option }} {{ result.target }}
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% elif scan.tool|upper == 'NIKTO' %}
-                                                {% with result=scan.nikto_results.first %}
-                                                    {% if result %}
-                                                        nikto -h {{ result.uri }}
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% elif scan.tool|upper == 'SQLMAP' %}
-                                                {% with result=scan.sqlmap_result.first %}
-                                                    {% if result %}
-                                                        sqlmap {{ result.options_used }}
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ scan.project.url|default_if_none:scan.project.ip_address }}</td>
-                                        <td>
-                                            {% if scan.status == "completed" %}
-                                                <span class="badge bg-success">Terminé</span>
-                                            {% elif scan.status == "in_progress" %}
-                                                <span class="badge bg-warning text-dark">En cours...</span>
-                                            {% elif scan.status == "failed" %}
-                                                <span class="badge bg-danger">Échec</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ scan.status }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalScan{{ scan.id }}">
-                                                <i class="bi bi-eye"></i> Voir
-                                            </button>
-                                            {% if scan.tool|upper == 'NMAP' and scan.nmap_results.first %}
-                                                <a href="{% url 'download_nmap_report' scan.id %}" class="btn btn-success btn-sm">
-                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
-                                                </a>
-                                            {% elif scan.tool|upper == 'NIKTO' and scan.nikto_results.first %}
-                                                <a href="{% url 'download_nikto_report' scan.id %}" class="btn btn-warning btn-sm">
-                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
-                                                </a>
-                                            {% elif scan.tool|upper == 'SQLMAP' and scan.sqlmap_result.first %}
-                                                <a href="{% url 'sqlmap_report_pdf' scan.id %}" class="btn btn-danger btn-sm">
-                                                    <i class="bi bi-file-pdf me-1"></i>Rapport
-                                                </a>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted">Aucun historique disponible</td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                    <!-- Après la fermeture de la table d'historique, ajoutez ceci -->
-
-                    <!-- Modals pour chaque scan -->
-                        {% for scan in scans_history %}
-                            <div class="modal fade" id="modalScan{{ scan.id }}" tabindex="-1" aria-labelledby="modalScanLabel{{ scan.id }}" aria-hidden="true">
-                                <div class="modal-dialog modal-xl">
-                                    <div class="modal-content">
-                                        <div class="modal-header bg-dark text-white">
-                                            <h5 class="modal-title" id="modalScanLabel{{ scan.id }}">
-                                                <i class="bi bi-search me-2"></i>
-                                                Détails du Scan {{ scan.tool }}
-                                            </h5>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            {% if scan.tool|upper == 'NMAP' %}
-                                                {% with result=scan.nmap_results.first %}
-                                                    {% if result %}
-                                                        <!-- Affiche ici les détails Nmap comme déjà fait -->
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% elif scan.tool|upper == 'NIKTO' %}
-                                                {% with result=scan.nikto_results.first %}
-                                                    {% if result %}
-                                                        <!-- Affiche ici les détails Nikto -->
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% elif scan.tool|upper == 'SQLMAP' %}
-                                                {% with result=scan.sqlmap_result.first %}
-                                                    {% if result %}
-                                                        <!-- Affiche ici les détails SQLMap -->
-                                                        <div class="card mb-4">
-                                                            <div class="card-header bg-primary text-white">
-                                                                <h6 class="mb-0">Informations générales</h6>
-                                                            </div>
-                                                            <div class="card-body">
-                                                                <p><strong>Cible :</strong> {{ result.target_url }}</p>
-                                                                <p><strong>Commande :</strong> {{ result.options_used }}</p>
-                                                                <p><strong>Début :</strong> {{ scan.start_time|date:"d/m/Y H:i:s" }}</p>
-                                                                <p><strong>Fin :</strong> {{ scan.end_time|date:"d/m/Y H:i:s" }}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div class="card mb-4">
-                                                            <div class="card-header bg-danger text-white">
-                                                                <h6 class="mb-0">Vulnérabilité détectée</h6>
-                                                            </div>
-                                                            <div class="card-body">
-                                                                {% if result.is_vulnerable %}
-                                                                    <span class="badge bg-danger">VULNÉRABLE</span>
-                                                                    <ul>
-                                                                        <li><strong>Type d'injection :</strong> {{ result.injection_type }}</li>
-                                                                        <li><strong>DBMS :</strong> {{ result.dbms }}</li>
-                                                                        <li><strong>Payloads :</strong>
-                                                                            <ul>
-                                                                            {% for payload in result.payloads.splitlines %}
-                                                                                <li><code>{{ payload }}</code></li>
-                                                                            {% empty %}
-                                                                                <li>Aucun</li>
-                                                                            {% endfor %}
-                                                                            </ul>
-                                                                        </li>
-                                                                    </ul>
-                                                                {% else %}
-                                                                    <span class="badge bg-success">Aucune vulnérabilité détectée</span>
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-                                                        <div class="card">
-                                                            <div class="card-header bg-secondary text-white">
-                                                                <h6 class="mb-0">Sortie complète</h6>
-                                                            </div>
-                                                            <div class="card-body">
-                                                                <pre class="bg-light p-3 rounded"><code>{{ result.raw_output }}</code></pre>
-                                                            </div>
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% endif %}
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                </div>
-                
-                <!-- Pagination -->
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div class="text-muted small">
-                        Affichage <span id="startIndex">1</span>-<span id="endIndex">10</span> 
-                        sur <span id="totalItems">{{ scans_history.count }}</span> résultats
-                    </div>
-                    <div>
-                        <select class="form-select form-select-sm d-inline-block w-auto me-2" id="itemsPerPage">
-                            <option value="10">10 par page</option>
-                            <option value="25">25 par page</option>
-                            <option value="50">50 par page</option>
-                            <option value="100">100 par page</option>
-                        </select>
-                        <nav class="d-inline-block">
-                            <ul class="pagination pagination-sm mb-0">
-                                <li class="page-item">
-                                    <button class="page-link" id="prevPage">
-                                        <i class="bi bi-chevron-left"></i>
-                                    </button>
-                                </li>
-                                <li class="page-item">
-                                    <span class="page-link">Page <span id="currentPage">1</span></span>
-                                </li>
-                                <li class="page-item">
-                                    <button class="page-link" id="nextPage">
-                                        <i class="bi bi-chevron-right"></i>
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>

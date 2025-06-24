@@ -6,122 +6,191 @@ from EthicalpulsApp.models import Scan, SqlmapResult, Vulnerability, UserNotific
 
 logger = logging.getLogger(__name__)
 
+
 def build_sqlmap_command(target_url, option=None):
-    cmd = ['sqlmap', '-u', target_url]
-    if option:
-        cmd += option.strip().split()
-    # Ajout d'une option de log pour garder la sortie dans un fichier si besoin
-    # cmd += ['--output-dir=/tmp/sqlmap_logs']
+    cmd = ["sqlmap", "-u", target_url]
+
+    # Options forcées essentielles pour robustesse max et contournement potentiel d’erreurs
+    forced_options = [
+        "--level=5",
+        "--risk=5",
+        "--batch",
+        "--random-agent",
+        "--flush-session",
+        "--ignore-ssl-errors",  # Ignore erreurs SSL
+        "--timeout=30",  # Timeout réseau augmenté
+        "--retries=3",  # Retry automatique en cas d’échec
+        "--fresh-queries",  # Ne pas utiliser cache DNS
+        "--disable-coloring",  # Désactive le coloriage pour éviter les problèmes d’affichage
+        "--disable-precon",  # Désactive les préconditions pour éviter les erreurs
+        "--disable-heuristics",  # Désactive les heuristiques pour éviter les faux positifs
+        "--disable-tor",  # Désactive Tor pour éviter les problèmes de connexion
+        "--disable-ssl",  # Désactive SSL pour éviter les problèmes de connexion
+        "--disable-redirects",  # Désactive les redirections pour éviter les problèmes de connexion
+        "--disable-proxy",  # Désactive les proxies pour éviter les problèmes de connexion
+    ]
+
+    # Parse options utilisateur
+    option_list = option.strip().split() if option else []
+
+    # Vérifie si tamper est présent dans options utilisateur
+    tamper_present = any(opt.startswith("--tamper=") for opt in option_list)
+
+    # Construction de la commande
+    cmd += forced_options
+
+    # Ajouter tamper si pertinent et absent
+    if not tamper_present and any(
+        x in option for x in ["--dump", "--dbs", "--technique"]
+    ):
+        cmd.append("--tamper=space2comment")
+
+    # Ajouter options utilisateur en évitant la duplication des options forcées
+    for opt in option_list:
+        if opt not in forced_options:
+            cmd.append(opt)
+
     return cmd
+
+
+import re
+
 
 def parse_sqlmap_output(output):
     """
-    Parsing enrichi de la sortie SQLMap pour extraire :
-    - vulnérabilités
-    - paramètres vulnérables
-    - DBMS
-    - payloads
-    - bases, tables, colonnes, dumps
+    Analyse enrichie de la sortie SQLMap :
+    - Vulnérabilités
+    - Type d'injection, DBMS
+    - Payloads utilisés
+    - Bases, tables, colonnes et données extraites
+    - Messages critiques/warnings/info
+    - Trace brute complète
     """
-    import re
     parsed = {
-        'is_vulnerable': False,
-        'injection_type': None,
-        'dbms': None,
-        'payloads': [],
-        'vulnerabilities': [],
-        'options_used': '',
-        'techniques_used': '',
-        'dbs_found': [],
-        'tables_found': {},
-        'columns_found': {},
-        'data_dumped': {},
-        'parameters': [],
-        'critical': False,
+        "is_vulnerable": False,
+        "injection_type": None,
+        "dbms": None,
+        "payloads": [],
+        "vulnerabilities": [],
+        "options_used": "",
+        "techniques_used": "",
+        "dbs_found": [],
+        "tables_found": {},
+        "columns_found": {},
+        "data_dumped": {},
+        "parameters": [],
+        "critical": False,
+        "raw_output": output.splitlines(),
     }
+
     lines = output.splitlines()
     current_db = None
     current_table = None
 
-    for line in lines:
-        # Détection DBMS
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # DBMS
         if "back-end DBMS" in line:
-            parsed['dbms'] = line.split("is")[1].strip().strip('.')
-        # Détection type d'injection
-        if "Type: " in line:
-            parsed['injection_type'] = line.split("Type:")[1].strip()
+            parsed["dbms"] = line.split("is")[-1].strip().strip(".")
+
+        # Type d'injection
+        if "Type:" in line:
+            parsed["injection_type"] = line.split("Type:")[-1].strip()
+
         # Payloads
         if "[PAYLOAD]" in line:
-            parsed['payloads'].append(line.split("[PAYLOAD]")[1].strip())
+            payload = line.split("[PAYLOAD]")[-1].strip()
+            parsed["payloads"].append(payload)
+
         # Paramètres vulnérables
-        if re.search(r"parameter '(\w+)' is vulnerable", line):
-            param = re.findall(r"parameter '(\w+)' is vulnerable", line)[0]
-            parsed['parameters'].append(param)
-            parsed['is_vulnerable'] = True
-            parsed['critical'] = True
-            parsed['vulnerabilities'].append(line.strip())
-        # Vulnérabilités critiques ou warnings
+        match_param = re.search(r"parameter '(\w+)' is vulnerable", line)
+        if match_param:
+            param = match_param.group(1)
+            parsed["parameters"].append(param)
+            parsed["is_vulnerable"] = True
+            parsed["critical"] = True
+            parsed["vulnerabilities"].append(line.strip())
+
+        # Messages critiques/warnings
         if "[CRITICAL]" in line or "[WARNING]" in line:
-            parsed['vulnerabilities'].append(line.strip())
+            parsed["vulnerabilities"].append(line.strip())
             if "[CRITICAL]" in line:
-                parsed['critical'] = True
-        # Extraction des bases de données
+                parsed["critical"] = True
+
+        # Bases de données
         if "[INFO]" in line and "available databases" in line:
             dbs = []
-            idx = lines.index(line) + 1
-            while idx < len(lines) and lines[idx].strip() and not lines[idx].startswith("["):
-                dbs.append(lines[idx].strip())
-                idx += 1
-            parsed['dbs_found'] = dbs
-        # Extraction des tables
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and not lines[j].startswith("["):
+                dbs.append(lines[j].strip())
+                j += 1
+            parsed["dbs_found"] = dbs
+            i = j - 1
+
+        # Tables
         if "[INFO]" in line and "tables found" in line:
-            m = re.search(r"Database: (\w+)", line)
-            if m:
-                current_db = m.group(1)
-                parsed['tables_found'][current_db] = []
-            idx = lines.index(line) + 1
-            while idx < len(lines) and lines[idx].strip() and not lines[idx].startswith("["):
-                if current_db:
-                    parsed['tables_found'][current_db].append(lines[idx].strip())
-                idx += 1
-        # Extraction des colonnes
+            db_match = re.search(r"Database: (\w+)", line)
+            if db_match:
+                current_db = db_match.group(1)
+                parsed["tables_found"][current_db] = []
+                j = i + 1
+                while (
+                    j < len(lines) and lines[j].strip() and not lines[j].startswith("[")
+                ):
+                    parsed["tables_found"][current_db].append(lines[j].strip())
+                    j += 1
+                i = j - 1
+
+        # Colonnes
         if "[INFO]" in line and "columns found" in line:
-            m = re.search(r"Table: (\w+)", line)
-            if m:
-                current_table = m.group(1)
-                parsed['columns_found'][current_table] = []
-            idx = lines.index(line) + 1
-            while idx < len(lines) and lines[idx].strip() and not lines[idx].startswith("["):
-                if current_table:
-                    parsed['columns_found'][current_table].append(lines[idx].strip())
-                idx += 1
-        # Extraction des dumps de données
+            table_match = re.search(r"Table: (\w+)", line)
+            if table_match:
+                current_table = table_match.group(1)
+                parsed["columns_found"][current_table] = []
+                j = i + 1
+                while (
+                    j < len(lines) and lines[j].strip() and not lines[j].startswith("[")
+                ):
+                    parsed["columns_found"][current_table].append(lines[j].strip())
+                    j += 1
+                i = j - 1
+
+        # Données extraites
         if "[INFO]" in line and "entries" in line and "dumped" in line:
-            m = re.search(r"Table: (\w+)", line)
-            if m:
-                current_table = m.group(1)
-                parsed['data_dumped'][current_table] = []
-            idx = lines.index(line) + 1
-            while idx < len(lines) and lines[idx].strip() and not lines[idx].startswith("["):
-                if current_table:
-                    parsed['data_dumped'][current_table].append(lines[idx].strip())
-                idx += 1
+            table_match = re.search(r"Table: (\w+)", line)
+            if table_match:
+                current_table = table_match.group(1)
+                parsed["data_dumped"][current_table] = []
+                j = i + 1
+                while (
+                    j < len(lines) and lines[j].strip() and not lines[j].startswith("[")
+                ):
+                    parsed["data_dumped"][current_table].append(lines[j].strip())
+                    j += 1
+                i = j - 1
+
+        i += 1
 
     return parsed
 
-def notify_user(scan, message):
-    """Envoie une notification à l'utilisateur si vulnérabilité critique"""
+
+def notify_user(scan, message, level="info"):
+    """Envoie une notification à l'utilisateur"""
     if scan.created_by:
         UserNotification.objects.create(
             user=scan.created_by,
-            message=message
+            message=message,
+            level=level,  # info, warning, danger, success...
         )
+
 
 @shared_task(bind=True)
 def run_sqlmap_scan(self, scan_id, option):
     try:
         scan = Scan.objects.get(id=scan_id)
-        scan.status = 'in_progress'
+        scan.status = "in_progress"
         scan.start_time = timezone.now()
         scan.save()
 
@@ -140,13 +209,13 @@ def run_sqlmap_scan(self, scan_id, option):
         returncode = result.returncode
 
         if returncode != 0:
-            scan.status = 'failed'
+            scan.status = "failed"
             scan.error_log = stderr
             scan.end_time = end_exec
-            scan.save(update_fields=['status', 'error_log', 'end_time'])
+            scan.save(update_fields=["status", "error_log", "end_time"])
             logger.error(f"[SQLMAP] Échec du scan #{scan.id} : {stderr}")
             # Fonctionnalité 1 : Relance automatique une fois si échec
-            if not hasattr(scan, 'retried'):
+            if not hasattr(scan, "retried"):
                 scan.retried = True
                 logger.warning(f"[SQLMAP] Relance automatique du scan #{scan.id}")
                 run_sqlmap_scan.apply_async((scan_id, option), countdown=10)
@@ -159,54 +228,63 @@ def run_sqlmap_scan(self, scan_id, option):
             scan=scan,
             project=scan.project,
             raw_output=stdout,
-            is_vulnerable=parsed['is_vulnerable'],
-            injection_type=parsed['injection_type'],
-            dbms=parsed['dbms'],
-            payloads='\n'.join(parsed['payloads']),
-            dbs_found='\n'.join(parsed['dbs_found']),
-            tables_found=parsed['tables_found'],
-            columns_found=parsed['columns_found'],
-            data_dumped=parsed['data_dumped'],
-            options_used=' '.join(cmd),
-            techniques_used=parsed['injection_type'],
+            is_vulnerable=parsed["is_vulnerable"],
+            injection_type=parsed["injection_type"],
+            dbms=parsed["dbms"],
+            payloads="\n".join(parsed["payloads"]),
+            dbs_found="\n".join(parsed["dbs_found"]),
+            tables_found=parsed["tables_found"],
+            columns_found=parsed["columns_found"],
+            data_dumped=parsed["data_dumped"],
+            options_used=" ".join(cmd),
+            techniques_used=parsed["injection_type"],
         )
 
         # Fonctionnalité 2 : Enregistrement détaillé des vulnérabilités individuelles
-        for vuln in parsed['vulnerabilities']:
+        for vuln in parsed["vulnerabilities"]:
             Vulnerability.objects.create(
                 scan=scan,
                 name="Injection SQL",
                 description=vuln,
-                severity='critical' if parsed['critical'] else ('high' if parsed['is_vulnerable'] else 'medium'),
+                severity=(
+                    "critical"
+                    if parsed["critical"]
+                    else ("high" if parsed["is_vulnerable"] else "medium")
+                ),
                 target_url=target_url,
-                technique=parsed['injection_type'],
-                dbms=parsed['dbms'],
-                status='open',
+                technique=parsed["injection_type"],
+                dbms=parsed["dbms"],
+                status="open",
             )
 
         # Fonctionnalité 3 : Notification utilisateur si vulnérabilité critique
-        if parsed['critical']:
-            notify_user(scan, f"⚠️ Vulnérabilité critique détectée sur {target_url} lors du scan SQLMap #{scan.id}")
+        if parsed["critical"]:
+            notify_user(
+                scan,
+                f"⚠️ Vulnérabilité critique détectée sur {target_url} lors du scan SQLMap #{scan.id}",
+            )
 
         # Fonctionnalité 4 : Sauvegarde du temps d'exécution
         scan.duration = (end_exec - start_exec).total_seconds()
-        scan.status = 'completed'
+        scan.status = "completed"
         scan.end_time = end_exec
-        scan.save(update_fields=['status', 'end_time', 'duration'])
-        logger.info(f"[SQLMAP] Scan #{scan.id} terminé avec succès en {scan.duration:.2f}s.")
+        scan.save(update_fields=["status", "end_time", "duration"])
+        logger.info(
+            f"[SQLMAP] Scan #{scan.id} terminé avec succès en {scan.duration:.2f}s."
+        )
 
     except subprocess.TimeoutExpired:
         msg = "Timeout : SQLMap a dépassé 900s."
-        scan.status = 'failed'
+        scan.status = "failed"
         scan.error_log = msg
         scan.end_time = timezone.now()
-        scan.save(update_fields=['status', 'error_log', 'end_time'])
+        scan.save(update_fields=["status", "error_log", "end_time"])
         logger.error(f"[SQLMAP] Timeout du scan #{scan.id} : {msg}")
 
     except Exception as e:
         logger.exception(f"[SQLMAP] Erreur inconnue dans le scan #{scan.id}")
-        if 'scan' in locals():
-            scan.status = 'error'
+        if "scan" in locals():
+            scan.status = "error"
             scan.error_log = str(e)
             scan.end_time = timezone.now()
-            scan.save(update_fields=['status', 'error_log', 'end_time'])
+            scan.save(update_fields=["status", "error_log", "end_time"])

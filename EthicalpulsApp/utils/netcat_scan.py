@@ -12,17 +12,18 @@ from EthicalpulsApp.models import NetcatResult, Scan
 logger = logging.getLogger(__name__)
 
 # Configuration Netcat
-NETCAT_PATH = shutil.which(getattr(settings, 'NETCAT_PATH', 'nc'))
-NETCAT_TIMEOUT = getattr(settings, 'NETCAT_TIMEOUT', 300)  # 5 minutes
+NETCAT_PATH = shutil.which(getattr(settings, "NETCAT_PATH", "nc"))
+NETCAT_TIMEOUT = getattr(settings, "NETCAT_TIMEOUT", 300)  # 5 minutes
 
 # Options disponibles pour Netcat avec leurs arguments
 NETCAT_OPTION_MAP = {
-    '-lvp': ['-lvp'],  # Listener
-    '-v': ['-v'],      # Connexion verbose
-    '-z': ['-z'],      # Scanner de ports
-    '-e': ['-e'],      # Exécution
-    '-u': ['-u'],      # Mode UDP
+    "-lvp": ["-lvp"],  # Listener
+    "-v": ["-v"],  # Connexion verbose
+    "-z": ["-z"],  # Scanner de ports
+    "-e": ["-e"],  # Exécution
+    "-u": ["-u"],  # Mode UDP
 }
+
 
 def parse_netcat_output(output, target):
     """Parse la sortie de Netcat."""
@@ -32,7 +33,7 @@ def parse_netcat_output(output, target):
         "connections": [],
         "errors": [],
         "status": "completed",
-        "details": []
+        "details": [],
     }
 
     for line in output.splitlines():
@@ -60,6 +61,7 @@ def parse_netcat_output(output, target):
 
     return parsed
 
+
 @shared_task(bind=True)
 def run_netcat_scan(self, scan_id, option, target_port=None):
     scan = None
@@ -79,7 +81,7 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
         if not target:
             raise ValueError("Aucune cible valide (IP ou domaine) spécifiée")
 
-        scan.status = 'in_progress'
+        scan.status = "in_progress"
         scan.start_time = timezone.now()
         scan.save()
 
@@ -89,15 +91,15 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
             cmd.extend(NETCAT_OPTION_MAP[option])
 
         # Ajout des paramètres spécifiques selon l'option
-        if option == '-lvp':
+        if option == "-lvp":
             if not target_port:
                 target_port = 4444  # Port par défaut pour l'écoute
             cmd.append(str(target_port))
-        elif option == '-z':
-            cmd.extend(['-v', target])
+        elif option == "-z":
+            cmd.extend(["-v", target])
             if target_port:
-                if '-' in str(target_port):  # Plage de ports
-                    start, end = map(int, target_port.split('-'))
+                if "-" in str(target_port):  # Plage de ports
+                    start, end = map(int, target_port.split("-"))
                     cmd.extend([str(start), str(end)])
                 else:
                     cmd.append(str(target_port))
@@ -113,15 +115,19 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=NETCAT_TIMEOUT
+                timeout=NETCAT_TIMEOUT,
             )
             output = result.stdout + "\n" + result.stderr
             full_output += output
 
             scan_success = result.returncode == 0
             if not scan_success:
-                logger.warning(f"Netcat a retourné un code non nul ({result.returncode})")
-                full_output += f"\n[!] Attention : Scan terminé avec code {result.returncode}\n"
+                logger.warning(
+                    f"Netcat a retourné un code non nul ({result.returncode})"
+                )
+                full_output += (
+                    f"\n[!] Attention : Scan terminé avec code {result.returncode}\n"
+                )
 
         except subprocess.TimeoutExpired:
             scan_success = False
@@ -132,7 +138,7 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
         # Mise à jour du scan
         scan.end_time = timezone.now()
         scan.duration = (scan.end_time - scan.start_time).total_seconds()
-        scan.status = 'completed' if scan_success else 'failed'
+        scan.status = "completed" if scan_success else "failed"
         scan.save()
 
         # Parsing et sauvegarde des résultats
@@ -150,7 +156,7 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
             connections="\n".join(parsed["connections"]),
             errors="\n".join(parsed["errors"]),
             status=scan.status,
-            success=scan_success
+            success=scan_success,
         )
 
         # Envoi d'email si configuré
@@ -169,7 +175,7 @@ def run_netcat_scan(self, scan_id, option, target_port=None):
     except Exception as e:
         logger.exception(f"[!] Échec du scan Netcat : {e}")
         if scan:
-            scan.status = 'failed'
+            scan.status = "failed"
             scan.end_time = timezone.now()
             scan.save()
         raise
