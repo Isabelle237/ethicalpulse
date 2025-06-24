@@ -1,104 +1,130 @@
-
-
 {% extends "admin/admin_base.html" %}
-{% block title %}Historique | Ethical Pulse Shield{% endblock %}
+{% load static %}
+{% block title %}Historique d'Audit | Ethical Pulse Shield{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'css/audit_history.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3"><i class="bi bi-clock-history"></i> Historique des Activités</h1>
-        <div>
-            <button class="btn btn-outline-primary"><i class="bi bi-download"></i> Exporter</button>
-            <button class="btn btn-outline-secondary ms-2"><i class="bi bi-filter"></i> Filtrer</button>
-        </div>
+        <h1 class="h3"><i class="bi bi-shield-lock"></i> Historique d'Audit Complet</h1>
+        <form class="d-flex" method="get">
+            <input type="text" name="search" class="form-control me-2" placeholder="Recherche..." value="{{ search }}">
+            <select name="action" class="form-select me-2">
+                <option value="">Tous types</option>
+                {% for code, label in actions %}
+                  <option value="{{ code }}" {% if current_action == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="user" class="form-select me-2">
+                <option value="">Tous utilisateurs</option>
+                {% for uid, uname in users %}
+                  <option value="{{ uid }}" {% if current_user == uid|stringformat:"s" %}selected{% endif %}>{{ uname }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="form-select me-2">
+                <option value="">Tous statuts</option>
+                <option value="success" {% if current_status == "success" %}selected{% endif %}>Succès</option>
+                <option value="error" {% if current_status == "error" %}selected{% endif %}>Erreur</option>
+            </select>
+            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-funnel"></i> Filtrer</button>
+        </form>
     </div>
-
-    <div class="card">
-        <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs">
-                <li class="nav-item">
-                    <a class="nav-link active" href="#">Toutes les activités</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Scans</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Vulnérabilités</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Remédiations</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Rapports</a>
-                </li>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="auditTable">
+            <thead class="table-primary">
+                <tr>
+                    <th>Date</th>
+                    <th>Utilisateur</th>
+                    <th>IP</th>
+                    <th>Action</th>
+                    <th>Objet</th>
+                    <th>Détails</th>
+                    <th>Statut</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                    <td>
+                      {% if log.user %}
+                        {{ log.user.username }}
+                      {% else %}
+                        Système
+                      {% endif %}
+                    </td>
+                    <td>{{ log.ip_address|default:"-" }}</td>
+                    <td>
+                        <span class="badge bg-info">{{ log.get_action_type_display }}</span>
+                    </td>
+                    <td>
+                        <b>{{ log.object_type }}</b>
+                        {% if log.object_id %}#{{ log.object_id }}{% endif %}
+                        <br>
+                        <small>{{ log.object_repr|truncatechars:30 }}</small>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#detailsModal{{ log.id }}">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <!-- Modal détails -->
+                        <div class="modal fade" id="detailsModal{{ log.id }}" tabindex="-1">
+                          <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                              <div class="modal-header">
+                                <h5 class="modal-title">Détails de l'action</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+                              <div class="modal-body">
+                                <pre style="white-space:pre-wrap;">{{ log.details|default:"Aucun détail."|json_script:"details" }}</pre>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if log.status == "success" %}
+                          <span class="badge bg-success">Succès</span>
+                        {% else %}
+                          <span class="badge bg-danger">Erreur</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ log.message|default:"-"|truncatechars:60 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted">Aucune activité trouvée.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex justify-content-center mt-4">
+        <nav>
+            <ul class="pagination">
+                {% if logs.has_previous %}
+                  <li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}">&laquo;</a></li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                {% endif %}
+                {% for num in logs.paginator.page_range %}
+                  <li class="page-item {% if logs.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                  </li>
+                {% endfor %}
+                {% if logs.has_next %}
+                  <li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}">&raquo;</a></li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                {% endif %}
             </ul>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Activité</th>
-                            <th>Utilisateur</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in history_data %}
-                        <tr>
-                            <td>
-                                {% if item.type == 'scan' %}
-                                <span class="badge bg-info"><i class="bi bi-search"></i> Scan</span>
-                                {% elif item.type == 'vulnerability' %}
-                                <span class="badge bg-danger"><i class="bi bi-bug"></i> Vulnérabilité</span>
-                                {% elif item.type == 'remediation' %}
-                                <span class="badge bg-success"><i class="bi bi-bandaid"></i> Remédiation</span>
-                                {% elif item.type == 'report' %}
-                                <span class="badge bg-secondary"><i class="bi bi-file-earmark-text"></i> Rapport</span>
-                                {% else %}
-                                <span class="badge bg-primary"><i class="bi bi-activity"></i> Autre</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ item.name }}</td>
-                            <td>{{ item.user }}</td>
-                            <td>{{ item.date }}</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="card-footer">
-            <nav>
-                <ul class="pagination justify-content-center">
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#" tabindex="-1">Précédent</a>
-                    </li>
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#">Suivant</a>
-                    </li>
-                </ul>
-            </nav>
-        </div>
-    </div>
-
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5>Calendrier d'activités</h5>
-        </div>
-        <div class="card-body">
-            <div id="calendar" style="height: 400px; background-color: #f8f9fa; border-radius: 5px; display: flex; justify-content: center; align-items: center;">
-                <p class="text-muted">Calendrier interactif des activités (Chargement...)</p>
-            </div>
-        </div>
+        </nav>
     </div>
 </div>
 {% endblock %}

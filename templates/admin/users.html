@@ -1,4 +1,3 @@
-
 {% extends "admin/admin_base.html" %}
 
 {% load widget_tweaks %}
@@ -76,7 +75,7 @@
                                 <td>{{ user.username }}</td>
                                 <td>{{ user.email }}</td>
                                 <td>{{ user.role }}</td>
-                                <td>{{ user.date_joined }}</td>
+                                <td>{{ user.date_joined|date:"d/m/Y" }}</td>
                                 <td>
                                     <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
                                         {% if user.is_active %}Actif{% else %}Inactif{% endif %}
@@ -101,11 +100,33 @@
                                         <form method="post" action="{% url 'edit_user' user.id %}">
                                             {% csrf_token %}
                                             <div class="modal-header">
-                                                <h5 class="modal-title">Modifier l'utilisateur</h5>
+                                                <h5 class="modal-title">Modifier l'utilisateur {{ user.username }}</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                                             </div>
                                             <div class="modal-body">
-                                                
+                                                <div class="mb-3">
+                                                    <label for="username{{ user.id }}" class="form-label">Nom d'utilisateur</label>
+                                                    <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="email{{ user.id }}" class="form-label">Email</label>
+                                                    <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="role{{ user.id }}" class="form-label">Rôle</label>
+                                                    <select class="form-select" id="role{{ user.id }}" name="role" required>
+                                                        <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Admin</option>
+                                                        <option value="manager" {% if user.role == "manager" %}selected{% endif %}>Manager</option>
+                                                        <option value="user" {% if user.role == "user" %}selected{% endif %}>Utilisateur</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="is_active{{ user.id }}" class="form-label">Statut</label>
+                                                    <select class="form-select" id="is_active{{ user.id }}" name="is_active" required>
+                                                        <option value="True" {% if user.is_active %}selected{% endif %}>Actif</option>
+                                                        <option value="False" {% if not user.is_active %}selected{% endif %}>Inactif</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -141,83 +162,99 @@
                         </tbody>
                     </table>
                 </div>
+                <style>
+  .bg-navy { background-color: #001f3f !important; }
+  .bg-orange { background-color: #ff851b !important; }
+  .text-orange { color: #ff851b !important; }
+  .btn-outline-orange {
+    border-color: #ff851b;
+    color: #ff851b;
+  }
+  .btn-outline-orange:hover {
+    background-color: #ff851b;
+    color: #fff;
+  }
+  .badge-orange {
+    background-color: #ff851b;
+    color: #fff;
+  }
+  .badge-navy {
+    background-color: #001f3f;
+    color: #fff;
+  }
+</style>
                 <!-- Grid View Container -->
-                <div id="gridView" class="row g-4 p-4" style="display: none;">
-                    {% for user in users_list %}
-                    <div class="col-xl-3 col-lg-4 col-md-6 user-grid-item" 
-                        data-username="{{ user.username|lower }}" 
-                        data-email="{{ user.email|lower }}"
-                        data-role="{{ user.role|lower }}"
-                        data-status="{{ user.is_active|yesno:'active,inactive' }}">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-center mb-3">
-                                    <div class="avatar-circle mx-auto mb-2">
-                                        {{ user.username|make_list|first|upper }}
-                                    </div>
-                                    <h5 class="card-title mb-0">{{ user.username }}</h5>
-                                    <p class="text-muted small mb-2">{{ user.email }}</p>
-                                    <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
-                                        {% if user.is_active %}Actif{% else %}Inactif{% endif %}
-                                    </span>
-                                </div>
-                                <div class="user-info-grid">
-                                    <div class="user-info-item">
-                                        <span class="text-muted">Rôle</span>
-                                        <span class="badge bg-info">{{ user.role }}</span>
-                                    </div>
-                                    <div class="user-info-item">
-                                        <span class="text-muted">Inscrit le</span>
-                                        <span>{{ user.date_joined|date:"d/m/Y" }}</span>
-                                    </div>
-                                </div>
-                                <div class="mt-3 d-flex gap-2">
-                                    <button class="btn btn-sm btn-outline-primary flex-grow-1" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#editUserModal{{ user.id }}">
-                                        <i class="bi bi-pencil"></i> Modifier
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger flex-grow-1" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#deleteUserModal{{ user.id }}">
-                                        <i class="bi bi-trash"></i> Supprimer
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+                <div id="gridView" class="row g-3" style="display:none;">
+  {% for user in users_list %}
+  <div class="col-md-4 user-card"
+       data-username="{{ user.username|lower }}"
+       data-email="{{ user.email|lower }}"
+       data-role="{{ user.role|lower }}"
+       data-status="{{ user.is_active|yesno:'actif,inactif' }}">
+    <div class="card shadow h-100 border-0 bg-navy text-blac d-flex flex-column">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-orange">{{ user.username }}</span>
+        {% if user.is_active %}
+          <span class="badge badge-orange">Actif</span>
+        {% else %}
+          <span class="badge badge-navy">Inactif</span>
+        {% endif %}
+      </div>
+      <div class="card-body text-white flex-grow-1">
+        <div><strong>Email:</strong> {{ user.email }}</div>
+        <div><strong>Rôle:</strong> {{ user.role }}</div>
+        <div><strong>Inscrit le:</strong> {{ user.date_joined|date:"d/m/Y" }}</div>
+      </div>
+      <div class="card-footer bg-transparent border-top d-flex justify-content-end gap-2">
+        <button class="btn btn-outline-info btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#editUserModal{{ user.id }}">
+          <i class="bi bi-pencil-square"></i> Modifier
+        </button>
+        <button class="btn btn-outline-danger btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteUserModal{{ user.id }}">
+          <i class="bi bi-trash"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-center text-muted">Aucun utilisateur trouvé.</p>
+  {% endfor %}
+</div>
+
+
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <button type="submit" formaction="{% url 'delete_multiple_users' %}" class="btn btn-outline-danger btn-sm me-2" id="deleteSelectedBtn" disabled>
                         <i class="bi bi-trash"></i> Supprimer la sélection
                     </button>
+
                     <nav aria-label="Pagination" class="d-flex justify-content-center mt-4">
-    <ul class="pagination pagination-sm">
-        {% if users_list.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ users_list.previous_page_number }}">&laquo;</a>
-            </li>
-        {% else %}
-            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-        {% endif %}
+                        <ul class="pagination pagination-sm">
+                            {% if users_list.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ users_list.previous_page_number }}">&laquo;</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                            {% endif %}
 
-        {% for num in users_list.paginator.page_range %}
-            <li class="page-item {% if users_list.number == num %}active{% endif %}">
-                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-        {% endfor %}
+                            {% for num in users_list.paginator.page_range %}
+                                <li class="page-item {% if users_list.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endfor %}
 
-        {% if users_list.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ users_list.next_page_number }}">&raquo;</a>
-            </li>
-        {% else %}
-            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-        {% endif %}
-    </ul>
-</nav>
-
+                            {% if users_list.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ users_list.next_page_number }}">&raquo;</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
                 </div>
             </form>
         </div>
@@ -274,154 +311,13 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
+
 {% block extra_css %}
-<style>
-    /* Card Styles */
-    .user-grid-item .card {
-        background: rgba(13, 27, 42, 0.9); /* Bleu nuit */
-        border: 1px solid #f97316;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    }
-
-    .user-grid-item .card:hover {
-        transform: translateY(-6px) scale(1.02);
-        box-shadow: 0 12px 24px rgba(249, 115, 22, 0.2);
-        border-color: #ff8c1a;
-    }
-
-    .avatar-circle {
-        width: 40px;
-        height: 40px;
-        background: radial-gradient(circle at top left, #f97316, #0d1b2a);
-        border: 2px solid #f97316;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        color: #fff;
-        margin-bottom: 1rem;
-        box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
-    }
-
-    .card-title {
-        color: #f8fafc;
-        font-weight: 700;
-        font-size: 0.6rem;
-        text-shadow: 0 1px 2px rgba(230, 207, 207, 0.5);
-    }
-    
-
-    .user-info-grid {
-        border-radius: 10px;
-        padding: 0.6rem;
-        margin: 1rem 0;
-        color: #f8fafc;
-        font-size: 0.6rem;
-    }
-
-    .user-info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .user-info-item:last-child {
-        border-bottom: none;
-    }
-
-    .user-info-item .text-muted {
-        color: rgba(240, 240, 240, 0.6) !important;
-    }
-
-    .badge {
-        padding: 0.4em 0.7em;
-        font-weight: 600;
-        border-radius: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .badge.bg-success {
-        background: rgba(16, 185, 129, 0.15) !important;
-        color: #10b981;
-        border: 1px solid #10b981;
-    }
-
-    .badge.bg-danger {
-        background: rgba(239, 68, 68, 0.15) !important;
-        color: #ef4444;
-        border: 1px solid #ef4444;
-    }
-
-    .badge.bg-info {
-        background: rgba(59, 130, 246, 0.15) !important;
-        color: #3b82f6;
-        border: 1px solid #3b82f6;
-    }
-
-    .btn-outline-primary {
-        color: #f97316;
-        border: 1px solid #f97316;
-        background: transparent;
-        border-radius: 6px;
-    }
-
-    .btn-outline-primary:hover {
-        background: rgba(249, 115, 22, 0.15);
-        border-color: #f97316;
-        color: #fff;
-    }
-
-    .btn-outline-danger {
-        color: #ef4444;
-        border: 1px solid #ef4444;
-        background: transparent;
-        border-radius: 6px;
-    }
-
-    .btn-outline-danger:hover {
-        background: rgba(239, 68, 68, 0.15);
-        border-color: #ef4444;
-        color: #fff;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .user-grid-item {
-            padding: 0.5rem;
-        }
-
-        .avatar-circle {
-            width: 50px;
-            height: 50px;
-            font-size: 1.25rem;
-        }
-    }
-
-    /* Animation for card appearance */
-    @keyframes cardAppear {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .user-grid-item {
-        animation: cardAppear 0.4s ease-out forwards;
-    }
-</style>
-
+<!-- Ajoute ici du CSS si nécessaire -->
 {% endblock %}
+
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -492,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedView = localStorage.getItem('userViewPreference');
     toggleView(savedView === 'grid');
 
-    // ... your existing checkbox handling code ...
+    // TODO: checkbox "select all" and enable/disable deleteSelectedBtn logic here
 });
 </script>
 {% endblock %}

@@ -846,3 +846,38 @@ class SystemLog(models.Model):
     level = models.CharField(max_length=16)
     message = models.TextField()
     user = models.CharField(max_length=128, blank=True, null=True)
+
+class AuditLog(models.Model):
+    ACTION_TYPES = [
+        ("create", "Création"),
+        ("update", "Modification"),
+        ("delete", "Suppression"),
+        ("scan", "Scan"),
+        ("vuln", "Vulnérabilité"),
+        ("remediation", "Remédiation"),
+        ("report", "Rapport"),
+        ("login", "Connexion"),
+        ("logout", "Déconnexion"),
+        ("export", "Export"),
+        ("import", "Import"),
+        ("settings", "Paramètres"),
+        ("user", "Utilisateur"),
+        ("notification", "Notification"),
+        ("other", "Autre"),
+    ]
+    action_type = models.CharField(max_length=32, choices=ACTION_TYPES)
+    object_type = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64, blank=True, null=True)
+    object_repr = models.CharField(max_length=255, blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    details = models.JSONField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=32, default="success")
+    message = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} {self.object_type} ({self.object_id}) par {self.user} le {self.timestamp}"

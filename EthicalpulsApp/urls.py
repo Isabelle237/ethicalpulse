@@ -88,4 +88,6 @@ urlpatterns = [
     path("login/", views.email_login, name="login"),
     path("verify-otp/", views.otp_verification, name="verify_otp"),  # ✅ Corrigé ici
     path("logout/", views.logout_view, name="logout"),
+    path("history/", views.history, name="history"),
+
 ]

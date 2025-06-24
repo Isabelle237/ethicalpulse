@@ -12,6 +12,7 @@ requests==2.20.1
 six==1.10.0
 sqlparse==0.5.3
 tabulate==0.7.5
+channels>=4.0.0
 termcolor==1.1.0
 tomli==2.2.1
 typing_extensions==4.14.0
@@ -19,10 +20,6 @@ tzdata==2025.2
 urllib3==1.24.3
 vine==5.1.0
 wcwidth==0.2.13
-zapcli==0.10.0
 zaproxy==0.2.0
+celery>=5.3.6
 
-# ➕ Outils de qualité de code
-black>=24.3.0
-flake8>=6.1.0
-pre-commit>=3.7.0

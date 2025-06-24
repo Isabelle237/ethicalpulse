@@ -35,6 +35,7 @@ INSTALLED_APPS = [
 
 # Middleware
 MIDDLEWARE = [
+    'EthicalpulsApp.middleware.AuditLogMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -109,14 +110,14 @@ USE_TZ = True
 
 # Fichiers statiques
 # Fichiers statiques
-STATIC_URL = "/static/"
+STATIC_URL = '/static/'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Configuration des fichiers statiques
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
+    BASE_DIR / "static",  # <- indispensable pour un dossier global comme toi
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Finders pour les fichiers statiques
 STATICFILES_FINDERS = [
@@ -145,24 +146,39 @@ OTP_LENGTH = 6
 OTP_EXPIRE_MINUTES = 10
 
 # Logging
+# settings.py
+
 LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": "/app/debug.log",
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/app.log'),
+            'formatter': 'verbose',
         },
     },
-    "loggers": {
-        "": {
-            "handlers": ["file"],
-            "level": "DEBUG",
-            "propagate": True,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'custom': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
+
 
 AUTH_USER_MODEL = "EthicalpulsApp.CustomUser"
 # Configuration Celery

@@ -115,13 +115,19 @@ def users(request):
     return render(request, "admin/users.html", {"users_list": users_page})
 
 
+@login_required
 def log(request):
     """
-    View to handle the log page.
+    View to read and display application logs.
     """
-    # Here you can implement logic to fetch logs if needed
-    return render(request, "admin/logs.html")
+    log_file_path = os.path.join(settings.BASE_DIR, 'logs/app.log')
+    logs = []
 
+    if os.path.exists(log_file_path):
+        with open(log_file_path, 'r') as file:
+            logs = file.readlines()[-200:]  # Affiche les 200 dernières lignes
+
+    return render(request, "admin/logs.html", {"logs": logs})
 
 def index(request):
     return render(request, "dashboard/index.html")
@@ -1462,3 +1468,39 @@ def completed_scan_details(request, scan_id):
                 "raw_output": result.raw_output[:2000],
             }
     return JsonResponse(data)
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.shortcuts import render
+from .models import AuditLog
+
+@login_required
+@user_passes_test(lambda u: u.is_staff or u.is_superuser)
+def history(request):
+    logs = AuditLog.objects.all()
+    # Filtres
+    action = request.GET.get("action")
+    user = request.GET.get("user")
+    status = request.GET.get("status")
+    search = request.GET.get("search")
+    if action:
+        logs = logs.filter(action_type=action)
+    if user:
+        logs = logs.filter(user__id=user)
+    if status:
+        logs = logs.filter(status=status)
+    if search:
+        logs = logs.filter(message__icontains=search)
+    # Pagination
+    paginator = Paginator(logs, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    users = AuditLog.objects.values_list("user__id", "user__username").distinct()
+    return render(request, "history.html", {
+        "logs": page_obj,
+        "users": users,
+        "actions": AuditLog.ACTION_TYPES,
+        "current_action": action,
+        "current_user": user,
+        "current_status": status,
+        "search": search,
+    })
