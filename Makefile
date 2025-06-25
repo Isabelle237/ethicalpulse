@@ -9,7 +9,7 @@ build:
 	$(DOCKER_COMPOSE) build --no-cache
 
 up:
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up
 
 down:
 	$(DOCKER_COMPOSE) down

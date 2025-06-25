@@ -84,6 +84,7 @@ urlpatterns = [
     path("reports/", views.report, name="reports"),
     path("training/", views.training, name="training"),
     path("analytics/", views.analytics_dashboard, name="analytics_dashboard"),
+    path("analytics/export/", views.export_analytics, name="export_analytics"),
     # Authentification
     path("login/", views.email_login, name="login"),
     path("verify-otp/", views.otp_verification, name="verify_otp"),  # ✅ Corrigé ici

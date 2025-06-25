@@ -635,13 +635,11 @@ def send_otp_email(email, otp_code, user):
 
 
 def logout_view(request):
-    logout(request)
-    request.session.flush()
-    messages.success(request, "Vous avez été déconnecté avec succès.")
-    return redirect("login")
-
-    from django.shortcuts import render, redirect, get_object_or_404
-
+    if request.user.is_authenticated:
+        messages.success(request, "Vous avez été déconnecté avec succès.")
+    logout(request)  # Déconnecte l'utilisateur
+    request.session.flush()  # Nettoie complètement la session
+    return redirect("login") 
 
 @login_required
 def get_project_details(request, project_id):
@@ -1126,236 +1124,152 @@ from .models import Scan, Vulnerability, Project
 from .utils.json_encoder import CustomJSONEncoder
 
 
+
 @login_required
 def analytics_dashboard(request):
-    # Get period parameters
+    # Filtres
+    selected_project = request.GET.get("project")
     period = request.GET.get("period", "30d")
-    project_id = request.GET.get("project")
+    search = request.GET.get("search", "")
     end_date = timezone.now()
-
-    # Calculate start date based on period
     if period == "7d":
         start_date = end_date - timedelta(days=7)
+    elif period == "30d":
+        start_date = end_date - timedelta(days=30)
     elif period == "90d":
         start_date = end_date - timedelta(days=90)
     elif period == "1y":
         start_date = end_date - timedelta(days=365)
     elif period == "custom":
-        try:
-            start_date = timezone.datetime.strptime(
-                request.GET.get("start_date"), "%Y-%m-%d"
-            )
-            end_date = timezone.datetime.strptime(
-                request.GET.get("end_date"), "%Y-%m-%d"
-            )
-        except (TypeError, ValueError):
-            start_date = end_date - timedelta(days=30)
-    else:  # default 30d
+        start_date = request.GET.get("start_date")
+        end_date = request.GET.get("end_date")
+    else:
         start_date = end_date - timedelta(days=30)
 
-    # Base filters
-    scan_filters = {"created_at__range": [start_date, end_date]}
-    vuln_filters = {"discovered_at__range": [start_date, end_date]}
+    # Projets
+    projects = Project.objects.all()
+    scans = Scan.objects.filter(created_at__range=[start_date, end_date])
+    vulnerabilities = Vulnerability.objects.filter(discovered_at__range=[start_date, end_date])
 
-    if project_id:
-        scan_filters["project_id"] = project_id
-        vuln_filters["scan__project_id"] = project_id
+    if selected_project:
+        scans = scans.filter(project_id=selected_project)
+        vulnerabilities = vulnerabilities.filter(scan__project_id=selected_project)
 
-    # Get data for scan metrics
-    scans = Scan.objects.filter(**scan_filters)
+    if search:
+        scans = scans.filter(name__icontains=search)
+        vulnerabilities = vulnerabilities.filter(name__icontains=search)
+
+    # KPIs
     scan_metrics = {
         "total_count": scans.count(),
-        "trend_data": list(
-            scans.annotate(date=TruncDate("created_at"))
-            .values("date")
-            .annotate(count=Count("id"))
-            .order_by("date")
-            .values_list("count", flat=True)
-        ),
-        "trend_labels": list(
-            scans.annotate(date=TruncDate("created_at"))
-            .values("date")
-            .annotate(count=Count("id"))
-            .order_by("date")
-            .values_list("date", flat=True)
-        ),
+        "last_scan": scans.order_by("-created_at").first().created_at if scans.exists() else None,
+        "last_scan_project": scans.order_by("-created_at").first().project.name if scans.exists() else "-",
+        "trends": {
+            "labels": json.dumps([s.created_at.strftime("%d/%m") for s in scans.order_by("created_at")]),
+            "data": json.dumps([1 for _ in scans]),
+        },
+        "success_data": json.dumps([
+            scans.filter(status="completed").count(),
+            scans.filter(status="failed").count()
+        ]),
     }
 
-    # Get data for vulnerability metrics
-    vulnerabilities = Vulnerability.objects.filter(**vuln_filters)
-    total_vulns = vulnerabilities.count()
     vuln_metrics = {
-        "total_count": total_vulns,
-        "by_severity": {
-            "critical": vulnerabilities.filter(severity="critical").count(),
-            "high": vulnerabilities.filter(severity="high").count(),
-            "medium": vulnerabilities.filter(severity="medium").count(),
-            "low": vulnerabilities.filter(severity="low").count(),
+        "total_count": vulnerabilities.count(),
+        "resolution_rate": (vulnerabilities.filter(status="resolved").count() / vulnerabilities.count() * 100) if vulnerabilities.count() else 0,
+        "severity": {
+            "labels": json.dumps(["Critique", "Élevée", "Moyenne", "Faible", "Info"]),
+            "data": json.dumps([
+                vulnerabilities.filter(severity="critical").count(),
+                vulnerabilities.filter(severity="high").count(),
+                vulnerabilities.filter(severity="medium").count(),
+                vulnerabilities.filter(severity="low").count(),
+                vulnerabilities.filter(severity="info").count(),
+            ]),
         },
-        "by_status": {
-            "open": vulnerabilities.filter(status="open").count(),
-            "in_progress": vulnerabilities.filter(status="in_progress").count(),
-            "resolved": vulnerabilities.filter(status="resolved").count(),
-            "closed": vulnerabilities.filter(status="closed").count(),
+        "types": {
+            "labels": json.dumps(list(vulnerabilities.values_list("name", flat=True).distinct()[:5])),
+            "data": json.dumps([vulnerabilities.filter(name=name).count() for name in vulnerabilities.values_list("name", flat=True).distinct()[:5]]),
         },
-        "resolution_rate": (
-            (
-                vulnerabilities.filter(status__in=["resolved", "closed"]).count()
-                / total_vulns
-                * 100
-            )
-            if total_vulns > 0
-            else 0
-        ),
+        "top5": [
+            {"name": name, "count": vulnerabilities.filter(name=name).count()}
+            for name in vulnerabilities.values_list("name", flat=True).distinct()[:5]
+        ]
     }
 
-    # Get data for tool metrics
-    tool_metrics = {"labels": [], "data": [], "detection_rate": [], "success_rate": []}
-
-    tools_data = (
-        scans.values("tool")
-        .annotate(
-            count=Count("id"),
-            success_count=Count("id", filter=Q(status="completed")),
-            vuln_count=Count("vulnerabilities"),
-        )
+    # Projets les plus vulnérables
+    project_vuln = (
+        vulnerabilities.values("scan__project__name")
+        .annotate(count=models.Count("id"))
         .order_by("-count")
     )
-
-    for tool in tools_data:
-        tool_metrics["labels"].append(tool["tool"])
-        tool_metrics["data"].append(tool["count"])
-        tool_metrics["success_rate"].append(
-            (tool["success_count"] / tool["count"] * 100) if tool["count"] > 0 else 0
-        )
-        tool_metrics["detection_rate"].append(
-            (tool["vuln_count"] / tool["success_count"])
-            if tool["success_count"] > 0
-            else 0
-        )
-
-    # Get data for project metrics
-    project_metrics = {"labels": [], "data": [], "details": []}
-
-    projects = (
-        Project.objects.filter(scans__created_at__range=[start_date, end_date])
-        .distinct()
-        .annotate(
-            scan_count=Count(
-                "scans", filter=Q(scans__created_at__range=[start_date, end_date])
-            ),
-            vuln_count=Count(
-                "scans__vulnerabilities",
-                filter=Q(scans__created_at__range=[start_date, end_date]),
-            ),
-            critical_count=Count(
-                "scans__vulnerabilities",
-                filter=Q(
-                    scans__vulnerabilities__severity="critical",
-                    scans__created_at__range=[start_date, end_date],
-                ),
-            ),
-            high_count=Count(
-                "scans__vulnerabilities",
-                filter=Q(
-                    scans__vulnerabilities__severity="high",
-                    scans__created_at__range=[start_date, end_date],
-                ),
-            ),
-            resolved_count=Count(
-                "scans__vulnerabilities",
-                filter=Q(
-                    scans__vulnerabilities__status__in=["resolved", "closed"],
-                    scans__created_at__range=[start_date, end_date],
-                ),
-            ),
-        )
-        .annotate(
-            resolution_rate=ExpressionWrapper(
-                F("resolved_count") * 100.0 / Greatest(F("vuln_count"), 1),
-                output_field=fields.FloatField(),
-            )
-        )
-        .order_by("-vuln_count")
-    )
-
-    for project in projects:
-        project_metrics["labels"].append(project.name)
-        project_metrics["data"].append(project.vuln_count)
-        project_metrics["details"].append(
+    project_metrics = {
+        "vulnerable": {
+            "labels": json.dumps([p["scan__project__name"] for p in project_vuln[:5]]),
+            "data": json.dumps([p["count"] for p in project_vuln[:5]]),
+        },
+        "most_secure": {
+            "name": projects.annotate(crit=models.Count("scans__vulnerabilities", filter=models.Q(scans__vulnerabilities__severity="critical"))).order_by("crit").first().name if projects.exists() else "-",
+            "critical_rate": 0,  # À calculer selon tes besoins
+        },
+        "details": [
             {
-                "name": project.name,
-                "scan_count": project.scan_count,
-                "vuln_count": project.vuln_count,
-                "critical_count": project.critical_count,
-                "high_count": project.high_count,
-                "resolution_rate": project.resolution_rate,
+                "name": p.name,
+                "scan_count": p.scans.filter(created_at__range=[start_date, end_date]).count(),
+                "vuln_count": Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count(),
+                "critical_count": Vulnerability.objects.filter(scan__project=p, severity="critical", discovered_at__range=[start_date, end_date]).count(),
+                "resolution_rate": (
+                    Vulnerability.objects.filter(scan__project=p, status="resolved", discovered_at__range=[start_date, end_date]).count() /
+                    Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count() * 100
+                ) if Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count() else 0,
+                "avg_resolution_time": "-",  # À calculer si tu as resolved_at
             }
-        )
-
-    # Calculate variations with previous period
-    previous_start = start_date - (end_date - start_date)
-    previous_end = start_date - timedelta(days=1)
-
-    previous_scans = Scan.objects.filter(
-        created_at__range=[previous_start, previous_end]
-    )
-    previous_vulns = Vulnerability.objects.filter(
-        discovered_at__range=[previous_start, previous_end]
-    )
-
-    variations = {
-        "scan_count": (
-            (
-                (scan_metrics["total_count"] - previous_scans.count())
-                / previous_scans.count()
-                * 100
-            )
-            if previous_scans.count() > 0
-            else 0
-        ),
-        "vuln_count": (
-            (
-                (vuln_metrics["total_count"] - previous_vulns.count())
-                / previous_vulns.count()
-                * 100
-            )
-            if previous_vulns.count() > 0
-            else 0
-        ),
-        "resolution_rate": vuln_metrics["resolution_rate"]
-        - (
-            (
-                previous_vulns.filter(status__in=["resolved", "closed"]).count()
-                / previous_vulns.count()
-                * 100
-            )
-            if previous_vulns.count() > 0
-            else 0
-        ),
+            for p in projects
+        ]
     }
 
     context = {
+        "projects": projects,
+        "selected_project": selected_project,
         "period": period,
         "start_date": start_date,
         "end_date": end_date,
-        "projects": Project.objects.all(),
-        "selected_project": project_id,
-        "variations": variations,
-        # JSON data for charts
-        "scan_metrics_json": json.dumps(scan_metrics, cls=CustomJSONEncoder),
-        "vuln_metrics_json": json.dumps(vuln_metrics, cls=CustomJSONEncoder),
-        "tool_metrics_json": json.dumps(tool_metrics, cls=CustomJSONEncoder),
-        "project_metrics_json": json.dumps(project_metrics, cls=CustomJSONEncoder),
-        # Raw data for template
+        "search": search,
         "scan_metrics": scan_metrics,
         "vuln_metrics": vuln_metrics,
-        "tool_metrics": tool_metrics,
         "project_metrics": project_metrics,
     }
-
     return render(request, "analytics.html", context)
 
+from django.http import HttpResponse
+import csv
+import json
+
+@login_required
+def export_analytics(request):
+    # Récupère les mêmes filtres que la vue analytics_dashboard
+    period = request.GET.get("period", "30d")
+    project_id = request.GET.get("project")
+    # ... (récupère les dates comme dans analytics_dashboard)
+    # ... (recalcule les métriques comme dans analytics_dashboard)
+    # Pour l'exemple, on exporte les vulnérabilités
+    vulnerabilities = Vulnerability.objects.all()
+    if project_id:
+        vulnerabilities = vulnerabilities.filter(scan__project_id=project_id)
+    export_format = request.GET.get("format", "csv")
+    if export_format == "json":
+        data = list(vulnerabilities.values())
+        response = HttpResponse(json.dumps(data, indent=2), content_type="application/json")
+        response["Content-Disposition"] = "attachment; filename=analytics.json"
+        return response
+    else:  # CSV par défaut
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = "attachment; filename=analytics.csv"
+        writer = csv.writer(response)
+        writer.writerow([f.name for f in Vulnerability._meta.fields])
+        for vuln in vulnerabilities:
+            writer.writerow([getattr(vuln, f.name) for f in Vulnerability._meta.fields])
+        return response
 
 # views.py
 from django.views.decorators.http import require_POST
