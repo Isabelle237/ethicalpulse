@@ -84,6 +84,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+      - ./sqlmap:/app/sqlmap
     depends_on:
       - redis
       - web
@@ -110,3 +111,4 @@ volumes:
   mysql_data:
   zap_data:
   redis_data:
+

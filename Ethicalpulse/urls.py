@@ -23,4 +23,5 @@ urlpatterns = [
     path("ghidra_scan/", include("EthicalpulsApp.ghidra_scan.urls")),
     path("vulnerabilities/", include("EthicalpulsApp.vulnerabilities.urls")),
     path("scans/", include("EthicalpulsApp.scans.urls")),
+    path("openai/", include("EthicalpulsApp.openai.urls")),
 ] + static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

@@ -1,9 +1,14 @@
 from .models import AuditLog
 from django.utils.deprecation import MiddlewareMixin
 
+
 class AuditLogMiddleware(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
-        if request.user.is_authenticated and request.method in ["POST", "PUT", "DELETE"]:
+        if request.user.is_authenticated and request.method in [
+            "POST",
+            "PUT",
+            "DELETE",
+        ]:
             action_type = "other"
             if "delete" in view_func.__name__:
                 action_type = "delete"
@@ -31,5 +36,5 @@ class AuditLogMiddleware(MiddlewareMixin):
                 user=request.user,
                 ip_address=request.META.get("REMOTE_ADDR"),
                 details={"POST": dict(request.POST)},
-                status="success"
+                status="success",
             )

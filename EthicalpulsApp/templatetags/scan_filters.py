@@ -53,12 +53,15 @@ def get_port(port_string):
     return (
         port_string.split("/")[0] if port_string and "/" in port_string else port_string
     )
+
+
 @register.filter
 def get_project_name(projects, project_id):
     for p in projects:
         if str(p.id) == str(project_id):
             return p.name
     return "Projet inconnu"
+
 
 # Extract service from 'port/service'
 @register.filter(name="get_service")

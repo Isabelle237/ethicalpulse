@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 # Charger les variables d'environnement
 load_dotenv()
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") 
+HUGGINGFACE_API_KEY = os.getenv("HF_API_KEY")
+TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+
 # Chemin de base du projet
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -35,7 +39,7 @@ INSTALLED_APPS = [
 
 # Middleware
 MIDDLEWARE = [
-    'EthicalpulsApp.middleware.AuditLogMiddleware',
+    "EthicalpulsApp.middleware.AuditLogMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -110,7 +114,7 @@ USE_TZ = True
 
 # Fichiers statiques
 # Fichiers statiques
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Configuration des fichiers statiques
@@ -149,32 +153,32 @@ OTP_EXPIRE_MINUTES = 10
 # settings.py
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/app.log'),
-            'formatter': 'verbose',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs/app.log"),
+            "formatter": "verbose",
         },
     },
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['file'],
-            'level': 'INFO',
-            'propagate': True,
+    "loggers": {
+        "django": {
+            "handlers": ["file"],
+            "level": "INFO",
+            "propagate": True,
         },
-        'custom': {
-            'handlers': ['file'],
-            'level': 'INFO',
-            'propagate': False,
+        "custom": {
+            "handlers": ["file"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

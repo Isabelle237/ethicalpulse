@@ -2,7 +2,14 @@ from django.db.models import Count, Avg, F, Q, ExpressionWrapper, fields
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models.functions import TruncDate, Greatest
-from ..models import Scan, Vulnerability, Project
+from ..models import (
+    Scan,
+    Project,
+    NmapResult,
+    NiktoResult,
+    SqlmapResult,
+    OwaspZapResult,
+)
 
 
 class AnalyticsService:
@@ -22,56 +29,67 @@ class AnalyticsService:
                 if previous_metrics["scan_metrics"]["total_count"]
                 else 0
             ),
-            "vuln_count": (
+            "finding_count": (
                 (
                     (
-                        current_metrics["vuln_metrics"]["total_count"]
-                        - previous_metrics["vuln_metrics"]["total_count"]
+                        current_metrics["finding_metrics"]["total_count"]
+                        - previous_metrics["finding_metrics"]["total_count"]
                     )
-                    / previous_metrics["vuln_metrics"]["total_count"]
+                    / previous_metrics["finding_metrics"]["total_count"]
                     * 100
                 )
-                if previous_metrics["vuln_metrics"]["total_count"]
+                if previous_metrics["finding_metrics"]["total_count"]
                 else 0
             ),
             "resolution_rate": (
                 (
                     (
-                        current_metrics["vuln_metrics"].get("resolution_rate", 0)
-                        - previous_metrics["vuln_metrics"].get("resolution_rate", 0)
+                        current_metrics["finding_metrics"].get("resolution_rate", 0)
+                        - previous_metrics["finding_metrics"].get("resolution_rate", 0)
                     )
                 )
-                if previous_metrics["vuln_metrics"].get("resolution_rate")
+                if previous_metrics["finding_metrics"].get("resolution_rate")
                 else 0
             ),
             "avg_time_to_fix": (
                 (
                     (
-                        current_metrics["vuln_metrics"].get("avg_time_to_fix", 0)
-                        - previous_metrics["vuln_metrics"].get("avg_time_to_fix", 0)
+                        current_metrics["finding_metrics"].get("avg_time_to_fix", 0)
+                        - previous_metrics["finding_metrics"].get("avg_time_to_fix", 0)
                     )
-                    / previous_metrics["vuln_metrics"].get("avg_time_to_fix", 1)
+                    / previous_metrics["finding_metrics"].get("avg_time_to_fix", 1)
                     * 100
                 )
-                if previous_metrics["vuln_metrics"].get("avg_time_to_fix")
+                if previous_metrics["finding_metrics"].get("avg_time_to_fix")
                 else 0
             ),
         }
 
     @staticmethod
     def get_analytics_data(start_date, end_date, project_id=None):
-        """Récupère toutes les données analytiques"""
-        # Filtres de base
+        """Récupère toutes les données analytiques (sans Vulnerability)"""
         base_filters = {"created_at__range": [start_date, end_date]}
-        vuln_filters = {"discovered_at__range": [start_date, end_date]}
-
         if project_id:
             base_filters["project_id"] = project_id
-            vuln_filters["scan__project_id"] = project_id
 
-        # Récupération des données
         scans = Scan.objects.filter(**base_filters)
-        vulnerabilities = Vulnerability.objects.filter(**vuln_filters)
+        nmap_qs = NmapResult.objects.filter(
+            scan__created_at__range=[start_date, end_date]
+        )
+        nikto_qs = NiktoResult.objects.filter(
+            scan__created_at__range=[start_date, end_date]
+        )
+        sqlmap_qs = SqlmapResult.objects.filter(
+            scan__created_at__range=[start_date, end_date]
+        )
+        zap_qs = OwaspZapResult.objects.filter(
+            scan__created_at__range=[start_date, end_date]
+        )
+        if project_id:
+            nmap_qs = nmap_qs.filter(scan__project_id=project_id)
+            nikto_qs = nikto_qs.filter(scan__project_id=project_id)
+            sqlmap_qs = sqlmap_qs.filter(project_id=project_id)
+            zap_qs = zap_qs.filter(scan__project_id=project_id)
 
         # Métriques des scans
         scan_metrics = {
@@ -91,100 +109,93 @@ class AnalyticsService:
                 else 0
             ),
         }
-        # Project metrics calculation
-        project_metrics = {"labels": [], "data": [], "details": []}
 
-        # Get projects with their metrics
-        projects = (
-            Project.objects.filter(scans__created_at__range=[start_date, end_date])
-            .distinct()
-            .annotate(
-                scan_count=Count(
-                    "scans", filter=Q(scans__created_at__range=[start_date, end_date])
-                ),
-                vuln_count=Count(
-                    "scans__vulnerabilities",
-                    filter=Q(scans__created_at__range=[start_date, end_date]),
-                ),
-                critical_count=Count(
-                    "scans__vulnerabilities",
-                    filter=Q(
-                        scans__vulnerabilities__severity="critical",
-                        scans__created_at__range=[start_date, end_date],
-                    ),
-                ),
-                high_count=Count(
-                    "scans__vulnerabilities",
-                    filter=Q(
-                        scans__vulnerabilities__severity="high",
-                        scans__created_at__range=[start_date, end_date],
-                    ),
-                ),
-                resolved_count=Count(
-                    "scans__vulnerabilities",
-                    filter=Q(
-                        scans__vulnerabilities__status__in=["resolved", "closed"],
-                        scans__created_at__range=[start_date, end_date],
-                    ),
-                ),
-            )
-            .annotate(
-                resolution_rate=ExpressionWrapper(
-                    (F("resolved_count") * 100.0) / Greatest(F("vuln_count"), 1),
-                    output_field=fields.FloatField(),
-                )
-            )
-            .order_by("-vuln_count")
+        # Métriques findings (ZAP, Nikto, SQLMap)
+        total_findings = (
+            zap_qs.count()
+            + nikto_qs.exclude(vulnerability__isnull=True).count()
+            + sqlmap_qs.filter(is_vulnerable=True).count()
         )
+        resolved = zap_qs.filter(
+            status="resolved"
+        ).count()  # à adapter selon ton modèle
 
-        # Prepare project metrics data
-        for project in projects:
-            project_metrics["labels"].append(project.name)
-            project_metrics["data"].append(project.vuln_count)
-            project_metrics["details"].append(
-                {
-                    "name": project.name,
-                    "scan_count": project.scan_count,
-                    "vuln_count": project.vuln_count,
-                    "critical_count": project.critical_count,
-                    "high_count": project.high_count,
-                    "resolution_rate": project.resolution_rate,
-                }
-            )
-
-        # Métriques des vulnérabilités
-        vuln_metrics = {
-            "total_count": vulnerabilities.count(),
+        finding_metrics = {
+            "total_count": total_findings,
             "resolution_rate": (
-                (
-                    vulnerabilities.filter(status__in=["resolved", "closed"]).count()
-                    / vulnerabilities.count()
-                    * 100
-                )
-                if vulnerabilities.exists()
-                else 0
+                (resolved / total_findings * 100) if total_findings else 0
             ),
-            "avg_time_to_fix": vulnerabilities.filter(status="resolved").aggregate(
-                avg_time=Avg("discovered_at")
-            )["avg_time"],
+            "avg_time_to_fix": None,  # À calculer si tu as les dates de résolution
             "by_severity": {
-                "critical": vulnerabilities.filter(severity="critical").count(),
-                "high": vulnerabilities.filter(severity="high").count(),
-                "medium": vulnerabilities.filter(severity="medium").count(),
-                "low": vulnerabilities.filter(severity="low").count(),
+                "critical": zap_qs.filter(risk__iexact="Critical").count(),
+                "high": zap_qs.filter(risk__iexact="High").count()
+                + nikto_qs.filter(vulnerability__icontains="critique").count()
+                + sqlmap_qs.filter(is_vulnerable=True).count(),
+                "medium": zap_qs.filter(risk__iexact="Medium").count()
+                + nikto_qs.filter(vulnerability__icontains="moyenne").count(),
+                "low": zap_qs.filter(risk__iexact="Low").count()
+                + nikto_qs.filter(vulnerability__icontains="faible").count(),
             },
             "by_status": {
-                "open": vulnerabilities.filter(status="open").count(),
-                "in_progress": vulnerabilities.filter(status="in_progress").count(),
-                "resolved": vulnerabilities.filter(status="resolved").count(),
-                "closed": vulnerabilities.filter(status="closed").count(),
+                "open": zap_qs.filter(status="open").count(),
+                "in_progress": zap_qs.filter(status="in_progress").count(),
+                "resolved": zap_qs.filter(status="resolved").count(),
+                "closed": zap_qs.filter(status="closed").count(),
             },
         }
 
+        # Project metrics calculation
+        project_metrics = {"labels": [], "data": [], "details": []}
+        projects = Project.objects.filter(
+            scans__created_at__range=[start_date, end_date]
+        ).distinct()
+        for project in projects:
+            zap_count = OwaspZapResult.objects.filter(
+                scan__project=project, scan__created_at__range=[start_date, end_date]
+            ).count()
+            nikto_count = (
+                NiktoResult.objects.filter(
+                    scan__project=project,
+                    scan__created_at__range=[start_date, end_date],
+                )
+                .exclude(vulnerability__isnull=True)
+                .count()
+            )
+            sqlmap_count = SqlmapResult.objects.filter(
+                project=project,
+                scan__created_at__range=[start_date, end_date],
+                is_vulnerable=True,
+            ).count()
+            total = zap_count + nikto_count + sqlmap_count
+            critical = OwaspZapResult.objects.filter(
+                scan__project=project,
+                risk="Critical",
+                scan__created_at__range=[start_date, end_date],
+            ).count()
+            high = OwaspZapResult.objects.filter(
+                scan__project=project,
+                risk="High",
+                scan__created_at__range=[start_date, end_date],
+            ).count()
+            project_metrics["labels"].append(project.name)
+            project_metrics["data"].append(total)
+            project_metrics["details"].append(
+                {
+                    "name": project.name,
+                    "scan_count": project.scans.filter(
+                        created_at__range=[start_date, end_date]
+                    ).count(),
+                    "finding_count": total,
+                    "critical_count": critical,
+                    "high_count": high,
+                    "resolution_rate": 0,  # À calculer si tu as un champ de résolution
+                }
+            )
+
         return {
             "scan_metrics": scan_metrics,
-            "vuln_metrics": vuln_metrics,
-            "project_metrics": project_metrics,  # Added project metrics to returned data
+            "finding_metrics": finding_metrics,
+            "project_metrics": project_metrics,
         }
 
     @staticmethod

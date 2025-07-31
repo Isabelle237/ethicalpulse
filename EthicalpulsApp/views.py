@@ -98,7 +98,7 @@ from .models import *
 from celery import shared_task
 
 # =================== Imports pour les Scans et Vulnérabilités ===================
-from .models import Project, Scan, Vulnerability, ScheduledScan
+from .models import Project, Scan, ScheduledScan
 from .forms import ScanForm
 
 from django.core.paginator import Paginator
@@ -120,14 +120,15 @@ def log(request):
     """
     View to read and display application logs.
     """
-    log_file_path = os.path.join(settings.BASE_DIR, 'logs/app.log')
+    log_file_path = os.path.join(settings.BASE_DIR, "logs/app.log")
     logs = []
 
     if os.path.exists(log_file_path):
-        with open(log_file_path, 'r') as file:
+        with open(log_file_path, "r") as file:
             logs = file.readlines()[-200:]  # Affiche les 200 dernières lignes
 
     return render(request, "admin/logs.html", {"logs": logs})
+
 
 def index(request):
     return render(request, "dashboard/index.html")
@@ -136,7 +137,21 @@ def index(request):
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from .models import Project, Scan, Vulnerability, SystemLog
+from .models import Project, Scan, SystemLog
+
+
+from django.db.models import Count
+from datetime import timedelta
+from django.utils import timezone
+from .models import (
+    Project,
+    Scan,
+    SystemLog,
+    NmapResult,
+    NiktoResult,
+    SqlmapResult,
+    OwaspZapResult,
+)
 
 
 @login_required
@@ -146,55 +161,101 @@ def dashboard(request):
     severity = request.GET.get("severity")
     vuln_type = request.GET.get("type")
 
-    # Base QuerySets
-    vuln_qs = Vulnerability.objects.all()
     scan_qs = Scan.objects.all()
     project_qs = Project.objects.all()
 
-    if project_id:
-        vuln_qs = vuln_qs.filter(scan__project_id=project_id)
-        scan_qs = scan_qs.filter(project_id=project_id)
-    if severity:
-        vuln_qs = vuln_qs.filter(severity=severity)
-    if vuln_type:
-        vuln_qs = vuln_qs.filter(name__icontains=vuln_type)
+    # Filtrage des résultats par projet
+    nmap_qs = NmapResult.objects.all()
+    nikto_qs = NiktoResult.objects.all()
+    sqlmap_qs = SqlmapResult.objects.all()
+    zap_qs = OwaspZapResult.objects.all()
 
-    # Score global (exemple simple : 100 - % de vulnérabilités critiques/hautes)
-    total_vulns = vuln_qs.count()
-    high_crit = vuln_qs.filter(severity__in=["critical", "high"]).count()
+    if project_id:
+        scan_qs = scan_qs.filter(project_id=project_id)
+        nmap_qs = nmap_qs.filter(scan__project_id=project_id)
+        nikto_qs = nikto_qs.filter(scan__project_id=project_id)
+        sqlmap_qs = sqlmap_qs.filter(project_id=project_id)
+        zap_qs = zap_qs.filter(scan__project_id=project_id)
+
+    # Pour la "gravité", on utilise les risques ZAP et les vulnérabilités Nikto/SQLMap
+    # On considère "risk" de ZAP et "is_vulnerable" de SQLMap, et la présence de vulnérabilité dans Nikto
+
+    # Score global (exemple simple : 100 - % de vulnérabilités élevées)
+    total_findings = (
+        zap_qs.count()
+        + nikto_qs.exclude(vulnerability__isnull=True).count()
+        + sqlmap_qs.filter(is_vulnerable=True).count()
+    )
+    high_crit = (
+        zap_qs.filter(risk__in=["High", "Critical"]).count()
+        + nikto_qs.filter(vulnerability__icontains="critique").count()
+        + sqlmap_qs.filter(is_vulnerable=True).count()
+    )
     core_score = (
-        max(0, 100 - int((high_crit / total_vulns) * 100)) if total_vulns else 100
+        max(0, 100 - int((high_crit / total_findings) * 100)) if total_findings else 100
     )
 
-    # Vulnérabilités par gravité
+    # Vulnérabilités par gravité (on utilise risk pour ZAP, et on mappe les autres)
     vuln_by_severity = {
-        s: vuln_qs.filter(severity=s).count()
-        for s in ["critical", "high", "medium", "low", "info"]
+        "critical": zap_qs.filter(risk__iexact="Critical").count(),
+        "high": zap_qs.filter(risk__iexact="High").count(),
+        "medium": zap_qs.filter(risk__iexact="Medium").count(),
+        "low": zap_qs.filter(risk__iexact="Low").count(),
+        "info": zap_qs.filter(risk__iexact="Informational").count(),
     }
+    # Ajout Nikto/SQLMap si besoin
+    vuln_by_severity["high"] += nikto_qs.filter(
+        vulnerability__icontains="critique"
+    ).count()
+    vuln_by_severity["medium"] += nikto_qs.filter(
+        vulnerability__icontains="moyenne"
+    ).count()
+    vuln_by_severity["low"] += nikto_qs.filter(
+        vulnerability__icontains="faible"
+    ).count()
+    vuln_by_severity["high"] += sqlmap_qs.filter(is_vulnerable=True).count()
 
     # Evolution dans le temps (30 derniers jours)
     today = timezone.now().date()
     vuln_over_time = []
     for i in range(29, -1, -1):
         day = today - timedelta(days=i)
-        count = vuln_qs.filter(discovered_at__date=day).count()
+        count = (
+            zap_qs.filter(scan__start_time__date=day).count()
+            + nikto_qs.filter(scan__start_time__date=day).count()
+            + sqlmap_qs.filter(scan__start_time__date=day, is_vulnerable=True).count()
+        )
         vuln_over_time.append({"date": day.strftime("%d/%m"), "count": count})
 
-    # Top vulnérabilités critiques
+    # Top findings ZAP (par vulnérabilité)
     top_vulns = (
-        vuln_qs.filter(severity="critical")
-        .values("name")
+        zap_qs.values("vulnerability")
         .annotate(count=Count("id"))
         .order_by("-count")[:5]
     )
 
-    # Projets à risque (score = % de vulnérabilités critiques/hautes)
+    # Projets à risque (score = % de findings critiques/hautes)
     projects_risk = []
     for p in project_qs:
-        total = Vulnerability.objects.filter(scan__project=p).count()
-        high = Vulnerability.objects.filter(
-            scan__project=p, severity__in=["critical", "high"]
+        zap_count = OwaspZapResult.objects.filter(scan__project=p).count()
+        nikto_count = (
+            NiktoResult.objects.filter(scan__project=p)
+            .exclude(vulnerability__isnull=True)
+            .count()
+        )
+        sqlmap_count = SqlmapResult.objects.filter(
+            project=p, is_vulnerable=True
         ).count()
+        total = zap_count + nikto_count + sqlmap_count
+        high = (
+            OwaspZapResult.objects.filter(
+                scan__project=p, risk__in=["High", "Critical"]
+            ).count()
+            + NiktoResult.objects.filter(
+                scan__project=p, vulnerability__icontains="critique"
+            ).count()
+            + SqlmapResult.objects.filter(project=p, is_vulnerable=True).count()
+        )
         score = max(0, 100 - int((high / total) * 100)) if total else 100
         projects_risk.append({"name": p.name, "score": score})
     projects_risk = sorted(projects_risk, key=lambda x: x["score"])
@@ -203,7 +264,7 @@ def dashboard(request):
     recommendations = []
     if vuln_by_severity["critical"] > 0:
         recommendations.append(
-            "Corrigez immédiatement les vulnérabilités critiques détectées."
+            "Corrigez immédiatement les vulnérabilités critiques détectées (ZAP/Nikto/SQLMap)."
         )
     if vuln_by_severity["high"] > 0:
         recommendations.append("Priorisez la correction des vulnérabilités élevées.")
@@ -215,7 +276,7 @@ def dashboard(request):
 
     # Filtres dynamiques
     severities = ["critical", "high", "medium", "low", "info"]
-    types = list(vuln_qs.values_list("name", flat=True).distinct())
+    types = list(zap_qs.values_list("vulnerability", flat=True).distinct())
     projects = project_qs
 
     context = {
@@ -236,40 +297,69 @@ def dashboard(request):
 # =================== Utilisateurs ===================
 
 
+from django.utils.crypto import get_random_string
+
+from django.utils.crypto import get_random_string
+from django.views.decorators.csrf import csrf_protect
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.html import strip_tags
+from django.contrib import messages
+from django.template.loader import render_to_string
+import pyotp
+
 @csrf_protect
+@login_required
 def create_user_view(request):
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = True
-            if not user.otp_secret:
-                user.otp_secret = pyotp.random_base32()
-            user.save()
+            try:
+                # Génération du mot de passe temporaire
+                generated_password = get_random_string(length=10)
 
-            html_message = render_to_string(
-                "emails/account_confirmation.html",
-                {
-                    "username": user.username,
-                },
-            )
-            plain_message = strip_tags(html_message)
+                user = form.save(commit=False)
+                user.set_password(generated_password)  # encodage
+                user.is_active = True
 
-            send_mail(
-                subject="Confirmation de création de compte",
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
+                if not user.otp_secret:
+                    user.otp_secret = pyotp.random_base32()
 
-            messages.success(request, "L'utilisateur a été créé avec succès.")
-            return redirect("users")
+                user.save()
+
+                # Préparer l'email de confirmation
+                html_message = render_to_string(
+                    "emails/account_confirmation.html",
+                    {
+                        "username": user.username,
+                        "email": user.email,
+                        "password": generated_password,
+                    },
+                )
+                plain_message = strip_tags(html_message)
+
+                send_mail(
+                    subject="Votre compte a été créé avec succès",
+                    message=plain_message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+
+                messages.success(request, "L'utilisateur a été créé et le mot de passe a été envoyé.")
+                return redirect("users")  # PRG Pattern
+
+            except Exception as e:
+                messages.error(request, f"Erreur lors de la création : {str(e)}")
+                return redirect("users")
+
         else:
-            messages.error(
-                request, "Une erreur est survenue lors de la création de l'utilisateur."
-            )
+            messages.error(request, "Le formulaire est invalide.")
+            return redirect("users")  # Évite de rester sur POST même en cas d'erreur
+
     else:
         form = CustomUserCreationForm()
 
@@ -277,21 +367,32 @@ def create_user_view(request):
     return render(request, "admin/users.html", {"form": form, "users_list": users_list})
 
 
-@csrf_protect
 def edit_user_view(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
-    if request.method == "POST":
-        form = CustomUserCreationForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "L'utilisateur a été mis à jour.")
-            return redirect("users")
-        else:
-            messages.error(request, "Erreur lors de la mise à jour de l'utilisateur.")
-    else:
-        form = CustomUserCreationForm(instance=user)
 
-    return render(request, "admin/edit_user_modal.html", {"form": form, "user": user})
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        role = request.POST.get("role")
+        is_active_str = request.POST.get("is_active")
+        is_active = True if is_active_str == "True" else False
+
+        # Validation simple
+        if not username or not email or not role:
+            messages.error(request, "Tous les champs sont requis.")
+            return redirect("users")
+
+        user.username = username
+        user.email = email
+        user.role = role  # Assure-toi que ton modèle a bien ce champ
+        user.is_active = is_active
+
+        user.save()
+        messages.success(request, "Utilisateur mis à jour avec succès.")
+        return redirect("users")
+
+    # En GET, redirection simple
+    return redirect("users")
 
 
 @require_POST
@@ -503,7 +604,6 @@ def delete_project(request):
     messages.success(request, f"Le projet « {project.name} » a été supprimé.")
     return redirect("admin_projets")
 
-
 def projects_chart_type(request):
     """
     API view to provide data for the project type doughnut chart.
@@ -602,9 +702,9 @@ def otp_verification(request):
 
                         # Redirige en fonction du rôle de l'utilisateur
                         if user.is_staff:  # Si l'utilisateur est un admin
-                            return redirect("dashboard")
+                            return redirect("analytics_dashboard")
                         else:  # Sinon, redirige vers les utilisateurs
-                            return redirect("index")
+                            return redirect("analytics_dashboard")
                     else:
                         messages.error(
                             request, "Code OTP invalide ou expiré."
@@ -639,7 +739,8 @@ def logout_view(request):
         messages.success(request, "Vous avez été déconnecté avec succès.")
     logout(request)  # Déconnecte l'utilisateur
     request.session.flush()  # Nettoie complètement la session
-    return redirect("login") 
+    return redirect("login")
+
 
 @login_required
 def get_project_details(request, project_id):
@@ -660,12 +761,12 @@ from collections import Counter
 
 from collections import Counter
 from django.shortcuts import render, get_object_or_404
-from .models import Project, Scan, Vulnerability
+from .models import Project, Scan
 from .forms import ScanForm
 
 from collections import Counter
 from django.shortcuts import render
-from .models import Project, Scan, Vulnerability
+from .models import Project, Scan
 from .forms import ScanForm
 
 
@@ -714,6 +815,10 @@ def remediations_delete(request, remediation_id):
 
 def remediations_execute(request, remediation_id):
     return redirect("remediations")
+
+
+def vulnerabilities_user(request):
+    return render(request, "vulnerabilities.html")
 
 
 def admin_required(user):
@@ -861,6 +966,11 @@ def tools_admin(request):
             result = last_scan.sqlmap_results.last()
             if result and getattr(result, "raw_output", None):
                 last_raw_output = result.raw_output
+        elif tool == "ZAP" and hasattr(last_scan, "OwaspZapResult"):
+            result = last_scan.sqlmap_results.last()
+            if result and getattr(result, "raw_output", None):
+                last_raw_output = result.raw_output
+
         # ➕ Ajoute ici les autres outils si besoin (exemple pour Metasploit, etc.)
         # elif tool == "METASPLOIT" and hasattr(last_scan, "metasploit_results"):
         #     result = last_scan.metasploit_results.last()
@@ -916,6 +1026,7 @@ def prepare_tools_context():
             "nmap_results",
             "nikto_results",
             "sqlmap_results",
+            "OwaspZapResult",
             # Ajoute ici les related_name de tous tes outils si besoin
         )
         .order_by("-start_time")[:100],
@@ -1120,14 +1231,50 @@ from datetime import timedelta
 import json
 from django.db.models import Count, Avg, F, Q, ExpressionWrapper, fields
 from django.db.models.functions import TruncDate, Greatest
-from .models import Scan, Vulnerability, Project
+from .models import Scan, Project
 from .utils.json_encoder import CustomJSONEncoder
 
+
+from django.db.models import Count, Q
+from datetime import timedelta
+from django.utils import timezone
+import json
+from .models import (
+    Project,
+    Scan,
+    SystemLog,
+    NmapResult,
+    NiktoResult,
+    SqlmapResult,
+    OwaspZapResult,
+)
+
+from collections import Counter
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
+import json
+from .models import (
+    Project,
+    Scan,
+    SystemLog,
+    NmapResult,
+    NiktoResult,
+    SqlmapResult,
+    OwaspZapResult,
+)
+from django.contrib.auth.decorators import login_required
+
+from collections import Counter
+from datetime import timedelta
+from django.db.models import Count, Q
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 
 
 @login_required
 def analytics_dashboard(request):
-    # Filtres
     selected_project = request.GET.get("project")
     period = request.GET.get("period", "30d")
     search = request.GET.get("search", "")
@@ -1146,86 +1293,194 @@ def analytics_dashboard(request):
     else:
         start_date = end_date - timedelta(days=30)
 
-    # Projets
     projects = Project.objects.all()
     scans = Scan.objects.filter(created_at__range=[start_date, end_date])
-    vulnerabilities = Vulnerability.objects.filter(discovered_at__range=[start_date, end_date])
+    nmap_qs = NmapResult.objects.filter(scan__created_at__range=[start_date, end_date])
+    nikto_qs = NiktoResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
+    sqlmap_qs = SqlmapResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
+    zap_qs = OwaspZapResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
 
     if selected_project:
         scans = scans.filter(project_id=selected_project)
-        vulnerabilities = vulnerabilities.filter(scan__project_id=selected_project)
+        nmap_qs = nmap_qs.filter(scan__project_id=selected_project)
+        nikto_qs = nikto_qs.filter(scan__project_id=selected_project)
+        sqlmap_qs = sqlmap_qs.filter(project_id=selected_project)
+        zap_qs = zap_qs.filter(scan__project_id=selected_project)
 
     if search:
         scans = scans.filter(name__icontains=search)
-        vulnerabilities = vulnerabilities.filter(name__icontains=search)
+        nmap_qs = nmap_qs.filter(target__icontains=search)
+        nikto_qs = nikto_qs.filter(target_hostname__icontains=search)
+        sqlmap_qs = sqlmap_qs.filter(injection_type__icontains=search)
+        zap_qs = zap_qs.filter(vulnerability__icontains=search)
 
-    # KPIs
+    # KPIs scans
     scan_metrics = {
         "total_count": scans.count(),
-        "last_scan": scans.order_by("-created_at").first().created_at if scans.exists() else None,
-        "last_scan_project": scans.order_by("-created_at").first().project.name if scans.exists() else "-",
+        "last_scan": (
+            scans.order_by("-created_at").first().created_at if scans.exists() else None
+        ),
+        "last_scan_project": (
+            scans.order_by("-created_at").first().project.name
+            if scans.exists()
+            else "-"
+        ),
         "trends": {
-            "labels": json.dumps([s.created_at.strftime("%d/%m") for s in scans.order_by("created_at")]),
+            "labels": json.dumps(
+                [s.created_at.strftime("%d/%m") for s in scans.order_by("created_at")]
+            ),
             "data": json.dumps([1 for _ in scans]),
         },
-        "success_data": json.dumps([
-            scans.filter(status="completed").count(),
-            scans.filter(status="failed").count()
-        ]),
+        "success_data": json.dumps(
+            [
+                scans.filter(status="completed").count(),
+                scans.filter(status="failed").count(),
+            ]
+        ),
     }
 
+    # KPIs findings (tous outils)
+    total_findings = (
+        nmap_qs.count() + nikto_qs.count() + sqlmap_qs.count() + zap_qs.count()
+    )
+    resolved = 0  # À adapter si tu ajoutes un champ de résolution
     vuln_metrics = {
-        "total_count": vulnerabilities.count(),
-        "resolution_rate": (vulnerabilities.filter(status="resolved").count() / vulnerabilities.count() * 100) if vulnerabilities.count() else 0,
+        "total_count": total_findings,
+        "resolution_rate": (resolved / total_findings * 100) if total_findings else 0,
         "severity": {
             "labels": json.dumps(["Critique", "Élevée", "Moyenne", "Faible", "Info"]),
-            "data": json.dumps([
-                vulnerabilities.filter(severity="critical").count(),
-                vulnerabilities.filter(severity="high").count(),
-                vulnerabilities.filter(severity="medium").count(),
-                vulnerabilities.filter(severity="low").count(),
-                vulnerabilities.filter(severity="info").count(),
-            ]),
+            "data": json.dumps(
+                [
+                    zap_qs.filter(risk__iexact="Critical").count(),
+                    zap_qs.filter(risk__iexact="High").count()
+                    + nikto_qs.filter(vulnerability__icontains="critique").count()
+                    + sqlmap_qs.filter(is_vulnerable=True).count(),
+                    zap_qs.filter(risk__iexact="Medium").count()
+                    + nikto_qs.filter(vulnerability__icontains="moyenne").count(),
+                    zap_qs.filter(risk__iexact="Low").count()
+                    + nikto_qs.filter(vulnerability__icontains="faible").count(),
+                    zap_qs.filter(risk__iexact="Informational").count(),
+                ]
+            ),
         },
-        "types": {
-            "labels": json.dumps(list(vulnerabilities.values_list("name", flat=True).distinct()[:5])),
-            "data": json.dumps([vulnerabilities.filter(name=name).count() for name in vulnerabilities.values_list("name", flat=True).distinct()[:5]]),
-        },
-        "top5": [
-            {"name": name, "count": vulnerabilities.filter(name=name).count()}
-            for name in vulnerabilities.values_list("name", flat=True).distinct()[:5]
-        ]
     }
 
-    # Projets les plus vulnérables
-    project_vuln = (
-        vulnerabilities.values("scan__project__name")
-        .annotate(count=models.Count("id"))
-        .order_by("-count")
-    )
+    # Top 5 découvertes récurrentes (tous outils) - version corrigée
+    findings = []
+    # ZAP : 1 vuln par ligne
+    findings += [
+        v for v in zap_qs.values_list("vulnerability", flat=True) if v and v != "-"
+    ]
+    # Nikto : split multi-lignes
+    for n in nikto_qs:
+        findings += [
+            v.strip()
+            for v in (n.vulnerability or "").split("\n")
+            if v.strip() and v.strip() != "-"
+        ]
+    # SQLMap : 1 type par ligne
+    findings += [
+        v for v in sqlmap_qs.values_list("injection_type", flat=True) if v and v != "-"
+    ]
+    # Nmap : 1 OS détecté par ligne
+    findings += [
+        v for v in nmap_qs.values_list("os_detected", flat=True) if v and v != "-"
+    ]
+
+    # Nettoyage des doublons et vides
+    findings = [f for f in findings if f]
+    top5_findings = Counter(findings).most_common(5)
+    vuln_metrics["top5"] = [
+        {"name": name, "count": count} for name, count in top5_findings
+    ]
+
+    # Types de découvertes (barres groupées)
+    types_counter = Counter(findings)
+    types_labels = [name for name, _ in types_counter.most_common(5)]
+    types_data = [count for _, count in types_counter.most_common(5)]
+
+    # Projets les plus exposés (courbe pointillée)
+    project_exposed = []
+    for p in projects:
+        count = (
+            NmapResult.objects.filter(
+                scan__project=p, scan__created_at__range=[start_date, end_date]
+            ).count()
+            + NiktoResult.objects.filter(
+                scan__project=p, scan__created_at__range=[start_date, end_date]
+            ).count()
+            + SqlmapResult.objects.filter(
+                project=p, scan__created_at__range=[start_date, end_date]
+            ).count()
+            + OwaspZapResult.objects.filter(
+                scan__project=p, scan__created_at__range=[start_date, end_date]
+            ).count()
+        )
+        project_exposed.append({"name": p.name, "count": count})
+    project_exposed = sorted(project_exposed, key=lambda x: x["count"], reverse=True)[
+        :5
+    ]
+    project_labels = [p["name"] for p in project_exposed]
+    project_data = [p["count"] for p in project_exposed]
+
+    # Analyse détaillée par projet
     project_metrics = {
         "vulnerable": {
-            "labels": json.dumps([p["scan__project__name"] for p in project_vuln[:5]]),
-            "data": json.dumps([p["count"] for p in project_vuln[:5]]),
+            "labels": json.dumps(project_labels),
+            "data": json.dumps(project_data),
         },
         "most_secure": {
-            "name": projects.annotate(crit=models.Count("scans__vulnerabilities", filter=models.Q(scans__vulnerabilities__severity="critical"))).order_by("crit").first().name if projects.exists() else "-",
-            "critical_rate": 0,  # À calculer selon tes besoins
+            "name": (
+                projects.annotate(
+                    crit=Count(
+                        "scans__zap_results",
+                        filter=Q(scans__zap_results__risk="Critical"),
+                    )
+                )
+                .order_by("crit")
+                .first()
+                .name
+                if projects.exists()
+                else "-"
+            ),
+            "critical_rate": 0,
         },
         "details": [
             {
                 "name": p.name,
-                "scan_count": p.scans.filter(created_at__range=[start_date, end_date]).count(),
-                "vuln_count": Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count(),
-                "critical_count": Vulnerability.objects.filter(scan__project=p, severity="critical", discovered_at__range=[start_date, end_date]).count(),
-                "resolution_rate": (
-                    Vulnerability.objects.filter(scan__project=p, status="resolved", discovered_at__range=[start_date, end_date]).count() /
-                    Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count() * 100
-                ) if Vulnerability.objects.filter(scan__project=p, discovered_at__range=[start_date, end_date]).count() else 0,
-                "avg_resolution_time": "-",  # À calculer si tu as resolved_at
+                "scan_count": p.scans.filter(
+                    created_at__range=[start_date, end_date]
+                ).count(),
+                "finding_count": (
+                    NmapResult.objects.filter(
+                        scan__project=p, scan__created_at__range=[start_date, end_date]
+                    ).count()
+                    + NiktoResult.objects.filter(
+                        scan__project=p, scan__created_at__range=[start_date, end_date]
+                    ).count()
+                    + SqlmapResult.objects.filter(
+                        project=p, scan__created_at__range=[start_date, end_date]
+                    ).count()
+                    + OwaspZapResult.objects.filter(
+                        scan__project=p, scan__created_at__range=[start_date, end_date]
+                    ).count()
+                ),
+                "critical_count": OwaspZapResult.objects.filter(
+                    scan__project=p,
+                    risk="Critical",
+                    scan__created_at__range=[start_date, end_date],
+                ).count(),
+                "resolution_rate": 0,
+                "avg_resolution_time": "-",
             }
             for p in projects
-        ]
+        ],
     }
 
     context = {
@@ -1238,38 +1493,103 @@ def analytics_dashboard(request):
         "scan_metrics": scan_metrics,
         "vuln_metrics": vuln_metrics,
         "project_metrics": project_metrics,
+        "types_labels": json.dumps(types_labels),
+        "types_data": json.dumps(types_data),
+        "top5_findings": vuln_metrics["top5"],
+        "project_exposed_labels": json.dumps(project_labels),
+        "project_exposed_data": json.dumps(project_data),
     }
     return render(request, "analytics.html", context)
+
 
 from django.http import HttpResponse
 import csv
 import json
 
+import csv
+import json
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import timedelta
+from .models import Project, Scan, NmapResult, NiktoResult, SqlmapResult, OwaspZapResult
+
+
 @login_required
 def export_analytics(request):
-    # Récupère les mêmes filtres que la vue analytics_dashboard
     period = request.GET.get("period", "30d")
     project_id = request.GET.get("project")
-    # ... (récupère les dates comme dans analytics_dashboard)
-    # ... (recalcule les métriques comme dans analytics_dashboard)
-    # Pour l'exemple, on exporte les vulnérabilités
-    vulnerabilities = Vulnerability.objects.all()
-    if project_id:
-        vulnerabilities = vulnerabilities.filter(scan__project_id=project_id)
     export_format = request.GET.get("format", "csv")
+    end_date = timezone.now()
+    if period == "7d":
+        start_date = end_date - timedelta(days=7)
+    elif period == "30d":
+        start_date = end_date - timedelta(days=30)
+    elif period == "90d":
+        start_date = end_date - timedelta(days=90)
+    elif period == "1y":
+        start_date = end_date - timedelta(days=365)
+    elif period == "custom":
+        start_date = request.GET.get("start_date")
+        end_date = request.GET.get("end_date")
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Récupère les résultats filtrés
+    nmap_qs = NmapResult.objects.filter(scan__created_at__range=[start_date, end_date])
+    nikto_qs = NiktoResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
+    sqlmap_qs = SqlmapResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
+    zap_qs = OwaspZapResult.objects.filter(
+        scan__created_at__range=[start_date, end_date]
+    )
+
+    if project_id:
+        nmap_qs = nmap_qs.filter(scan__project_id=project_id)
+        nikto_qs = nikto_qs.filter(scan__project_id=project_id)
+        sqlmap_qs = sqlmap_qs.filter(project_id=project_id)
+        zap_qs = zap_qs.filter(scan__project_id=project_id)
+
+    # Prépare les données à exporter
+    data = []
+    for obj in nmap_qs:
+        d = {f.name: getattr(obj, f.name) for f in obj._meta.fields}
+        d["tool"] = "Nmap"
+        data.append(d)
+    for obj in nikto_qs:
+        d = {f.name: getattr(obj, f.name) for f in obj._meta.fields}
+        d["tool"] = "Nikto"
+        data.append(d)
+    for obj in sqlmap_qs:
+        d = {f.name: getattr(obj, f.name) for f in obj._meta.fields}
+        d["tool"] = "SQLMap"
+        data.append(d)
+    for obj in zap_qs:
+        d = {f.name: getattr(obj, f.name) for f in obj._meta.fields}
+        d["tool"] = "OWASP ZAP"
+        data.append(d)
+
     if export_format == "json":
-        data = list(vulnerabilities.values())
-        response = HttpResponse(json.dumps(data, indent=2), content_type="application/json")
+        response = HttpResponse(
+            json.dumps(data, indent=2, default=str), content_type="application/json"
+        )
         response["Content-Disposition"] = "attachment; filename=analytics.json"
         return response
     else:  # CSV par défaut
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = "attachment; filename=analytics.csv"
-        writer = csv.writer(response)
-        writer.writerow([f.name for f in Vulnerability._meta.fields])
-        for vuln in vulnerabilities:
-            writer.writerow([getattr(vuln, f.name) for f in Vulnerability._meta.fields])
+        if data:
+            fieldnames = list(data[0].keys())
+            writer = csv.DictWriter(response, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in data:
+                writer.writerow(row)
+        else:
+            response.write("Aucune donnée à exporter.")
         return response
+
 
 # views.py
 from django.views.decorators.http import require_POST
@@ -1382,39 +1702,65 @@ def completed_scan_details(request, scan_id):
                 "raw_output": result.raw_output[:2000],
             }
     return JsonResponse(data)
+
+
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from .models import AuditLog
 
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.shortcuts import render
+
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
 def history(request):
-    logs = AuditLog.objects.all()
-    # Filtres
-    action = request.GET.get("action")
-    user = request.GET.get("user")
-    status = request.GET.get("status")
-    search = request.GET.get("search")
+    logs = AuditLog.objects.select_related('user').all()
+
+    # Filtres GET
+    action = request.GET.get("action", "").strip()
+    user_id = request.GET.get("user", "").strip()
+    status = request.GET.get("status", "").strip()
+    search = request.GET.get("search", "").strip()
+
     if action:
         logs = logs.filter(action_type=action)
-    if user:
-        logs = logs.filter(user__id=user)
-    if status:
+    if user_id.isdigit():
+        logs = logs.filter(user__id=user_id)
+    if status in ("success", "error"):
         logs = logs.filter(status=status)
     if search:
-        logs = logs.filter(message__icontains=search)
-    # Pagination
+        logs = logs.filter(
+            Q(message__icontains=search) |
+            Q(object_repr__icontains=search) |
+            Q(object_type__icontains=search)
+        )
+
+    logs = logs.order_by("-timestamp")
+
     paginator = Paginator(logs, 25)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
-    users = AuditLog.objects.values_list("user__id", "user__username").distinct()
-    return render(request, "history.html", {
+
+    # Utilisateurs uniques dans les logs pour filtre
+    users = (
+        AuditLog.objects
+        .filter(user__isnull=False)
+        .values_list("user__id", "user__username")
+        .distinct()
+        .order_by("user__username")
+    )
+
+    context = {
         "logs": page_obj,
         "users": users,
         "actions": AuditLog.ACTION_TYPES,
         "current_action": action,
-        "current_user": user,
+        "current_user": user_id,
         "current_status": status,
         "search": search,
-    })
+    }
+    return render(request, "history.html", context)

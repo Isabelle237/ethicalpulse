@@ -7,11 +7,15 @@ from .validators import validate_ip, validate_url
 from django.core.validators import RegexValidator
 
 
-# Formulaire de création d'utilisateur personnalisé
-class CustomUserCreationForm(UserCreationForm):
+# Formulaire de création d'utilisateur personnaliséfrom django import forms
+from django.contrib.auth import get_user_model
+
+CustomUser = get_user_model()
+
+class CustomUserCreationForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = ("username", "email", "password1", "password2", "role")
+        fields = ("username", "email", "role")
 
         widgets = {
             "username": forms.TextInput(
@@ -38,21 +42,7 @@ class CustomUserCreationForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super(CustomUserCreationForm, self).__init__(*args, **kwargs)
-        self.fields["password1"].widget.attrs.update(
-            {
-                "class": "form-control custom-input",
-                "placeholder": "Mot de passe",
-                "required": True,
-            }
-        )
-        self.fields["password2"].widget.attrs.update(
-            {
-                "class": "form-control custom-input",
-                "placeholder": "Confirmez le mot de passe",
-                "required": True,
-            }
-        )
-
+        # Aucun champ password ici, puisque le mot de passe est géré automatiquement
 
 # Formulaire de connexion par email
 class EmailLoginForm(forms.Form):
@@ -169,13 +159,10 @@ class ProjectForm(forms.ModelForm):
         return url
 
 
-# Formulaire de scan planifié
-
-
 from django import forms
-from .models import ScheduledScan
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from EthicalpulsApp.models import ScheduledScan
 
 
 class ScheduledScanForm(forms.ModelForm):
@@ -188,30 +175,43 @@ class ScheduledScanForm(forms.ModelForm):
             "target",
             "frequency",
             "next_run_time",
-            "email_notification",
+            "is_active",  # <-- On garde "is_active" pour permettre d'activer dès la création
         ]
         widgets = {
-            "description": forms.Textarea(attrs={"rows": 3}),
-            "next_run_time": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Nom du scan"}
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Description (facultatif)",
+                }
+            ),
             "tool": forms.Select(attrs={"class": "form-select"}),
             "target": forms.Select(attrs={"class": "form-select"}),
             "frequency": forms.Select(attrs={"class": "form-select"}),
+            "next_run_time": forms.DateTimeInput(
+                attrs={"type": "datetime-local", "class": "form-control"}
+            ),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["target"].empty_label = "Sélectionnez une cible"
+
+        # Appliquer les choix dynamiques du champ tool
+        self.fields["tool"].choices = ScheduledScan._meta.get_field("tool").choices
 
     def clean_next_run_time(self):
         next_run_time = self.cleaned_data.get("next_run_time")
-        if next_run_time and next_run_time < timezone.now():
-            raise ValidationError("La date d'exécution doit être dans le futur")
+        if next_run_time and next_run_time <= timezone.now():
+            raise ValidationError(
+                "La date et l'heure d'exécution doivent être dans le futur."
+            )
         return next_run_time
-
-    def __init__(self, *args, **kwargs):
-        super(ScheduledScanForm, self).__init__(*args, **kwargs)
-
-        # Récupérer les choix TOOL_CHOICES depuis le modèle
-        self.fields["tool"].choices = ScheduledScan._meta.get_field("tool").choices
-        self.fields["tool"].widget.attrs.update({"class": "form-select"})
-
-        self.fields["target"].empty_label = "Sélectionnez une cible"
 
 
 from django import forms

@@ -5,21 +5,283 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'css/audit_history.css' %}">
+<style>
+  /* Styles globaux */
+  .container-fluid {
+    padding: 1.5rem 1.5rem;
+    background-color: #f4f6f8;
+    min-height: 100vh;
+  }
+
+  .card {
+    border-radius: 0.75rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    background-color: #fff;
+    margin-bottom: 1.5rem;
+  }
+
+  h1.h4.text-navy {
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: #1a1a2e;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  h1.h4.text-navy i {
+    color: #ff7f50;
+  }
+
+  /* Form filtres */
+  form.row.gx-2.align-items-center {
+    max-width: 100%;
+  }
+  form .form-control,
+  form .form-select {
+    border-radius: 0.4rem;
+    border: 1.5px solid #ddd;
+    transition: border-color 0.3s ease;
+    min-width: 140px;
+  }
+  form .form-control:focus,
+  form .form-select:focus {
+    border-color: #ff7f50;
+    box-shadow: 0 0 6px rgba(255,127,80,0.35);
+  }
+
+  /* Boutons filtres */
+  button.btn-orange {
+    background-color: #ff7f50;
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.45rem 1.1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(255,127,80,0.5);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  button.btn-orange:hover {
+    background-color: #e36e3a;
+    box-shadow: 0 6px 18px rgba(227,110,58,0.7);
+  }
+  a.btn-outline-secondary {
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.9rem;
+  }
+  a.btn-outline-secondary:hover {
+    background-color: #ff7f50;
+    color: #fff;
+    border-color: #ff7f50;
+  }
+
+  /* Table */
+  table.table-hover {
+    border-collapse: separate;
+    border-spacing: 0 0.6rem;
+  }
+  table thead.bg-navy {
+    background-color: #16213e !important;
+  }
+  table thead th {
+    border: none;
+    color: #f4f4f4;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 1rem 1rem;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table tbody tr {
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+    border-radius: 0.5rem;
+    transition: transform 0.15s ease-in-out;
+  }
+  table tbody tr:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgb(0 0 0 / 0.15);
+  }
+  table tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    color: #333;
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+
+  /* Message complet */
+  td.message-cell {
+    max-width: 320px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-height: 6em;
+    overflow-y: auto;
+    padding-right: 10px;
+    background-color: #fef6f0;
+    border-radius: 0.4rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    color: #4e4e4e;
+  }
+  td.message-cell::-webkit-scrollbar {
+    width: 7px;
+  }
+  td.message-cell::-webkit-scrollbar-thumb {
+    background-color: #ff7f50;
+    border-radius: 10px;
+  }
+
+  /* Badges */
+  .badge.bg-info.text-dark {
+    background-color: #63cdda !important;
+    color: #1b262c !important;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+    border-radius: 0.4rem;
+    font-size: 0.82rem;
+  }
+  .badge.bg-success {
+    background-color: #45a049 !important;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+    font-size: 0.82rem;
+  }
+  .badge.bg-danger {
+    background-color: #e63946 !important;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+    font-size: 0.82rem;
+  }
+
+  /* Bouton détails */
+  button.btn-outline-secondary {
+    border-radius: 0.45rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 1rem;
+    color: #555;
+    border-color: #aaa;
+    transition: color 0.3s ease, background-color 0.3s ease;
+  }
+  button.btn-outline-secondary:hover {
+    background-color: #ff7f50;
+    color: white;
+    border-color: #ff7f50;
+  }
+
+  /* Pagination */
+  .pagination {
+    font-size: 0.9rem;
+  }
+  .pagination .page-link {
+    color: #16213e;
+    font-weight: 600;
+    border-radius: 0.45rem;
+    border: 1px solid transparent;
+    transition: background-color 0.3s ease;
+  }
+  .pagination .page-item.active .page-link {
+    background-color: #ff7f50;
+    color: white;
+    border-color: #ff7f50;
+    font-weight: 700;
+  }
+  .pagination .page-link:hover {
+    background-color: #ff7f50cc;
+    color: white;
+  }
+  .pagination .page-item.disabled .page-link {
+    color: #bbb;
+    cursor: default;
+  }
+
+  /* Modal */
+  .modal-content {
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+  .modal-header.bg-navy {
+    background-color: #16213e;
+    color: white;
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
+  }
+  .btn-close.btn-close-white {
+    filter: brightness(0) invert(1);
+  }
+
+  /* Pré details JSON */
+  pre.json-pretty {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 12px;
+    max-height: 280px;
+    overflow: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    color: #333;
+  }
+
+  /* Responsive */
+  @media (max-width: 767.98px) {
+    h1.h4.text-navy {
+      font-size: 1.3rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    form.row.gx-2.align-items-center > div.col-auto {
+      flex: 1 1 100%;
+      max-width: 100% !important;
+    }
+    form .form-control,
+    form .form-select {
+      min-width: 100% !important;
+    }
+    form div.col-auto.d-flex.gap-2 {
+      justify-content: center;
+      gap: 1rem;
+    }
+    td.message-cell {
+      max-width: 100px;
+      font-size: 0.75rem;
+      max-height: 5em;
+    }
+    table thead th {
+      font-size: 0.75rem;
+      padding: 0.5rem 0.7rem;
+      white-space: normal;
+    }
+    table tbody td {
+      font-size: 0.75rem;
+      padding: 0.5rem 0.7rem;
+    }
+    .pagination {
+      font-size: 0.75rem;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    td.message-cell {
+      max-width: 80px;
+      max-height: 4em;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
       <h1 class="h4 m-0 text-navy">
-        <i class="bi bi-shield-lock-fill text-orange me-2"></i> Historique des Audits
+        <i class="bi bi-shield-lock-fill me-2"></i> Historique des Audits
       </h1>
-      <form class="row gx-2 align-items-center" method="get">
+
+      <form class="row gx-2 align-items-center" method="get" style="max-width: 100%;">
         <div class="col-auto">
-          <input type="text" name="search" class="form-control" placeholder="Recherche..." value="{{ search }}">
+          <input type="search" name="search" class="form-control" placeholder="Recherche..." value="{{ search }}" aria-label="Recherche">
         </div>
         <div class="col-auto">
-          <select name="action" class="form-select">
+          <select name="action" class="form-select" aria-label="Filtrer par action">
             <option value="">Tous types</option>
             {% for code, label in actions %}
               <option value="{{ code }}" {% if current_action == code %}selected{% endif %}>{{ label }}</option>
@@ -27,27 +289,34 @@
           </select>
         </div>
         <div class="col-auto">
-          <select name="user" class="form-select">
+          <select name="user" class="form-select" aria-label="Filtrer par utilisateur">
             <option value="">Tous utilisateurs</option>
             {% for uid, uname in users %}
-              <option value="{{ uid }}" {% if current_user == uid|stringformat:"s" %}selected{% endif %}>{{ uname }}</option>
+              <option value="{{ uid }}"{% if current_user|stringformat:"s" == uid|stringformat:"s" %} selected{% endif %}>{{ uname }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="col-auto">
-          <select name="status" class="form-select">
+          <select name="status" class="form-select" aria-label="Filtrer par statut">
             <option value="">Tous statuts</option>
             <option value="success" {% if current_status == "success" %}selected{% endif %}>Succès</option>
             <option value="error" {% if current_status == "error" %}selected{% endif %}>Erreur</option>
           </select>
         </div>
-        <div class="col-auto">
-          <button class="btn btn-orange" type="submit">
+        <div class="col-auto d-flex gap-2 flex-wrap">
+          <button class="btn btn-orange" type="submit" title="Filtrer">
             <i class="bi bi-funnel-fill me-1"></i> Filtrer
           </button>
+          <a href="{% url 'history' %}" class="btn btn-outline-secondary" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i>
+          </a>
         </div>
       </form>
     </div>
+  </div>
+
+  <div class="mb-2 text-muted fst-italic text-center text-md-start">
+    Total : {{ logs.paginator.count }} enregistrements
   </div>
 
   <div class="card shadow-sm border-0">
@@ -62,14 +331,16 @@
             <th scope="col">Objet</th>
             <th scope="col">Détails</th>
             <th scope="col">Statut</th>
-            <th scope="col">Message</th>
+            <th scope="col">Message complet</th>
           </tr>
         </thead>
         <tbody>
           {% for log in logs %}
           <tr>
             <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
-            <td>{{ log.user.username|default:"Système" }}</td>
+            <td title="{{ log.user.email|default:'-' }}">
+              {{ log.user.username|default:"Système" }}
+            </td>
             <td>{{ log.ip_address|default:"-" }}</td>
             <td><span class="badge bg-info text-dark">{{ log.get_action_type_display }}</span></td>
             <td>
@@ -78,18 +349,27 @@
               <small class="text-muted">{{ log.object_repr|truncatechars:30 }}</small>
             </td>
             <td>
-              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#detailsModal{{ log.id }}">
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#detailsModal{{ log.id }}" aria-label="Voir détails">
                 <i class="bi bi-eye-fill"></i>
               </button>
-              <div class="modal fade" id="detailsModal{{ log.id }}" tabindex="-1">
+
+              <div class="modal fade" id="detailsModal{{ log.id }}" tabindex="-1" aria-labelledby="detailsModalLabel{{ log.id }}" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                   <div class="modal-content">
                     <div class="modal-header bg-navy text-white">
-                      <h5 class="modal-title">Détails de l'action</h5>
-                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                      <h5 class="modal-title" id="detailsModalLabel{{ log.id }}">Détails de l'action</h5>
+                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
                     </div>
                     <div class="modal-body">
-                      <pre class="mb-0" style="white-space:pre-wrap;">{{ log.details|default:"Aucun détail." }}</pre>
+                      {% if log.details %}
+                        <pre class="json-pretty">{{ log.details|json_script:"log_details_"|safe }}</pre>
+                        <pre style="white-space: pre-wrap;">{{ log.details|safe }}</pre>
+                      {% else %}
+                        <pre class="mb-0" style="white-space:pre-wrap;">Aucun détail.</pre>
+                      {% endif %}
+                      <hr>
+                      <h6>Message complet :</h6>
+                      <pre style="white-space: pre-wrap; font-family: monospace; background: #f4f6f8; padding: 10px; border-radius: 0.4rem; max-height: 280px; overflow-y: auto;">{{ log.message|default:"-" }}</pre>
                     </div>
                   </div>
                 </div>
@@ -102,7 +382,7 @@
                 <span class="badge bg-danger">Erreur</span>
               {% endif %}
             </td>
-            <td>{{ log.message|default:"-"|truncatechars:60 }}</td>
+            <td class="message-cell">{{ log.message|default:"-"|linebreaksbr }}</td>
           </tr>
           {% empty %}
           <tr>
@@ -115,18 +395,28 @@
   </div>
 
   <div class="d-flex justify-content-center mt-4">
-    <nav>
-      <ul class="pagination pagination-sm">
+    <nav aria-label="Pagination">
+      <ul class="pagination pagination-sm flex-wrap justify-content-center">
         {% if logs.has_previous %}
           <li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}">&laquo;</a></li>
         {% else %}
           <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
         {% endif %}
+
         {% for num in logs.paginator.page_range %}
-          <li class="page-item {% if logs.number == num %}active{% endif %}">
-            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-          </li>
+          {% if num >= logs.number|add:"-3" and num <= logs.number|add:"3" %}
+            <li class="page-item {% if logs.number == num %}active{% endif %}">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+          {% elif num == 1 or num == logs.paginator.num_pages %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+          {% elif num == logs.number|add:"-4" or num == logs.number|add:"4" %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+          {% endif %}
         {% endfor %}
+
         {% if logs.has_next %}
           <li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}">&raquo;</a></li>
         {% else %}
@@ -135,5 +425,6 @@
       </ul>
     </nav>
   </div>
+
 </div>
 {% endblock %}

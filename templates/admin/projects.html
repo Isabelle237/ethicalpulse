@@ -207,12 +207,12 @@
         </button>
 
         <!-- Bouton Supprimer -->
-        <button class="btn btn-outline-danger btn-sm"
-                onclick="openDeleteModal(this)"
-                data-id="{{ project.id }}"
-                data-name="{{ project.name }}">
-          <i class="bi bi-trash"></i>
+        <!-- Exemple dans la liste projets -->
+        <button type="button" class="btn btn-danger btn-delete-project" 
+                data-id="{{ project.id }}" data-name="{{ project.name }}">
+          Supprimer
         </button>
+
       </div>
     </div>
   </div>
@@ -283,18 +283,17 @@
     </div>
   </div>
 </div>
-
 <!-- Supprimer -->
-<div class="modal fade" id="deleteProjectModal" tabindex="-1">
+<div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <form method="post" action="{% url 'admin_projets' %}" class="modal-content" id="deleteProjectForm">
+    <form method="post" action="{% url 'delete_project' %}" class="modal-content" id="deleteProjectForm">
       <div class="modal-header bg-danger text-white">
         <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer le projet</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         {% csrf_token %}
-        <input type="hidden" name="project_id" id="deleteProjectId">
+        <input type="hidden" name="project_id" id="deleteProjectId" value="">
         <p>Êtes-vous sûr de vouloir supprimer le projet <strong id="deleteProjectName" class="text-orange"></strong> ?</p>
       </div>
       <div class="modal-footer">
@@ -304,6 +303,7 @@
     </form>
   </div>
 </div>
+
 <!-- Graphiques -->
 <div class="row mt-4">
   <div class="col-md-6 mb-4">

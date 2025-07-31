@@ -19,29 +19,23 @@ urlpatterns = [
     path(
         "projets/chart/trend/", views.projects_chart_trend, name="projects_chart_trend"
     ),
-    path("projects/delete/", views.delete_project, name="delete_project"),
+    path('projets/delete/', views.delete_project, name='delete_project'), # Suppression projet
     path(
         "projects/<int:project_id>/json/",
         views.get_project_json,
         name="get_project_json",
     ),
     # Scans
-    # path('scans/', views.scans, name='scans'),  # Liste des scans
     path(
         "scans/completed/<int:scan_id>/details/",
         views.completed_scan_details,
         name="completed_scan_details",
     ),
-    # path('scans/launch/', views.launch_scan, name='launch_scan'),  # Lancer un scan
-    # relancer un scan
-    # path('scans/<int:scan_id>/delete/', views.delete_scan, name='delete_scan'),
-    # path('generate_scan_report/<int:scan_id>/', views.generate_scan_report, name='generate_scan_report'),
-    # path('vulnerabilities/filter/', views.vulnerabilities_filter, name='vulnerabilities_filter'),
-    # path('export_vulnerabilities/', views.export_vulnerabilities, name='export_vulnerabilities'),
+
     path("scans/<int:scan_id>/delete/", views.delete_scan, name="delete_scan"),
-    # path('vulnerabilities/', views.vulnerabilities_view, name='vulnerabilities'),  # Liste des vulnérabilités
-    # path('scans/<int:scan_id>/relaunch/', views.relaunch_scan, name='relaunch_scan'),
-    # path('scans/schedule/', views.ScheduledScan, name='ScheduledScan'),
+    path(
+        "vulnerabilities/", views.vulnerabilities_user, name="vulnerabilities_user"
+    ),  
     # Outils
     path("tools_admin/", views.tools_admin, name="tools_admin"),
     # path('tools/create/', views.tools_create, name='tools_create'),
@@ -90,5 +84,4 @@ urlpatterns = [
     path("verify-otp/", views.otp_verification, name="verify_otp"),  # ✅ Corrigé ici
     path("logout/", views.logout_view, name="logout"),
     path("history/", views.history, name="history"),
-
 ]

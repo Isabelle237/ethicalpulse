@@ -19,7 +19,8 @@ from .validators import (
 from django.conf import settings  # Ajouté pour résoudre le NameError
 from datetime import timedelta
 import pyotp
-
+from django.db.models import JSONField
+  # Si tu utilises PostgreSQL
 ROLES = [
     ("ADMIN", "Administrateur"),
     ("PROJECT_MANAGER", "Chef de projet"),
@@ -183,6 +184,7 @@ class Scan(models.Model):
     duration = models.FloatField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     notified = models.BooleanField(default=False)
+    ai_analysis = models.TextField(blank=True, null=True, verbose_name="Analyse IA")
     created_by = models.ForeignKey(
         get_user_model(), on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -320,70 +322,6 @@ class ScanTemplate(models.Model):
 
     class Meta:
         ordering = ["name"]
-
-
-class Vulnerability(models.Model):
-    scan = models.ForeignKey(
-        Scan, on_delete=models.CASCADE, related_name="vulnerabilities"
-    )
-    name = models.CharField(max_length=255, verbose_name="Nom de la vulnérabilité")
-    description = models.TextField(blank=True, null=True, verbose_name="Description")
-    severity = models.CharField(
-        max_length=50, choices=SEVERITY_CHOICES, verbose_name="Gravité"
-    )
-    target_url = models.URLField(blank=True, null=True, verbose_name="URL cible")
-    remediation = models.TextField(blank=True, null=True, verbose_name="Remédiation")
-    cve_id = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name="CVE ID"
-    )
-    status = models.CharField(
-        max_length=50, choices=STATUS_CHOICES, default="open", verbose_name="Statut"
-    )
-    discovered_at = models.DateTimeField(
-        auto_now_add=True, verbose_name="Date de découverte"
-    )
-    resolved_at = models.DateTimeField(null=True, blank=True)  # Ajout
-
-    # Champs spécifiques à OWASP ZAP
-    alert = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="Alerte"
-    )
-    risk = models.CharField(max_length=50, blank=True, null=True, verbose_name="Risque")
-    confidence = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name="Confiance"
-    )
-    evidence = models.TextField(blank=True, null=True, verbose_name="Preuve")
-    reference = models.TextField(blank=True, null=True, verbose_name="Références")
-
-    # Champs spécifiques à SQLMap
-    parameter = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="Paramètre vulnérable"
-    )
-    technique = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="Technique utilisée"
-    )
-    dbms = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="SGBD détecté"
-    )
-    request_type = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name="Type de requête"
-    )
-
-    # Champs spécifiques à Nmap
-    port = models.IntegerField(blank=True, null=True, verbose_name="Port")
-    protocol = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name="Protocole"
-    )
-    state = models.CharField(max_length=50, blank=True, null=True, verbose_name="État")
-    service = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="Service"
-    )
-    version = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name="Version du service"
-    )
-
-    def __str__(self):
-        return self.name
 
 
 from django.db import models
@@ -562,19 +500,22 @@ class NmapResult(models.Model):
 
 
 class OwaspZapResult(models.Model):
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True, related_name='zap_results')
     option = models.CharField(max_length=10, choices=ZAP_OPTIONS)
+    alert_id = models.CharField(max_length=50, null=True, blank=True, help_text="ID unique de l'alerte dans ZAP")
     url = models.URLField()
     risk = models.CharField(max_length=50)
     vulnerability = models.CharField(max_length=255)
     description = models.TextField()
     evidence = models.TextField(null=True, blank=True)
     recommendation = models.TextField()
+    # Stockage brut de l'alerte au format JSON (optionnel, pour audit/troubleshooting)
+    raw_alert = JSONField(null=True, blank=True)
 
 
 SQLMAP_OPTIONS = (
     ("--batch", "Scan simple (automatique)"),
-    ("--level=3 --risk=2 --batch", "Scan approfondi"),
+    ("--level=5 --risk=3 --batch", "Scan approfondi"),
     ("--technique=BE --level=5 --risk=3 --batch", "Scan booléen + erreur (fort)"),
     ("--dbs --level=5 --risk=3 --batch", "Lister les bases (si vulnérable)"),
     ("--dump --level=5 --risk=3 --batch", "Extraire les données (si vulnérable)"),
@@ -847,6 +788,7 @@ class SystemLog(models.Model):
     message = models.TextField()
     user = models.CharField(max_length=128, blank=True, null=True)
 
+
 class AuditLog(models.Model):
     ACTION_TYPES = [
         ("create", "Création"),
@@ -869,7 +811,9 @@ class AuditLog(models.Model):
     object_type = models.CharField(max_length=64)
     object_id = models.CharField(max_length=64, blank=True, null=True)
     object_repr = models.CharField(max_length=255, blank=True, null=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     details = models.JSONField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)

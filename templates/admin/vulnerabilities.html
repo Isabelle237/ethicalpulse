@@ -143,36 +143,6 @@ canvas {
         </div>
     </div>
 
-    <!-- Simulation d'impact -->
-    <div class="card mb-4">
-        <div class="card-header">Simulation d'impact</div>
-        <div class="card-body">
-            <p>Si vous corrigez toutes les vulnérabilités critiques, votre score global passe à <span id="simu-score" class="badge bg-success">{{ global_stats.élevée|add:global_stats.moyenne|add:global_stats.faible|add:global_stats.info }}</span></p>
-            <button class="btn btn-outline-success btn-sm" onclick="simulateFix()">Simuler la correction</button>
-        </div>
-    </div>
-
-    <!-- Top projets -->
-    <div class="card mb-4">
-        <div class="card-header">Top 5 projets les plus vulnérables (critiques)</div>
-        <div class="card-body">
-            <ul>
-                {% for p in top_projects %}
-                    <li>
-                        <b>{{ p.project.name }}</b> : <span class="text-danger">{{ p.stats.critique }}</span> critiques
-                        <span class="badge bg-info">Scan CI/CD:
-                            {% if p.stats.critique > 0 %}
-                                <span class="badge bg-danger">KO</span>
-                            {% else %}
-                                <span class="badge bg-success">OK</span>
-                            {% endif %}
-                        </span>
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
     <!-- Tableau détaillé -->
     <div class="card mb-4">
         <div class="card-header">Détail par projet</div>
@@ -204,27 +174,10 @@ canvas {
                         <td class="bg-secondary text-white">{{ p.stats.info }}</td>
                         <td><b>{{ p.total }}</b></td>
                         <td>
-                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#details-{{ forloop.counter }}">Détails</button>
-                        </td>
-                    </tr>
-                    <tr class="collapse" id="details-{{ forloop.counter }}">
-                        <td colspan="8">
-                            <ul>
-                                {% for d in p.stats.details %}
-                                    <div class="mb-3">
-                                        <form method="post" enctype="multipart/form-data" action="{% url 'import_project_report' %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="file" name="report_file" accept=".json,.csv" required>
-                                            <button class="btn btn-outline-primary btn-sm" type="submit">Importer un rapport</button>
-                                        </form>
-                                        <a href="{% url 'export_project_report' %}?project_id={{ p.project.id }}" class="btn btn-outline-success btn-sm">Télécharger rapport PDF</a>
-                                        <a href="{% url 'export_project_report_csv' %}?project_id={{ p.project.id }}" class="btn btn-outline-secondary btn-sm">Télécharger rapport CSV</a>
-                                    </div>
-                                    
-                                {% empty %}
-                                    <li>Aucune vulnérabilité détectée.</li>
-                                {% endfor %}
-                            </ul>
+                            <!-- Un seul bouton pour télécharger le rapport global du projet -->
+                            <a href="{% url 'export_project_report' %}?project_id={{ p.project.id }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                Télécharger rapport global
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -330,24 +283,17 @@ const lineChart = new Chart(document.getElementById('vulnLineChart'), {
 // Filtres dynamiques
 document.getElementById('filterInput').addEventListener('keyup', function() {
     let filter = this.value.toLowerCase();
-    let rows = document.querySelectorAll('#vulnTable tbody tr:not(.collapse)');
+    let rows = document.querySelectorAll('#vulnTable tbody tr');
     rows.forEach(function(row) {
         let text = row.textContent.toLowerCase();
         row.style.display = text.includes(filter) ? '' : 'none';
     });
 });
 
-// Simulation d'impact
-function simulateFix() {
-    document.getElementById('simu-score').innerText = "0";
-    document.getElementById('simu-score').className = "badge bg-success";
-    alert("Score recalculé : toutes les critiques corrigées !");
-}
-
 // Export CSV
 function exportCSV() {
     let csv = "Projet,Critiques,Élevées,Moyennes,Faibles,Info,Total\n";
-    document.querySelectorAll('#vulnTable tbody tr:not(.collapse)').forEach(function(row) {
+    document.querySelectorAll('#vulnTable tbody tr').forEach(function(row) {
         let cells = row.querySelectorAll('td');
         if (cells.length >= 7) {
             csv += Array.from(cells).slice(0,7).map(td => td.innerText).join(",") + "\n";
@@ -360,24 +306,11 @@ function exportCSV() {
     link.click();
 }
 
-// Mode collaboratif (exemple)
-function addComment(project, vuln) {
-    alert("Commenter sur " + project + " - " + vuln + " (fonctionnalité à implémenter)");
-}
-function assignVuln(project, vuln) {
-    alert("Assigner " + vuln + " sur " + project + " à un membre (fonctionnalité à implémenter)");
-}
-
 // Alertes temps réel (exemple JS, à relier à WebSocket ou polling)
 function showAlertToast() {
     document.getElementById('alert-toast').style.display = 'block';
     setTimeout(() => { document.getElementById('alert-toast').style.display = 'none'; }, 8000);
 }
-// Simule une alerte toutes les 2 minutes (pour démo)
 setInterval(showAlertToast, 120000);
-
-// Exemple d'intégration Slack/email (à faire côté backend)
-// fetch('/api/notify_slack', {method: 'POST', body: JSON.stringify({msg: "Nouvelle vulnérabilité critique détectée"})});
-
 </script>
 {% endblock %}

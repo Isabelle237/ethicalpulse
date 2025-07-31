@@ -9,6 +9,7 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+
     <!-- Filtres -->
     <form id="filtersForm" class="row g-2 align-items-center mb-4" method="get">
         <div class="col-md-3">
@@ -16,7 +17,7 @@
             <select class="form-select" name="project" id="projectFilter">
                 <option value="">Tous les projets</option>
                 {% for project in projects %}
-                    <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+                    <option value="{{ project.id }}"{% if selected_project|stringformat:"s" == project.id|stringformat:"s" %} selected{% endif %}>{{ project.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -68,7 +69,7 @@
         <div class="col-xl-3 col-md-6">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title mb-2">Vulnérabilités</h6>
+                    <h6 class="card-title mb-2">Découvertes</h6>
                     <h2 class="mb-0">{{ vuln_metrics.total_count }}</h2>
                     <span class="text-muted small">Total détecté</span>
                 </div>
@@ -79,7 +80,7 @@
                 <div class="card-body">
                     <h6 class="card-title mb-2">Taux de Résolution</h6>
                     <h2 class="mb-0">{{ vuln_metrics.resolution_rate|floatformat:1 }}%</h2>
-                    <span class="text-muted small">Vulnérabilités résolues</span>
+                    <span class="text-muted small">Découvertes résolues</span>
                 </div>
             </div>
         </div>
@@ -107,7 +108,7 @@
                 </div>
             </div>
         </div>
-        <!-- Radar : Distribution par sévérité -->
+        <!-- Radar : Distribution par Sévérité -->
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header pb-1">
@@ -120,22 +121,22 @@
         </div>
     </div>
     <div class="row g-4 mb-4">
-        <!-- Barres groupées : Types de vulnérabilités -->
+        <!-- Barres groupées : Types de découvertes -->
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header pb-1">
-                    <h6 class="card-title">Types de Vulnérabilités</h6>
+                    <h6 class="card-title">Types de Découvertes</h6>
                 </div>
                 <div class="card-body pb-2 pt-2">
                     <canvas id="vulnTypesChart" style="height:160px;max-height:160px;"></canvas>
                 </div>
             </div>
         </div>
-        <!-- Courbe pointillée : Projets les plus vulnérables -->
+        <!-- Courbe pointillée : Projets les plus exposés -->
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header pb-1">
-                    <h6 class="card-title">Projets les Plus Vulnérables</h6>
+                    <h6 class="card-title">Projets les Plus Exposés</h6>
                 </div>
                 <div class="card-body pb-2 pt-2">
                     <canvas id="vulnerableProjectsChart" style="height:160px;max-height:160px;"></canvas>
@@ -155,16 +156,18 @@
                 </div>
             </div>
         </div>
-        <!-- Top 5 vulnérabilités récurrentes -->
+        <!-- Top 5 découvertes récurrentes -->
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header pb-1">
-                    <h6 class="card-title">Top 5 Vulnérabilités Récurrentes</h6>
+                    <h6 class="card-title">Top 5 Découvertes Récurrentes</h6>
                 </div>
                 <div class="card-body pb-2 pt-2">
                     <ol class="mb-0">
-                        {% for vuln in vuln_metrics.top5 %}
-                            <li>{{ vuln.name }} ({{ vuln.count }})</li>
+                        {% for finding in top5_findings %}
+                            <li>
+                                {{ finding.name|truncatechars:40 }} ({{ finding.count }})
+                            </li>
                         {% empty %}
                             <li>Aucune donnée</li>
                         {% endfor %}
@@ -186,7 +189,7 @@
                         <tr>
                             <th>Projet</th>
                             <th>Scans Effectués</th>
-                            <th>Vulnérabilités</th>
+                            <th>Découvertes</th>
                             <th>Sévérité Critique</th>
                             <th>Taux de Résolution</th>
                             <th>Temps Moyen</th>
@@ -197,7 +200,7 @@
                         <tr>
                             <td>{{ project.name }}</td>
                             <td>{{ project.scan_count }}</td>
-                            <td>{{ project.vuln_count }}</td>
+                            <td>{{ project.finding_count|default:"-" }}</td>
                             <td>
                                 <span class="badge bg-danger">{{ project.critical_count }}</span>
                             </td>
@@ -205,11 +208,11 @@
                                 <div class="progress" style="height: 20px;">
                                     <div class="progress-bar bg-success" 
                                          role="progressbar" 
-                                         style="width: {{ project.resolution_rate }}%"
-                                         aria-valuenow="{{ project.resolution_rate }}" 
+                                         style="width: {{ project.resolution_rate|default:0 }}%"
+                                         aria-valuenow="{{ project.resolution_rate|default:0 }}" 
                                          aria-valuemin="0" 
                                          aria-valuemax="100">
-                                        {{ project.resolution_rate }}%
+                                        {{ project.resolution_rate|default:0 }}%
                                     </div>
                                 </div>
                             </td>
@@ -229,34 +232,58 @@
     </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Filtres dynamiques
-  document.getElementById('projectFilter').addEventListener('change', function() {
-    document.getElementById('filtersForm').submit();
-  });
-  document.getElementById('periodSelect').addEventListener('change', function() {
-    document.getElementById('filtersForm').submit();
-  });
+document.addEventListener('DOMContentLoaded', function() {
+  const filtersForm = document.getElementById('filtersForm');
+  const projectFilter = document.getElementById('projectFilter');
+  const periodSelect = document.getElementById('periodSelect');
+  const exportBtn = document.getElementById('exportBtn');
 
-  // Export
-  document.getElementById('exportBtn').addEventListener('click', function() {
-    const params = new URLSearchParams(window.location.search);
-    let url = "{% url 'export_analytics' %}?" + params.toString();
-    window.open(url, '_blank');
-  });
+  // Ajoute un bouton submit caché si besoin (sécurité)
+  if (filtersForm && !filtersForm.querySelector('button[type="submit"][style*="display:none"]')) {
+    const hiddenSubmit = document.createElement('button');
+    hiddenSubmit.type = 'submit';
+    hiddenSubmit.style.display = 'none';
+    filtersForm.appendChild(hiddenSubmit);
+  }
+
+  if (projectFilter && filtersForm) {
+    projectFilter.addEventListener('change', function() {
+      if (typeof filtersForm.requestSubmit === 'function') {
+        filtersForm.requestSubmit();
+      } else {
+        filtersForm.submit();
+      }
+    });
+  }
+  if (periodSelect && filtersForm) {
+    periodSelect.addEventListener('change', function() {
+      if (typeof filtersForm.requestSubmit === 'function') {
+        filtersForm.requestSubmit();
+      } else {
+        filtersForm.submit();
+      }
+    });
+  }
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function() {
+      const params = new URLSearchParams(window.location.search);
+      let url = "{% url 'export_analytics' %}?" + params.toString();
+      window.open(url, '_blank');
+    });
+  }
 
   // Chart.js : Données passées depuis Django
   const scanTrendsLabels = {{ scan_metrics.trends.labels|safe }};
   const scanTrendsData = {{ scan_metrics.trends.data|safe }};
   const vulnSeverityLabels = {{ vuln_metrics.severity.labels|safe }};
   const vulnSeverityData = {{ vuln_metrics.severity.data|safe }};
-  const vulnTypesLabels = {{ vuln_metrics.types.labels|safe }};
-  const vulnTypesData = {{ vuln_metrics.types.data|safe }};
-  const vulnerableProjectsLabels = {{ project_metrics.vulnerable.labels|safe }};
-  const vulnerableProjectsData = {{ project_metrics.vulnerable.data|safe }};
+  const vulnTypesLabels = {{ types_labels|safe }};
+  const vulnTypesData = {{ types_data|safe }};
+  const vulnerableProjectsLabels = {{ project_exposed_labels|safe }};
+  const vulnerableProjectsData = {{ project_exposed_data|safe }};
   const scanSuccessData = {{ scan_metrics.success_data|safe }};
 
   // 1. Courbe lissée : Tendance des scans
@@ -283,13 +310,13 @@
       }
   });
 
-  // 2. Radar : Distribution par sévérité
+  // 2. Radar : Distribution par Sévérité
   new Chart(document.getElementById('vulnSeverityChart').getContext('2d'), {
       type: 'radar',
       data: {
           labels: vulnSeverityLabels,
           datasets: [{
-              label: 'Vulnérabilités',
+              label: 'Découvertes',
               data: vulnSeverityData,
               backgroundColor: 'rgba(211,47,47,0.15)',
               borderColor: '#d32f2f',
@@ -304,7 +331,7 @@
       }
   });
 
-  // 3. Barres groupées : Types de vulnérabilités
+  // 3. Barres groupées : Types de découvertes
   new Chart(document.getElementById('vulnTypesChart').getContext('2d'), {
       type: 'bar',
       data: {
@@ -325,13 +352,13 @@
       }
   });
 
-  // 4. Courbe pointillée : Projets les plus vulnérables
+  // 4. Courbe pointillée : Projets les plus exposés
   new Chart(document.getElementById('vulnerableProjectsChart').getContext('2d'), {
       type: 'line',
       data: {
           labels: vulnerableProjectsLabels,
           datasets: [{
-              label: 'Vulnérabilités',
+              label: 'Découvertes',
               data: vulnerableProjectsData,
               fill: false,
               borderColor: '#d32f2f',
@@ -364,5 +391,6 @@
           plugins: { legend: { position: 'bottom' } }
       }
   });
+});
 </script>
 {% endblock %}

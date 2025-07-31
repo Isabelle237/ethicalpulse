@@ -225,11 +225,9 @@
                                 <button type="submit" class="btn btn-primary btn-sm">
                                     <i class="bi bi-play-fill me-1"></i>Exécuter
                                 </button>
-                            <div class="d-grid gap-2">
                                 <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#sqlmapDoc" aria-expanded="false">
                                     <i class="bi bi-file-text me-1"></i>Documentation
                                 </button>
-                            </div>
                             </div>
                                 <div class="collapse mt-3" id="sqlmapDoc">
                                     <div class="card card-body bg-light small">
@@ -359,39 +357,54 @@
                 </div>
                 <div class="card-body">
                     <p class="card-text small">Scanner de sécurité web intégré pour trouver des vulnérabilités dans les applications web.</p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Options:</label>
-                        <select class="form-select form-select-sm tool-option" data-tool="owaspzap">
-                            {% for value, label in zap_options %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">URL cible:</label>
-                        <input type="text" class="form-control form-control-sm tool-target" placeholder="URL (ex: https://example.com)" data-tool="owaspzap">
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary btn-sm run-tool" data-tool="owaspzap">
-                            <i class="bi bi-play-fill me-1"></i>Exécuter
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#owaspzapDoc" aria-expanded="false">
-                            <i class="bi bi-file-text me-1"></i>Documentation
-                        </button>
-                    </div>
-                    <div class="collapse mt-3" id="owaspzapDoc">
-                        <div class="card card-body bg-light small">
+                    <form method="post" action="{% url 'tools_admin' %}" class="mb-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="tool" value="ZAP" />
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Options:</label>
+                                <label class="form-label fw-bold small">Options:</label>
+                                <select class="form-select form-select-sm tool-option" data-tool="owaspzap">
+                                    {% for value, label in zap_options %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="zap_options" class="form-label fw-bold small">Cible:</label>
+                                <select class="form-select form-select-sm" id="sqlmap_options" name="project_id" required>
+                                <option value="all">Tous les projets</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">
+                                        {{ project.name }} — 
+                                        {% if project.url %}{{ project.url }}{% else %}{{ project.ip_address }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play-fill me-1"></i>Exécuter
+                                </button>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-secondary btn-sm tool-doc-btn" data-bs-toggle="collapse" data-bs-target="#owaspzapDoc" aria-expanded="false">
+                                    <i class="bi bi-file-text me-1"></i>Documentation
+                                </button>
+                            </div>
+                            </div>
+                                <div class="collapse mt-3" id="owaspzapDoc">
+                                    <div class="card card-body bg-light small">
                             <h6>Documentation OWASP ZAP</h6>
                             <p>OWASP Zed Attack Proxy (ZAP) est un scanner de sécurité web gratuit et open-source. C'est l'un des outils OWASP les plus actifs.</p>
                             <p><strong>Caractéristiques principales:</strong></p>
-                            <ul>
+                                        <ul>
                                 <li>Tests d'intrusion automatiques</li>
                                 <li>Proxy d'interception</li>
                                 <li>Spider automatisé</li>
                                 <li>Scanner de vulnérabilités</li>
-                            </ul>
-                        </div>
-                    </div>
+                                        </ul>
+                                    </div>
+                                </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -969,19 +982,6 @@
         </div>
     </div>
 
-<!-- Historique des Analyses -->
-<div class="row mt-4">
-    <div class="col-lg-12">
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <i class="bi bi-clock-history me-2"></i>
-                <span>Historique des Analyses</span>
-            </div>
-            
-
-        </div>
-    </div>
-</div>
 
 {% endblock %}
 

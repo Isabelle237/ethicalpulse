@@ -41,6 +41,10 @@ test:
 celery:
 	$(DOCKER_COMPOSE) exec web celery -A Ethicalpulse worker --loglevel=info
 
+#web
+web:
+	$(DOCKER_COMPOSE) exec -it django_web-ethicalpulse bash 
+
 # Linting / formatage
 lint:
 	flake8 .

@@ -1,0 +1,40 @@
+{% extends 'base_auth.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">Analyse IA du Scan #{{ scan.id }}</h2>
+
+    <button id="analyserBtn" class="btn btn-primary mb-3">Analyser avec l’IA 🔍</button>
+
+    <div id="loader" class="text-info" style="display:none;">Analyse en cours...</div>
+    <div id="resultatIa" class="border rounded p-3" style="white-space: pre-wrap;"></div>
+</div>
+
+<script>
+document.getElementById("analyserBtn").addEventListener("click", function() {
+    const btn = this;
+    const resultDiv = document.getElementById("resultatIa");
+    const loader = document.getElementById("loader");
+    btn.disabled = true;
+    loader.style.display = "block";
+    resultDiv.textContent = "";
+
+    fetch("{% url 'ai_scan_analysis_api' scan.id %}")
+        .then(response => response.json())
+        .then(data => {
+            loader.style.display = "none";
+            btn.disabled = false;
+            if (data.analyse_ia) {
+                resultDiv.textContent = data.analyse_ia;
+            } else if (data.error) {
+                resultDiv.innerHTML = `<div class="text-danger"><strong>Erreur :</strong> ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            loader.style.display = "none";
+            btn.disabled = false;
+            resultDiv.innerHTML = `<div class="text-danger"><strong>Erreur réseau :</strong> ${error}</div>`;
+        });
+});
+</script>
+{% endblock %}

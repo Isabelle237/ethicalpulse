@@ -10,7 +10,7 @@ dist/
 build/
 *.manifest
 *.spec
-
+staticfiles/
 # Django
 *.log
 local_settings.py
@@ -20,7 +20,8 @@ media/
 *.pot
 *.mo
 *.swp
-
+__init__.py
+migrations/
 # Ignorer les fichiers de migration
 **/migrations/*.py
 !**/migrations/__init__.py

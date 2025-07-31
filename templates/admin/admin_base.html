@@ -52,12 +52,24 @@
                 <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                 <span>Tableau de bord</span>
             </a>
+            <a href="{% url 'vulnerabilities_user' %}" class="sidebar-nav-link">
+                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                <span>Vulnérabilités</span>
+            </a>
+            <a href="{% url 'remediations' %}" class="sidebar-nav-link">
+                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                <span>Remédiation</span>
+            </a>
             {% endif %}
             {% if user.role == 'ADMIN' %}
                 <!-- Section Admin uniquement -->
                 <a href="{% url 'analytics_dashboard'%}" class="sidebar-nav-link">
                     <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                     <span>Tableau de bord<active/span>
+                </a>
+                <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
+                    <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                    <span>Vulnérabilités</span>
                 </a>
                 <a href="{% url 'users'%}" class="sidebar-nav-link">
                     <i class="bi bi-people-fill sidebar-nav-icon"></i>
@@ -67,30 +79,23 @@
                     <i class="bi bi-folder-fill sidebar-nav-icon"></i>
                     <span>Projets</span>
                 </a>
-            <a href="{% url 'history' %}" class="sidebar-nav-link">
-                <i class="bi bi-clock-history sidebar-nav-icon"></i>
-                <span>Historique</span>
-            </a>
-            <a href="{% url 'logs' %}" class="sidebar-nav-link">
-                <i class="bi bi-graph-up sidebar-nav-icon"></i>
-                <span>logs</span>
-            </a>
+                <a href="{% url 'history' %}" class="sidebar-nav-link">
+                    <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                    <span>Historique</span>
+                </a>
+                            <a href="{% url 'remediations_admin' %}" class="sidebar-nav-link">
+                    <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                    <span>Remédiation</span>
+                </a>
             {% endif %}
             <a href="{% url 'scan_list' %}" class="sidebar-nav-link">
                 <i class="bi bi-search sidebar-nav-icon"></i>
                 <span>Scans</span>
             </a>
-            <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
-                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
-                <span>Vulnérabilités</span>
-            </a>
+
             <a href="{% url 'tools_admin' %}" class="sidebar-nav-link">
                 <i class="bi bi-tools sidebar-nav-icon"></i>
                 <span>Outils</span>
-            </a>
-            <a href="{% url 'remediations_admin' %}" class="sidebar-nav-link">
-                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
-                <span>Remédiation</span>
             </a>
             <a href="{% url 'training' %}" class="sidebar-nav-link">
                 <i class="bi bi-mortarboard sidebar-nav-icon"></i>

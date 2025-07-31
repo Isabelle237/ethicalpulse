@@ -19,6 +19,20 @@ RUN apt-get update && apt-get install -y \
     redis-server \
     libnet-ssleay-perl \
     libio-socket-ssl-perl \
+    # ✅ Dépendances pour WeasyPrint
+    libcairo2 \
+    libcairo2-dev \
+    libpango-1.0-0 \
+    libpango1.0-dev \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    libssl-dev \
+    libxml2 \
+    libxml2-dev \
+    libxslt1-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpangocairo-1.0-0 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
@@ -75,7 +89,11 @@ RUN python manage.py collectstatic --noinput
 # Commande de démarrage
 CMD ["sh", "-c", "\
     service redis-server start && \
-    zap.sh -daemon -host 0.0.0.0 -port 8086 -config api.key=620tjnb5od0ef8tep7n78usun & \
+    zap.sh -daemon \
+        -host 0.0.0.0 \
+        -port 8086 \
+        -config api.key=620tjnb5od0ef8tep7n78usun \
+        -config api.response.max.size=104857600 & \
     echo 'Attente que ZAP soit prêt...' && \
     while ! nc -z localhost 8086; do echo 'ZAP n\\'est pas encore prêt...'; sleep 1; done && \
     echo 'ZAP est prêt.' && \

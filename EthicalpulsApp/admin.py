@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Project, Scan, Vulnerability
+from .models import CustomUser, Project, Scan
 
 
 # Administration personnalisée pour CustomUser
@@ -108,31 +108,3 @@ class ScanAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Scan, ScanAdmin)
-
-
-# Administration personnalisée pour Vulnerability
-class VulnerabilityAdmin(admin.ModelAdmin):
-    list_display = ("name", "scan", "severity", "status", "discovered_at")
-    list_filter = ("severity", "status", "scan__tool")
-    search_fields = ("name", "description", "scan__name", "target_url")
-    date_hierarchy = "discovered_at"  # Permet de filtrer par date
-    ordering = ("-discovered_at",)  # Trie par date de découverte descendante
-
-    # Personnalisation des champs dans l'édition
-    fields = (
-        "name",
-        "scan",
-        "severity",
-        "status",
-        "description",
-        "target_url",
-        "remediation",
-        "cve_id",
-        "discovered_at",
-    )
-    readonly_fields = (
-        "discovered_at",
-    )  # Ne pas permettre la modification de la date de découverte
-
-
-admin.site.register(Vulnerability, VulnerabilityAdmin)

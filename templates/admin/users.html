@@ -8,7 +8,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Gestion des utilisateurs</h1>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <button class="btn btn-orange" data-bs-toggle="modal" data-bs-target="#addUserModal">
             <i class="bi bi-person-plus-fill"></i> Ajouter un utilisateur
         </button>
     </div>
@@ -41,10 +41,10 @@
                 </div>
                 <div class="col-md-4">
                     <div class="btn-group w-100">
-                        <button type="button" class="btn btn-outline-primary active" id="listViewBtn">
+                        <button type="button" class="btn btn-outline btn-orange active" id="listViewBtn">
                             <i class="bi bi-list-ul"></i> Liste
                         </button>
-                        <button type="button" class="btn btn-outline-primary" id="gridViewBtn">
+                        <button type="button" class="btn btn-outline btn-orange" id="gridViewBtn">
                             <i class="bi bi-grid-3x3-gap"></i> Grille
                         </button>
                     </div>
@@ -94,48 +94,49 @@
                             </tr>
 
                             <!-- Modal d'édition -->
-                            <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <form method="post" action="{% url 'edit_user' user.id %}">
-                                            {% csrf_token %}
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Modifier l'utilisateur {{ user.username }}</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="mb-3">
-                                                    <label for="username{{ user.id }}" class="form-label">Nom d'utilisateur</label>
-                                                    <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="email{{ user.id }}" class="form-label">Email</label>
-                                                    <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="role{{ user.id }}" class="form-label">Rôle</label>
-                                                    <select class="form-select" id="role{{ user.id }}" name="role" required>
-                                                        <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Admin</option>
-                                                        <option value="manager" {% if user.role == "manager" %}selected{% endif %}>Manager</option>
-                                                        <option value="user" {% if user.role == "user" %}selected{% endif %}>Utilisateur</option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="is_active{{ user.id }}" class="form-label">Statut</label>
-                                                    <select class="form-select" id="is_active{{ user.id }}" name="is_active" required>
-                                                        <option value="True" {% if user.is_active %}selected{% endif %}>Actif</option>
-                                                        <option value="False" {% if not user.is_active %}selected{% endif %}>Inactif</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
+                            <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'edit_user' user.id %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="editUserModalLabel{{ user.id }}">Modifier l'utilisateur {{ user.username }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="username{{ user.id }}" class="form-label">Nom d'utilisateur</label>
+            <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="email{{ user.id }}" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="role{{ user.id }}" class="form-label">Rôle</label>
+            <select class="form-select" id="role{{ user.id }}" name="role" required>
+              <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Admin</option>
+              <option value="manager" {% if user.role == "manager" %}selected{% endif %}>Manager</option>
+              <option value="user" {% if user.role == "user" %}selected{% endif %}>Utilisateur</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="is_active{{ user.id }}" class="form-label">Statut</label>
+            <select class="form-select" id="is_active{{ user.id }}" name="is_active" required>
+              <option value="True" {% if user.is_active %}selected{% endif %}>Actif</option>
+              <option value="False" {% if not user.is_active %}selected{% endif %}>Inactif</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 
                             <!-- Modal de suppression -->
                             <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1" aria-hidden="true">
@@ -164,24 +165,29 @@
                 </div>
                 <style>
   .bg-navy { background-color: #001f3f !important; }
-  .bg-orange { background-color: #ff851b !important; }
-  .text-orange { color: #ff851b !important; }
+  .bg-orange { background-color: rgb(199, 86, 5)!important; }
+  .text-orange { color: rgb(199, 86, 5)!important; }
   .btn-outline-orange {
-    border-color: #ff851b;
-    color: #ff851b;
+    border-color: rgb(199, 86, 5)
+    color:rgb(199, 86, 5);
   }
   .btn-outline-orange:hover {
-    background-color: #ff851b;
+    background-color:rgb(199, 86, 5);
     color: #fff;
   }
   .badge-orange {
-    background-color: #ff851b;
+    background-color: rgb(199, 86, 5);
     color: #fff;
   }
   .badge-navy {
     background-color: #001f3f;
     color: #fff;
   }
+  .btn-orange {
+      background-color:rgb(199, 86, 5);
+      color: white;
+      border: none;
+    }
 </style>
                 <!-- Grid View Container -->
                 <div id="gridView" class="row g-3" style="display:none;">
@@ -265,7 +271,7 @@
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content shadow-lg rounded-3">
-            <form method="post" action="{% url 'users' %}">
+            <form method="post" action="{% url 'users' %}">  <!-- Vérifie bien l’URL ici -->
                 {% csrf_token %}
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">Ajouter un utilisateur</h5>
@@ -286,16 +292,6 @@
                             {{ form.email|add_class:"form-control" }}
                             {{ form.email.errors }}
                         </div>
-                        <div class="col-md-6">
-                            {{ form.password1.label_tag }}
-                            {{ form.password1|add_class:"form-control" }}
-                            {{ form.password1.errors }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.password2.label_tag }}
-                            {{ form.password2|add_class:"form-control" }}
-                            {{ form.password2.errors }}
-                        </div>
                         <div class="col-md-12">
                             {{ form.role.label_tag }}
                             {{ form.role|add_class:"form-select" }}
@@ -311,6 +307,7 @@
         </div>
     </div>
 </div>
+
 
 {% endblock %}
 

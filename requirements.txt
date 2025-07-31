@@ -22,4 +22,7 @@ vine==5.1.0
 wcwidth==0.2.13
 zaproxy==0.2.0
 celery>=5.3.6
+openai
+huggingface_hub
+weasyprint
 
