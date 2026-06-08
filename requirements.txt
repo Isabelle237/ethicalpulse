@@ -4,7 +4,25 @@ python-dotenv
 pyotp>=2.6.0
 django-widget-tweaks
 python-nmap==0.7.1
-zaproxy==0.2.0
-gvm-tools==23.11.0
+python-owasp-zap-v2.4==0.0.14
+qrcode==8.2
+redis==5.0.7
 reportlab==4.2.2
+requests==2.20.1
+six==1.10.0
+sqlparse==0.5.3
+tabulate==0.7.5
+channels>=4.0.0
+termcolor==1.1.0
+tomli==2.2.1
+typing_extensions==4.14.0
+tzdata==2025.2
+urllib3==1.24.3
+vine==5.1.0
+wcwidth==0.2.13
+zaproxy==0.2.0
+celery>=5.3.6
+openai
+huggingface_hub
+weasyprint
 

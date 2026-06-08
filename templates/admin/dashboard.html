@@ -1,158 +1,211 @@
-
-{% extends 'admin/admin_base.html' %}
-
-{% block title %}Tableau de bord administrateur - Ethical Pulse Shield{% endblock %}
+{% extends "admin/admin_base.html" %}
+{% block title %}Tableau de bord - Ethical Pulse Shield{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <div class="container-fluid">
-    <h1 class="mb-4">Tableau de bord administrateur</h1>
-    
-    <div class="row mb-4">
+    <h1 class="mb-4"><i class="bi bi-shield-lock"></i> Tableau de bord sécurité</h1>
+    <div class="row g-4 mb-4">
+        <!-- Indicateur global -->
         <div class="col-md-3">
-            <div class="stats-box primary">
-                <h5>Utilisateurs</h5>
-                <h2>{{ total_users }}</h2>
-                <p class="text-muted mb-0">{{ new_users }} nouveaux cette semaine</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box success">
-                <h5>Projets</h5>
-                <h2>{{ total_projects }}</h2>
-                <p class="text-muted mb-0">{{ active_projects }} projets actifs</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box warning">
-                <h5>Scans</h5>
-                <h2>{{ total_scans }}</h2>
-                <p class="text-muted mb-0">{{ recent_scans }} effectués cette semaine</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-box danger">
-                <h5>Vulnérabilités</h5>
-                <h2>{{ total_vulnerabilities }}</h2>
-                <p class="text-muted mb-0">{{ critical_vulnerabilities }} critiques</p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="admin-card card mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Activité récente</h5>
-                </div>
+            <div class="card shadow-sm border-0 text-center h-100">
                 <div class="card-body">
-                    <canvas id="activityChart" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="admin-card card mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Distribution des vulnérabilités</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="vulnerabilityPieChart" height="260"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="admin-card card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Dernières activités système</h5>
-                    <a href="/admin/logs" class="btn btn-sm btn-outline-primary">Voir tout</a>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table admin-table">
-                            <thead>
-                                <tr>
-                                    <th>Utilisateur</th>
-                                    <th>Action</th>
-                                    <th>Entité</th>
-                                    <th>Date</th>
-                                    <th>Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for log in system_logs %}
-                                <tr>
-                                    <td>{{ log.user }}</td>
-                                    <td>{{ log.action }}</td>
-                                    <td>{{ log.entity }}</td>
-                                    <td>{{ log.date }}</td>
-                                    <td>
-                                        <span class="badge {% if log.status == 'success' %}bg-success{% elif log.status == 'warning' %}bg-warning{% elif log.status == 'error' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                            {{ log.status }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center">Aucun log système récent</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <h6 class="card-title text-muted mb-2">Score global</h6>
+                    <div style="font-size:2.8rem;font-weight:bold;color:
+                        {% if core_score < 40 %}#dc3545
+                        {% elif core_score < 70 %}#ffc107
+                        {% else %}#28a745{% endif %};">
+                        {{ core_score }}
+                    </div>
+                    <div class="progress mt-2" style="height:8px;">
+                        <div class="progress-bar
+                            {% if core_score < 40 %}bg-danger
+                            {% elif core_score < 70 %}bg-warning
+                            {% else %}bg-success{% endif %}"
+                            role="progressbar" style="width: {{ core_score }}%;" aria-valuenow="{{ core_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        {% if core_score < 40 %}Risque critique{% elif core_score < 70 %}Risque élevé{% else %}Sécurité satisfaisante{% endif %}
                     </div>
                 </div>
             </div>
         </div>
+        <!-- Histogramme/camembert par gravité -->
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2"><i class="bi bi-exclamation-triangle"></i> Vulnérabilités par gravité</h6>
+                    <canvas id="vulnSeverityChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Evolution dans le temps -->
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2"><i class="bi bi-graph-up"></i> Evolution des vulnérabilités</h6>
+                    <canvas id="vulnOverTimeChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Heatmap projets à risque -->
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2"><i class="bi bi-fire"></i> Projets à risque</h6>
+                    <canvas id="projectsHeatmap" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Top vulnérabilités & Actions recommandées -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0"><i class="bi bi-bug"></i> Top vulnérabilités critiques</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for vuln in top_vulns %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-exclamation-circle text-danger"></i> {{ vuln.name }}</span>
+                                <span class="badge bg-danger rounded-pill">{{ vuln.count }}</span>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-muted">Aucune vulnérabilité critique fréquente.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Actions recommandées</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for rec in recommendations %}
+                            <li class="list-group-item"><i class="bi bi-arrow-right-circle"></i> {{ rec }}</li>
+                        {% empty %}
+                            <li class="list-group-item text-muted">Aucune recommandation pour le moment.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Alertes & notifications -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0"><i class="bi bi-bell"></i> Dernières alertes & notifications</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for alert in alerts %}
+                            <li class="list-group-item">
+                                <span class="badge bg-{{ alert.level|lower }} me-2">{{ alert.level }}</span>
+                                {{ alert.message|truncatechars:120 }}
+                                <span class="text-muted float-end"><i class="bi bi-clock"></i> {{ alert.timestamp|date:"d/m/Y H:i" }}</span>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-muted">Aucune alerte récente.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Filtres dynamiques -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-12">
+            <form class="row g-2" method="get">
+                <div class="col-md-3">
+                    <select class="form-select" name="project">
+                        <option value="">Tous les projets</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}" {% if project.id|stringformat:"s" == request.GET.project %}selected{% endif %}>{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="severity">
+                        <option value="">Toutes gravités</option>
+                        {% for sev in severities %}
+                            <option value="{{ sev }}" {% if sev == request.GET.severity %}selected{% endif %}>{{ sev|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="type">
+                        <option value="">Tous types</option>
+                        {% for t in types %}
+                            <option value="{{ t }}" {% if t == request.GET.type %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-funnel"></i> Filtrer</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Graphique d'activité
-    const activityCtx = document.getElementById('activityChart').getContext('2d');
-    const activityChart = new Chart(activityCtx, {
+    // Histogramme/camembert par gravité
+    const vulnSeverityChart = new Chart(document.getElementById('vulnSeverityChart'), {
+        type: 'doughnut',
+        data: {
+            labels: [{% for k in vuln_by_severity.keys %}'{{ k|title }}',{% endfor %}],
+            datasets: [{
+                data: [{% for v in vuln_by_severity.values %}{{ v }},{% endfor %}],
+                backgroundColor: ['#dc3545','#fd7e14','#ffc107','#0dcaf0','#198754']
+            }]
+        },
+        options: { plugins: { legend: { display: true } } }
+    });
+
+    // Evolution dans le temps
+    const vulnOverTimeChart = new Chart(document.getElementById('vulnOverTimeChart'), {
         type: 'line',
         data: {
-            labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+            labels: [{% for point in vuln_over_time %}'{{ point.date }}',{% endfor %}],
             datasets: [{
-                label: 'Scans',
-                data: [12, 19, 15, 25, 22, 13, 18],
-                borderColor: '#0d6efd',
-                tension: 0.4,
-                fill: false
-            }, {
                 label: 'Vulnérabilités',
-                data: [7, 11, 5, 8, 3, 7, 9],
-                borderColor: '#dc3545',
-                tension: 0.4,
-                fill: false
+                data: [{% for point in vuln_over_time %}{{ point.count }},{% endfor %}],
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13,110,253,0.1)',
+                fill: true,
+                tension: 0.3
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: { plugins: { legend: { display: false } } }
     });
-    
-    // Graphique circulaire des vulnérabilités
-    const vulnCtx = document.getElementById('vulnerabilityPieChart').getContext('2d');
-    const vulnChart = new Chart(vulnCtx, {
-        type: 'pie',
+
+    // Heatmap projets à risque (simulé par barres colorées)
+    const projectsHeatmap = new Chart(document.getElementById('projectsHeatmap'), {
+        type: 'bar',
         data: {
-            labels: ['Critiques', 'Élevées', 'Moyennes', 'Faibles'],
+            labels: [{% for p in projects_risk %}'{{ p.name }}',{% endfor %}],
             datasets: [{
-                data: [12, 19, 27, 15],
-                backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#20c997']
+                label: 'Score',
+                data: [{% for p in projects_risk %}{{ p.score }},{% endfor %}],
+                backgroundColor: [{% for p in projects_risk %}
+                    '{% if p.score < 40 %}#dc3545{% elif p.score < 70 %}#ffc107{% else %}#28a745{% endif %}',
+                {% endfor %}]
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false
+            plugins: { legend: { display: false } },
+            scales: { y: { min: 0, max: 100 } }
         }
     });
-});
 </script>
 {% endblock %}

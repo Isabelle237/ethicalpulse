@@ -1,190 +1,396 @@
-
-{% extends 'base.html' %}
-
+{% extends "admin/admin_base.html" %}
+{% load static %}
+{% load scan_filters %}
 {% block title %}Analytique | Ethical Pulse Shield{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3"><i class="bi bi-graph-up"></i> Analytique de Sécurité</h1>
-        <div>
-            <button class="btn btn-outline-primary"><i class="bi bi-download"></i> Exporter</button>
-            <button class="btn btn-outline-secondary ms-2"><i class="bi bi-filter"></i> Filtrer</button>
+<div class="container-fluid py-4">
+
+    <!-- Filtres -->
+    <form id="filtersForm" class="row g-2 align-items-center mb-4" method="get">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Projet :</label>
+            <select class="form-select" name="project" id="projectFilter">
+                <option value="">Tous les projets</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}"{% if selected_project|stringformat:"s" == project.id|stringformat:"s" %} selected{% endif %}>{{ project.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Période :</label>
+            <select class="form-select" name="period" id="periodSelect">
+                <option value="7d" {% if period == "7d" %}selected{% endif %}>7 derniers jours</option>
+                <option value="30d" {% if period == "30d" %}selected{% endif %}>30 derniers jours</option>
+                <option value="90d" {% if period == "90d" %}selected{% endif %}>90 derniers jours</option>
+                <option value="1y" {% if period == "1y" %}selected{% endif %}>1 an</option>
+                <option value="custom" {% if period == "custom" %}selected{% endif %}>Personnalisé</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Recherche :</label>
+            <input type="text" class="form-control" name="search" id="searchInput" placeholder="Recherche..." value="{{ search|default_if_none:'' }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-outline-primary me-2 w-100"><i class="bi bi-funnel"></i> Filtrer</button>
+            <button type="button" class="btn btn-outline-success w-100" id="exportBtn"><i class="bi bi-download"></i> Exporter</button>
+        </div>
+    </form>
+
+    <!-- Affichage du filtre sélectionné -->
+    <div class="mb-3">
+        <span class="badge bg-primary fs-6">
+            {% if selected_project %}
+                Projet sélectionné : {{ projects|get_project_name:selected_project }}
+            {% else %}
+                Tous les projets sélectionnés
+            {% endif %}
+        </span>
+        <span class="badge bg-secondary fs-6 ms-2">
+            Période : {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
+        </span>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-2">Total des Scans</h6>
+                    <h2 class="mb-0">{{ scan_metrics.total_count }}</h2>
+                    <span class="text-muted small">Scans réalisés</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-2">Découvertes</h6>
+                    <h2 class="mb-0">{{ vuln_metrics.total_count }}</h2>
+                    <span class="text-muted small">Total détecté</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-2">Taux de Résolution</h6>
+                    <h2 class="mb-0">{{ vuln_metrics.resolution_rate|floatformat:1 }}%</h2>
+                    <span class="text-muted small">Découvertes résolues</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-2">Dernier Scan</h6>
+                    <h2 class="mb-0">{{ scan_metrics.last_scan|date:"d/m/Y H:i" }}</h2>
+                    <span class="text-muted small">Date & heure</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Statistiques globales -->
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Total des Scans</h5>
-                    <h2 class="display-4">{{ analytics_data.scan_count }}</h2>
-                    <p class="text-muted">+12% depuis le dernier mois</p>
+    <!-- Graphiques compacts et variés -->
+    <div class="row g-4 mb-4">
+        <!-- Courbe lissée : Tendance des scans -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Tendance des Scans</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <canvas id="scanTrendsChart" style="height:160px;max-height:160px;"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Vulnérabilités</h5>
-                    <h2 class="display-4">{{ analytics_data.vulnerability_count }}</h2>
-                    <p class="text-muted">-5% depuis le dernier mois</p>
+        <!-- Radar : Distribution par Sévérité -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Distribution par Sévérité</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <canvas id="vulnSeverityChart" style="height:160px;max-height:160px;"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Taux de Remédiation</h5>
-                    <h2 class="display-4">{{ analytics_data.remediation_rate }}%</h2>
-                    <p class="text-success">+8% depuis le dernier mois</p>
+    </div>
+    <div class="row g-4 mb-4">
+        <!-- Barres groupées : Types de découvertes -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Types de Découvertes</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <canvas id="vulnTypesChart" style="height:160px;max-height:160px;"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Temps moyen de résolution</h5>
-                    <h2 class="display-4">3.2j</h2>
-                    <p class="text-success">-0.5j depuis le dernier mois</p>
+        <!-- Courbe pointillée : Projets les plus exposés -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Projets les Plus Exposés</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <canvas id="vulnerableProjectsChart" style="height:160px;max-height:160px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <!-- Doughnut compact : Taux de scans réussis/échoués -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Taux de Scans Réussis / Échoués</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <canvas id="scanSuccessChart" style="height:120px;max-height:120px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Top 5 découvertes récurrentes -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header pb-1">
+                    <h6 class="card-title">Top 5 Découvertes Récurrentes</h6>
+                </div>
+                <div class="card-body pb-2 pt-2">
+                    <ol class="mb-0">
+                        {% for finding in top5_findings %}
+                            <li>
+                                {{ finding.name|truncatechars:40 }} ({{ finding.count }})
+                            </li>
+                        {% empty %}
+                            <li>Aucune donnée</li>
+                        {% endfor %}
+                    </ol>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row mt-4 g-4">
-        <!-- Graphiques et analyses -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Tendances Mensuelles</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="trendsChart" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Top Vulnérabilités</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="vulnerabilitiesChart" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tableau détaillé -->
-    <div class="card mt-4">
+    <!-- Analyse détaillée -->
+    <div class="card shadow-sm">
         <div class="card-header">
-            <h5>Analyse de Performance</h5>
+            <h5 class="card-title">Analyse Détaillée</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
+                <table class="table table-hover align-middle">
+                    <thead class="table-primary">
                         <tr>
-                            <th>Métrique</th>
-                            <th>Ce mois</th>
-                            <th>Mois précédent</th>
-                            <th>Évolution</th>
+                            <th>Projet</th>
+                            <th>Scans Effectués</th>
+                            <th>Découvertes</th>
+                            <th>Sévérité Critique</th>
+                            <th>Taux de Résolution</th>
+                            <th>Temps Moyen</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% for project in project_metrics.details %}
                         <tr>
-                            <td>Vulnérabilités découvertes</td>
-                            <td>42</td>
-                            <td>38</td>
-                            <td><span class="badge bg-warning">+10.5%</span></td>
+                            <td>{{ project.name }}</td>
+                            <td>{{ project.scan_count }}</td>
+                            <td>{{ project.finding_count|default:"-" }}</td>
+                            <td>
+                                <span class="badge bg-danger">{{ project.critical_count }}</span>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-success" 
+                                         role="progressbar" 
+                                         style="width: {{ project.resolution_rate|default:0 }}%"
+                                         aria-valuenow="{{ project.resolution_rate|default:0 }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        {{ project.resolution_rate|default:0 }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ project.avg_resolution_time|default:"-" }}</td>
                         </tr>
+                        {% empty %}
                         <tr>
-                            <td>Vulnérabilités résolues</td>
-                            <td>36</td>
-                            <td>30</td>
-                            <td><span class="badge bg-success">+20.0%</span></td>
+                            <td colspan="6" class="text-center">
+                                Aucune donnée disponible
+                            </td>
                         </tr>
-                        <tr>
-                            <td>Temps moyen de détection</td>
-                            <td>1.2j</td>
-                            <td>1.5j</td>
-                            <td><span class="badge bg-success">-20.0%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Temps moyen de résolution</td>
-                            <td>3.2j</td>
-                            <td>3.7j</td>
-                            <td><span class="badge bg-success">-13.5%</span></td>
-                        </tr>
-                        <tr>
-                            <td>Scans effectués</td>
-                            <td>28</td>
-                            <td>25</td>
-                            <td><span class="badge bg-warning">+12.0%</span></td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
-
-{% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Graphique des tendances mensuelles
-        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
-        new Chart(trendsCtx, {
-            type: 'line',
-            data: {
-                labels: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin'],
-                datasets: [{
-                    label: 'Vulnérabilités découvertes',
-                    data: {{ analytics_data.monthly_trend }},
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
-
-        // Graphique des top vulnérabilités
-        const vulnCtx = document.getElementById('vulnerabilitiesChart').getContext('2d');
-        new Chart(vulnCtx, {
-            type: 'pie',
-            data: {
-                labels: [
-                    {% for vuln in analytics_data.top_vulnerabilities %}
-                    '{{ vuln.name }}',
-                    {% endfor %}
-                ],
-                datasets: [{
-                    data: [
-                        {% for vuln in analytics_data.top_vulnerabilities %}
-                        {{ vuln.count }},
-                        {% endfor %}
-                    ],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 206, 86, 0.7)',
-                        'rgba(75, 192, 192, 0.7)',
-                        'rgba(153, 102, 255, 0.7)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
-    });
-</script>
 {% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const filtersForm = document.getElementById('filtersForm');
+  const projectFilter = document.getElementById('projectFilter');
+  const periodSelect = document.getElementById('periodSelect');
+  const exportBtn = document.getElementById('exportBtn');
+
+  // Ajoute un bouton submit caché si besoin (sécurité)
+  if (filtersForm && !filtersForm.querySelector('button[type="submit"][style*="display:none"]')) {
+    const hiddenSubmit = document.createElement('button');
+    hiddenSubmit.type = 'submit';
+    hiddenSubmit.style.display = 'none';
+    filtersForm.appendChild(hiddenSubmit);
+  }
+
+  if (projectFilter && filtersForm) {
+    projectFilter.addEventListener('change', function() {
+      if (typeof filtersForm.requestSubmit === 'function') {
+        filtersForm.requestSubmit();
+      } else {
+        filtersForm.submit();
+      }
+    });
+  }
+  if (periodSelect && filtersForm) {
+    periodSelect.addEventListener('change', function() {
+      if (typeof filtersForm.requestSubmit === 'function') {
+        filtersForm.requestSubmit();
+      } else {
+        filtersForm.submit();
+      }
+    });
+  }
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function() {
+      const params = new URLSearchParams(window.location.search);
+      let url = "{% url 'export_analytics' %}?" + params.toString();
+      window.open(url, '_blank');
+    });
+  }
+
+  // Chart.js : Données passées depuis Django
+  const scanTrendsLabels = {{ scan_metrics.trends.labels|safe }};
+  const scanTrendsData = {{ scan_metrics.trends.data|safe }};
+  const vulnSeverityLabels = {{ vuln_metrics.severity.labels|safe }};
+  const vulnSeverityData = {{ vuln_metrics.severity.data|safe }};
+  const vulnTypesLabels = {{ types_labels|safe }};
+  const vulnTypesData = {{ types_data|safe }};
+  const vulnerableProjectsLabels = {{ project_exposed_labels|safe }};
+  const vulnerableProjectsData = {{ project_exposed_data|safe }};
+  const scanSuccessData = {{ scan_metrics.success_data|safe }};
+
+  // 1. Courbe lissée : Tendance des scans
+  new Chart(document.getElementById('scanTrendsChart').getContext('2d'), {
+      type: 'line',
+      data: {
+          labels: scanTrendsLabels,
+          datasets: [{
+              label: 'Scans',
+              data: scanTrendsData,
+              fill: true,
+              borderColor: '#1976d2',
+              backgroundColor: 'rgba(25, 118, 210, 0.08)',
+              tension: 0.5,
+              pointRadius: 2,
+              pointBackgroundColor: '#1976d2'
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+      }
+  });
+
+  // 2. Radar : Distribution par Sévérité
+  new Chart(document.getElementById('vulnSeverityChart').getContext('2d'), {
+      type: 'radar',
+      data: {
+          labels: vulnSeverityLabels,
+          datasets: [{
+              label: 'Découvertes',
+              data: vulnSeverityData,
+              backgroundColor: 'rgba(211,47,47,0.15)',
+              borderColor: '#d32f2f',
+              pointBackgroundColor: '#d32f2f'
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { r: { beginAtZero: true } }
+      }
+  });
+
+  // 3. Barres groupées : Types de découvertes
+  new Chart(document.getElementById('vulnTypesChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+          labels: vulnTypesLabels,
+          datasets: [{
+              label: 'Nombre',
+              data: vulnTypesData,
+              backgroundColor: [
+                  '#1976d2', '#388e3c', '#ffa000', '#d32f2f', '#7b1fa2'
+              ]
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+      }
+  });
+
+  // 4. Courbe pointillée : Projets les plus exposés
+  new Chart(document.getElementById('vulnerableProjectsChart').getContext('2d'), {
+      type: 'line',
+      data: {
+          labels: vulnerableProjectsLabels,
+          datasets: [{
+              label: 'Découvertes',
+              data: vulnerableProjectsData,
+              fill: false,
+              borderColor: '#d32f2f',
+              borderDash: [5, 5],
+              pointBackgroundColor: '#d32f2f',
+              tension: 0.3
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+      }
+  });
+
+  // 5. Doughnut compact : Taux de scans réussis/échoués
+  new Chart(document.getElementById('scanSuccessChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+          labels: ['Réussis', 'Échoués'],
+          datasets: [{
+              data: scanSuccessData,
+              backgroundColor: ['#388e3c', '#d32f2f']
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+      }
+  });
+});
+</script>
 {% endblock %}

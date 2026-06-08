@@ -1,14 +1,33 @@
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    PermissionsMixin,
+    BaseUserManager,
+)
 from django.db import models
 from django.utils import timezone
 import pyotp
-from .validators import validate_ip, validate_mac, validate_url  # Correction de l'importation
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from .validators import (
+    validate_ip,
+    validate_mac,
+    validate_url,
+)  # Correction de l'importation
+from django.conf import settings  # Ajouté pour résoudre le NameError
+from datetime import timedelta
+import pyotp
+from django.db.models import JSONField
+  # Si tu utilises PostgreSQL
 ROLES = [
-    ('ADMIN', 'Administrateur'),
-    ('PROJECT_MANAGER', 'Chef de projet'),
-    ('DEVELOPER', 'Développeur'),
-    ('SECURITY_ANALYST', 'Analyste sécurité'),
+    ("ADMIN", "Administrateur"),
+    ("PROJECT_MANAGER", "Chef de projet"),
+    ("DEVELOPER", "Développeur"),
+    ("SECURITY_ANALYST", "Analyste sécurité"),
 ]
+
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -17,15 +36,18 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.otp_secret = pyotp.random_base32()  # Générer un secret OTP pour l'utilisateur
+        user.otp_secret = (
+            pyotp.random_base32()
+        )  # Générer un secret OTP pour l'utilisateur
         user.save()
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
         return self.create_user(email, password, **extra_fields)
+
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
@@ -38,134 +60,768 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     # Ajout des champs nécessaires pour l'OTP
     otp_code = models.CharField(max_length=6, null=True, blank=True)  # Code OTP
-    otp_created_at = models.DateTimeField(null=True, blank=True)  # Date de création de l'OTP
-    otp_secret = models.CharField(max_length=32, default=pyotp.random_base32)  # Secret OTP pour générer les codes
+    otp_created_at = models.DateTimeField(
+        null=True, blank=True
+    )  # Date de création de l'OTP
+    otp_secret = models.CharField(
+        max_length=32, default=pyotp.random_base32
+    )  # Secret OTP pour générer les codes
 
     objects = CustomUserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'role']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username", "role"]
 
     def __str__(self):
         return self.email
 
 
+from django.db import models
+from django.utils.timezone import now
+from .validators import validate_ip, validate_url
 
+# Choix de gravité pour les vulnérabilités
+SEVERITY_CHOICES = (
+    ("critical", "Critique"),
+    ("high", "Élevée"),
+    ("medium", "Moyenne"),
+    ("low", "Faible"),
+    ("info", "Information"),
+)
+
+# Choix de statut pour les vulnérabilités
+STATUS_CHOICES = (
+    ("open", "Ouverte"),
+    ("in_progress", "En cours"),
+    ("resolved", "Résolue"),
+    ("closed", "Fermée"),
+    ("false_positive", "Faux positif"),
+)
 
 # Choix du type de projet
 PROJECT_TYPES = [
-    ('web', 'Application Web'),
-    ('api', 'API'),
-    ('mobile', 'Application Mobile'),
-    ('infra', 'Infrastructure Réseau'),
-    ('desktop', 'Application Desktop'),
-    ('autre', 'Autre'),
+    ("web", "Application Web"),
+    ("api", "API"),
+    ("mobile", "Application Mobile"),
+    ("infra", "Infrastructure Réseau"),
+    ("desktop", "Application Desktop"),
+    ("autre", "Autre"),
 ]
+
+# Choix des outils de scan
+TOOL_CHOICES = (
+    ("ZAP", "OWASP ZAP"),
+    ("NMAP", "Nmap"),
+    ("SQLMAP", "SQLMap"),
+    ("AIRCRACK", "Aircrack-ng"),
+    ("BEEF", "BeEF"),
+    ("METASPLOIT", "Metasploit"),
+    ("HASHCAT", "Hashcat"),
+    ("JOHN", "John The Ripper"),
+    ("RECONNG", "Recon-ng"),
+    ("WIRESHARK", "Wireshark"),
+    ("WIFITE", "Wifite"),
+    ("GHIDRA", "Ghidra"),
+    ("SNORT", "Snort"),
+    ("NETCAT", "Netcat"),
+    ("NIKTO", "Nikto"),
+)
+
 
 class Project(models.Model):
     name = models.CharField(max_length=100, verbose_name="Nom du projet")
     description = models.TextField(blank=True, verbose_name="Description")
-    project_type = models.CharField(max_length=20, choices=PROJECT_TYPES, verbose_name="Type de projet")
-    domain = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nom de domaine")
-    ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name="Adresse IP", validators=[validate_ip])
-    url = models.URLField(blank=True, null=True, verbose_name="URL", validators=[validate_url])
-    scope = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    project_type = models.CharField(
+        max_length=20, choices=PROJECT_TYPES, verbose_name="Type de projet"
+    )
+    domain = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name="Nom de domaine"
+    )
+    ip_address = models.GenericIPAddressField(
+        blank=True, null=True, verbose_name="Adresse IP", validators=[validate_ip]
+    )
+    url = models.URLField(
+        blank=True, null=True, verbose_name="URL", validators=[validate_url]
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Date de création"
+    )
     updated_at = models.DateTimeField(auto_now=True)
+    allowed_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        verbose_name="Utilisateurs autorisés",
+        related_name="allowed_projects",
+    )
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
 
 
-   
-
 class Scan(models.Model):
-    
-    STATUS_CHOICES = (
-        ('scheduled', 'Planifié'),
-        ('in_progress', 'En cours'),
-        ('completed', 'Terminé'),
-        ('failed', 'Échoué'),
+    name = models.CharField(max_length=255, verbose_name="Nom du scan")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="scans")
+    tool = models.CharField(
+        max_length=20, choices=TOOL_CHOICES, verbose_name="Outil utilisé"
     )
-    
-    TOOL_CHOICES = (
-        ('ZAP', 'OWASP ZAP'),
-        ('NMAP', 'Nmap'),
-        ('SQLMAP', 'SQLMap'),
-        ('APISEC', 'API Security Scanner'),
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("scheduled", "Planifié"),
+            ("in_progress", "En cours"),
+            ("completed", "Terminé"),
+            ("failed", "Échoué"),
+        ],
+        default="scheduled",
     )
-    report_file = models.FileField( upload_to='scan_reports/',  null=True, blank=True,  default='',verbose_name="Rapport du Scan")
-    name = models.CharField(max_length=255)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     start_time = models.DateTimeField(blank=True, null=True)
     end_time = models.DateTimeField(blank=True, null=True)
+    progress = models.IntegerField(default=0)
     duration = models.FloatField(blank=True, null=True)
-    findings_summary = models.JSONField(blank=True, null=True, default=dict)
-    next_scan = models.DateTimeField(blank=True, null=True)
-    tool = models.CharField(max_length=20, choices=TOOL_CHOICES, default='ZAP')
     created_at = models.DateTimeField(auto_now_add=True)
-    target_url = models.URLField(blank=True, null=True, verbose_name="URL cible", validators=[validate_url])
-    nmap_results = models.JSONField(null=True, blank=True)
-    zap_results = models.JSONField(null=True, blank=True)
-    sqlmap_results = models.JSONField(null=True, blank=True)
+    notified = models.BooleanField(default=False)
+    ai_analysis = models.TextField(blank=True, null=True, verbose_name="Analyse IA")
+    created_by = models.ForeignKey(
+        get_user_model(), on_delete=models.SET_NULL, null=True, blank=True
+    )
+    error_log = models.TextField(null=True, blank=True)
+    scheduled_scan = models.ForeignKey(
+        "ScheduledScan", on_delete=models.SET_NULL, null=True, blank=True
+    )
 
     def __str__(self):
-        return f"{self.name} ({self.get_scan_type_display()})"
-    def get_vulnerabilities(self):
-        """Retourne les vulnérabilités associées à ce scan."""
-        return self.vulnerabilities.all()
+        return f"{self.name} ({self.tool})"
 
-class Vulnerability(models.Model):
-    SEVERITY_CHOICES = (
-        ('critical', 'Critique'),
-        ('high', 'Élevée'),
-        ('medium', 'Moyenne'),
-        ('low', 'Faible'),
-        ('info', 'Information'),
+
+class ScheduledScan(models.Model):
+    FREQUENCY_CHOICES = [
+        ("once", "Une seule fois"),
+        ("daily", "Quotidien"),
+        ("weekly", "Hebdomadaire"),
+        ("monthly", "Mensuel"),
+    ]
+
+    TOOL_CHOICES = [
+        ("ZAP", "OWASP ZAP"),
+        ("NMAP", "Nmap"),
+        ("SQLMAP", "SQLMap"),
+        ("NIKTO", "Nikto"),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "En attente"),
+        ("running", "En cours"),
+        ("completed", "Terminé"),
+        ("failed", "Échoué"),
+        ("cancelled", "Annulé"),
+    ]
+
+    name = models.CharField(
+        max_length=255,
+        verbose_name="Nom",
+        blank=True,
+        null=True,
     )
-
-    STATUS_CHOICES = (
-        ('open', 'Ouverte'),
-        ('in_progress', 'En cours'),
-        ('resolved', 'Résolue'),
-        ('closed', 'Fermée'),
-        ('false_positive', 'Faux positif'),
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    tool = models.CharField(max_length=20, choices=TOOL_CHOICES, verbose_name="Outil")
+    target = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="scheduled_scans",
+        verbose_name="Projet cible",
     )
-
-    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, related_name="vulnerabilities")
-    cve_id = models.CharField(max_length=20, blank=True, null=True, verbose_name="CVE ID")
-    name = models.CharField(max_length=255, verbose_name="Nom de la vulnérabilité")
-    description = models.TextField(blank=True, verbose_name="Description")
-    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, verbose_name="Sévérité")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name="Statut")
-    target_url = models.URLField(blank=True, null=True, verbose_name="URL cible")
-    steps_to_reproduce = models.TextField(blank=True, null=True, verbose_name="Étapes de reproduction")
-    remediation = models.TextField(blank=True, null=True, verbose_name="Recommandations")
-    discovered_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de découverte")
-    is_scheduled = models.BooleanField(default=False)  # Nouveau champ pour différencier les scans planifiés
+    frequency = models.CharField(
+        max_length=20, choices=FREQUENCY_CHOICES, verbose_name="Fréquence"
+    )
+    next_run_time = models.DateTimeField(verbose_name="Prochaine exécution")
+    last_run = models.DateTimeField(
+        null=True, blank=True, verbose_name="Dernière exécution"
+    )
+    created_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        verbose_name="Créé par",
+        blank=True,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    error_log = models.TextField(null=True, blank=True)
+    configuration = models.JSONField(null=True, blank=True)
+    email_notification = models.BooleanField(
+        default=True, verbose_name="Notifications par email"
+    )
 
     class Meta:
-        ordering = ['-discovered_at']
+        ordering = ["next_run_time"]
+        verbose_name = "Scan planifié"
+        verbose_name_plural = "Scans planifiés"
 
     def __str__(self):
-        return f"{self.name} ({self.get_severity_display()})"
+        return f"{self.name} ({self.get_frequency_display()})"
+
+    def calculate_next_run(self):
+        """Calcule la prochaine date d'exécution"""
+        if not self.next_run_time:
+            return None
+
+        now = timezone.now()
+        next_run = self.next_run_time
+
+        if self.frequency == "once":
+            if next_run <= now:
+                self.is_active = False
+                self.save()
+                return None
+        elif self.frequency == "daily":
+            while next_run <= now:
+                next_run += timedelta(days=1)
+        elif self.frequency == "weekly":
+            while next_run <= now:
+                next_run += timedelta(weeks=1)
+        elif self.frequency == "monthly":
+            while next_run <= now:
+                next_run += relativedelta(months=1)
+
+        return next_run
+
+    def get_remaining_time(self):
+        """Retourne le temps restant avant le prochain scan"""
+        if not self.next_run_time:
+            return None
+
+        now = timezone.now()
+        if self.next_run_time <= now:
+            return "En retard"
+
+        diff = self.next_run_time - now
+        days = diff.days
+        hours = diff.seconds // 3600
+        minutes = (diff.seconds % 3600) // 60
+
+        if days > 0:
+            return f"{days}j {hours}h"
+        elif hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+
+
+class ScanTemplate(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    configuration = models.JSONField()
+    created_by = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+
+from django.db import models
+from django.conf import settings
+
+
+class UserNotification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.user.email}"
+
 
 from django.db import models
 
-class ScheduledScan(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    tool = models.CharField(max_length=50)
-    scheduled_time = models.DateTimeField()
-    frequency = models.CharField(max_length=20, choices=[
-        ('once', 'Une seule fois'),
-        ('daily', 'Tous les jours'),
-        ('weekly', 'Toutes les semaines'),
-    ])
-    created_at = models.DateTimeField(auto_now_add=True)
+# Options pour chaque outil
+NMAP_OPTIONS = (
+    ("-sS", "Scan SYN - Scan furtif TCP"),
+    ("-sT", "Scan TCP - Établit connexions complètes"),
+    ("-sU", "Scan UDP - Détecte services UDP"),
+    ("-sV", "Détection Version - Identifie services/versions"),
+    ("-O", "OS Detection - Identifie systèmes d'exploitation"),
+    ("-A", "Scan Agressif - OS, version, scripts, traceroute"),
+    ("-p-", "Tous Ports - Scanne tous les ports TCP"),
+    ("-F", "Scan rapide - Scan SYN des ports les plus courants"),
+)
+
+
+NETCAT_OPTIONS = (
+    ("-lvp", "Listener (-lvp) - Écoute sur un port"),
+    ("-v", "Connexion (-v) - Connecter à un port"),
+    ("-z", "Scanner Port (-z) - Scanner ports sans envoi de données"),
+    ("-e", "Exécution (-e) - Exécuter programme après connexion"),
+    ("-u", "UDP (-u) - Utiliser UDP au lieu de TCP"),
+)
+
+ZAP_OPTIONS = (
+    ("-quickurl", "Scan rapide - Analyse de base"),
+    ("-ajax", "Scan Ajax - Analyse des applications Ajax"),
+    ("-full", "Scan complet - Analyse approfondie"),
+    ("-xss", "XSS - Test des vulnérabilités XSS uniquement"),
+    ("-sqli", "SQL Injection - Test des vulnérabilités SQLi uniquement"),
+)
+
+
+AIRCRACK_OPTIONS = (
+    ("airmon-ng start", "Active le mode moniteur"),
+    ("airodump-ng", "Capture les paquets WiFi"),
+    ("aireplay-ng -0", "Effectue une attaque de désauthentification"),
+    ("aircrack-ng -w", "Cracker une clé WPA avec une wordlist"),
+    ("aircrack-ng -K", "Attaque PTW (WEP)"),
+)
+
+BEEF_OPTIONS = (
+    ("-x", "Active les consoles XSS"),
+    ("--host", "Spécifie l'hôte d'écoute"),
+    ("--port", "Spécifie le port d'écoute"),
+    ("--password", "Définit un mot de passe"),
+    ("--hook-url", "URL du hook pour exploiter les navigateurs"),
+)
+
+
+METASPLOIT_OPTIONS = (
+    ("use exploit/multi/handler", "Configure un handler"),
+    ("use auxiliary/scanner/smb/smb_version", "Scanner SMB"),
+    ("use auxiliary/scanner/http/dir_scanner", "Scanner les répertoires HTTP"),
+    ("use exploit/windows/smb/ms17_010_eternalblue", "Exploit MS17-010 (EternalBlue)"),
+    ("use exploit/multi/http/wp_admin_shell_upload", "Upload de shell admin WordPress"),
+)
+
+HASHCAT_OPTIONS = (
+    ("-a 0", "Attaque par dictionnaire"),
+    ("-a 1", "Attaque par combinaison"),
+    ("-a 3", "Attaque par brute-force"),
+    ("-a 6", "Attaque hybride (dictionnaire + masque)"),
+    ("-a 7", "Attaque hybride (masque + dictionnaire)"),
+    ("-m 0", "Hash MD5"),
+)
+
+JOHN_OPTIONS = (
+    ("--wordlist", "Attaque par dictionnaire"),
+    ("--rules", "Utilise des règles de mutation"),
+    ("--incremental", "Mode brute-force"),
+    ("--format=md5", "Hash MD5"),
+    ("--format=sha1", "Hash SHA1"),
+    ("--show", "Affiche les mots de passe craqués"),
+)
+
+RECONNG_OPTIONS = (
+    ("modules load recon/domains-hosts/brute_hosts", "Brute force DNS"),
+    ("modules load recon/hosts-hosts/resolve", "Résolution DNS"),
+    ("modules load recon/domains-contacts/whois_pocs", "Contacts WHOIS"),
+    ("modules load recon/domains-vulnerabilities/xssed", "Archives XSSed"),
+    ("modules load recon/domains-hosts/google_site_web", "Recherche Google Site Web"),
+)
+
+WIRESHARK_OPTIONS = (
+    ("-i", "Capture sur une interface"),
+    ("-r", "Ouvre un fichier de capture"),
+    ("-f", "Applique un filtre BPF"),
+    ("-Y", "Applique un filtre d'affichage"),
+    ("-w", "Écrit dans un fichier"),
+)
+
+WIFITE_OPTIONS = (
+    ("-all", "Attaque tous les réseaux"),
+    ("-wpa", "Cible uniquement WPA/WPA2"),
+    ("-wep", "Cible uniquement WEP"),
+    ("-wps", "Cible uniquement WPS"),
+    ("-dict", "Spécifie un dictionnaire"),
+)
+
+GHIDRA_OPTIONS = (
+    ("analyzeHeadless", "Analyse en ligne de commande"),
+    ("launch", "Lance l'interface graphique"),
+    ("analyzeHeadless -import", "Importe un fichier binaire"),
+    ("analyzeHeadless -process", "Traite un fichier binaire"),
+    ("analyzeHeadless -export", "Exporte les résultats"),
+)
+
+SNORT_OPTIONS = (
+    ("-T", "Teste la configuration"),
+    ("-c", "Spécifie un fichier de configuration"),
+    ("-i", "Spécifie une interface"),
+    ("-A", "Mode d'alerte"),
+    ("-l", "Dossier de logs"),
+)
+
+
+class NmapResult(models.Model):
+    scan = models.ForeignKey(
+        Scan,
+        on_delete=models.CASCADE,
+        related_name="nmap_results",
+        null=True,
+        blank=True,
+    )
+    target = models.CharField(max_length=255, blank=True, null=True)  # IP ou domaine
+    command_used = models.TextField(null=True, blank=True)  # Commande exacte exécutée
+    option = models.CharField(max_length=255, choices=NMAP_OPTIONS)  # Ex: -sS -sV -O
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    returncode = models.IntegerField(null=True, blank=True)
+    # Résumé global
+    os_detected = models.CharField(max_length=255, null=True, blank=True)
+    os_accuracy = models.CharField(max_length=100, null=True, blank=True)
+    traceroute = models.TextField(null=True, blank=True)
+    script_results = models.TextField(
+        null=True, blank=True
+    )  # Résultats des scripts NSE
+
+    # Résultats complets bruts (parse possible plus tard)
+    full_output = models.TextField(
+        null=True, blank=True
+    )  # Toute la sortie Nmap texte ou XML
+
+    # Liste de ports détectés (TCP/UDP)
+    open_tcp_ports = models.TextField(
+        null=True, blank=True
+    )  # Format: "80/http, 443/https"
+    open_udp_ports = models.TextField(null=True, blank=True)
+
+    # Services détectés
+    service_details = models.TextField(null=True, blank=True)  # nom, version, etc.
+    # Statut & logs
+    scan_status = models.CharField(
+        max_length=50, default="pending", null=True, blank=True
+    )  # pending, running, finished, error
+    error_log = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"Scan planifié pour {self.project.name} à {self.scheduled_time}"
+        return f"Scan Nmap - {self.target} ({self.start_time.date()})"
+
+
+class OwaspZapResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True, related_name='zap_results')
+    option = models.CharField(max_length=10, choices=ZAP_OPTIONS)
+    alert_id = models.CharField(max_length=50, null=True, blank=True, help_text="ID unique de l'alerte dans ZAP")
+    url = models.URLField()
+    risk = models.CharField(max_length=50)
+    vulnerability = models.CharField(max_length=255)
+    description = models.TextField()
+    evidence = models.TextField(null=True, blank=True)
+    recommendation = models.TextField()
+    # Stockage brut de l'alerte au format JSON (optionnel, pour audit/troubleshooting)
+    raw_alert = JSONField(null=True, blank=True)
+
+
+SQLMAP_OPTIONS = (
+    ("--batch", "Scan simple (automatique)"),
+    ("--level=5 --risk=3 --batch", "Scan approfondi"),
+    ("--technique=BE --level=5 --risk=3 --batch", "Scan booléen + erreur (fort)"),
+    ("--dbs --level=5 --risk=3 --batch", "Lister les bases (si vulnérable)"),
+    ("--dump --level=5 --risk=3 --batch", "Extraire les données (si vulnérable)"),
+    (
+        "--batch --random-agent --flush-session",
+        "Scan avec contournement User-Agent + session propre",
+    ),
+)
+
+
+class SqlmapResult(models.Model):
+    scan = models.ForeignKey(
+        Scan,
+        related_name="sqlmapresults",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, null=True, blank=True
+    )
+    raw_output = models.TextField(blank=True, null=True)
+    is_vulnerable = models.BooleanField(default=False)
+    injection_type = models.CharField(max_length=255, blank=True, null=True)
+    dbms = models.CharField(max_length=255, blank=True, null=True)
+    payloads = models.TextField(blank=True, null=True)
+    dbs_found = models.TextField(blank=True, null=True)
+    tables_found = models.JSONField(default=dict, blank=True)
+    columns_found = models.JSONField(default=dict, blank=True)
+    data_dumped = models.JSONField(default=dict, blank=True)
+    options_used = models.TextField(blank=True, null=True)
+    techniques_used = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class AircrackngResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=20, choices=AIRCRACK_OPTIONS)
+    ssid = models.CharField(max_length=100)
+    mac_address = models.CharField(max_length=17)
+    channel = models.IntegerField()
+    signal_strength = models.IntegerField()
+    encryption = models.CharField(max_length=20)
+    key = models.CharField(max_length=100, null=True, blank=True)
+
+
+class BeefResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=15, choices=BEEF_OPTIONS)
+    victim_ip = models.GenericIPAddressField()
+    browser = models.CharField(max_length=100)
+    os = models.CharField(max_length=100)
+    hook_time = models.DateTimeField()
+    executed_modules = models.TextField()
+
+
+from django.db import models
+from EthicalpulsApp.models import Scan
+
+# Options disponibles pour les scans Nikto
+NIKTO_OPTIONS = (
+    ("-h", "Scan standard d'un hôte"),
+    ("-Tuning 9", "Tests d'injection SQL"),
+    ("-Tuning 4", "Tests XSS"),
+    ("-ssl", "Force l'utilisation de SSL/HTTPS"),
+    ("-nossl", "Force l'utilisation de HTTP"),
+    ("-Cgidirs all", "Teste tous les dossiers CGI"),
+)
+
+
+class NiktoResult(models.Model):
+    scan = models.ForeignKey(
+        Scan,
+        related_name="niktoresults",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    option = models.CharField(max_length=44, choices=NIKTO_OPTIONS)
+    nikto_raw_output = models.TextField(blank=True, null=True)
+    vulnerability = models.TextField(blank=True, null=True)
+    description = models.TextField()
+    uri = models.CharField(max_length=255, null=True, blank=True)
+    target_hostname = models.CharField(max_length=255, null=True, blank=True)
+    target_port = models.IntegerField()
+
+    # Informations du serveur / SSL
+    server = models.CharField(max_length=255, blank=True, null=True)
+    ssl_subject = models.CharField(max_length=255, blank=True, null=True)
+    ssl_issuer = models.CharField(max_length=255, blank=True, null=True)
+    ssl_altnames = models.CharField(max_length=255, blank=True, null=True)
+    ssl_cipher = models.CharField(max_length=255, blank=True, null=True)
+
+    # En-têtes HTTP
+    x_powered_by = models.CharField(max_length=255, blank=True, null=True)
+    x_frame_options = models.CharField(max_length=255, blank=True, null=True)
+    link_headers = models.TextField(blank=True, null=True)
+    via_header = models.CharField(max_length=255, blank=True, null=True)
+    content_security_policy = models.TextField(blank=True, null=True)
+    strict_transport_security = models.CharField(max_length=255, blank=True, null=True)
+    referrer_policy = models.CharField(max_length=255, blank=True, null=True)
+    content_type = models.CharField(max_length=255, blank=True, null=True)
+    cache_control = models.CharField(max_length=255, blank=True, null=True)
+    expires = models.CharField(max_length=255, blank=True, null=True)
+    pragma = models.CharField(max_length=255, blank=True, null=True)
+    set_cookie = models.TextField(blank=True, null=True)
+    location_header = models.CharField(max_length=255, blank=True, null=True)
+
+    # Résultats et état du scan
+    parsed_vulnerabilities = models.TextField(blank=True)
+    scan_completed = models.BooleanField(default=False)
+    total_requests = models.IntegerField(default=0)
+    percent_complete = models.FloatField(default=0.0)
+
+    def __str__(self):
+        return f"Nikto Result for {self.target_hostname}:{self.target_port} - {self.get_option_display()}"
+
+
+class MetasploitResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=44, choices=METASPLOIT_OPTIONS)
+    vulnerability = models.CharField(max_length=255)
+    exploited = models.BooleanField(default=False)
+    payload = models.CharField(max_length=255, null=True, blank=True)
+    session_info = models.TextField(null=True, blank=True)
+
+
+class HashcatResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=10, choices=HASHCAT_OPTIONS)
+    hash_type = models.CharField(max_length=100)
+    original_hash = models.TextField()
+    cracked_password = models.CharField(max_length=255, null=True, blank=True)
+    time_taken = models.FloatField()
+
+
+class JohntheripperResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=20, choices=JOHN_OPTIONS)
+    hash = models.TextField()
+    cracked_password = models.CharField(max_length=255)
+    method_used = models.CharField(max_length=100)
+
+
+class ReconngResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=50, choices=RECONNG_OPTIONS)
+    subdomain = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField()
+    email_found = models.EmailField(null=True, blank=True)
+    whois_info = models.TextField(null=True, blank=True)
+
+
+class WiresharkResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=5, choices=WIRESHARK_OPTIONS)
+    protocol = models.CharField(max_length=50)
+    src_ip = models.GenericIPAddressField()
+    dst_ip = models.GenericIPAddressField()
+    length = models.IntegerField()
+    info = models.TextField()
+
+
+class WifiteResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=10, choices=WIFITE_OPTIONS)
+    target_ssid = models.CharField(max_length=100)
+    mac_address = models.CharField(max_length=17)
+    encryption_type = models.CharField(max_length=20)
+    attack_status = models.CharField(max_length=50)
+
+
+class GhidraResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=24, choices=GHIDRA_OPTIONS)
+    binary_name = models.CharField(max_length=255)
+    analysis_report = models.TextField()
+
+
+class SnortResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=5, choices=SNORT_OPTIONS)
+    alert_message = models.TextField()
+    packet_info = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class NetcatResult(models.Model):
+    scan = models.ForeignKey(Scan, on_delete=models.CASCADE, null=True, blank=True)
+    option = models.CharField(max_length=4, choices=NETCAT_OPTIONS)
+    port = models.IntegerField()
+    state = models.CharField(max_length=20)
+    protocol = models.CharField(max_length=10, default="TCP")
+    banner = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    from django.db import models
+
+
+from django.contrib.auth import get_user_model
+import json
+
+User = get_user_model()
+from django.db import models
+
+
+class SystemSettings(models.Model):
+    # Notifications
+    notif_email = models.BooleanField(default=True)
+    notif_sms = models.BooleanField(default=False)
+    notif_webhook = models.BooleanField(default=False)
+    notif_slack = models.BooleanField(default=False)
+    notif_browser = models.BooleanField(default=False)
+    notif_critical = models.BooleanField(default=True)
+    notif_high = models.BooleanField(default=True)
+    notif_medium = models.BooleanField(default=True)
+    notif_low = models.BooleanField(default=False)
+    notif_info = models.BooleanField(default=False)
+    notif_grouping = models.CharField(
+        max_length=64, default="Par type de vulnérabilité"
+    )
+    notif_quiet_hours = models.BooleanField(default=False)
+    notif_quiet_start = models.TimeField(default="22:00")
+    notif_quiet_end = models.TimeField(default="07:00")
+    notif_critical_override = models.BooleanField(default=True)
+    # API
+    enable_api = models.BooleanField(default=True)
+    api_rate_limit = models.IntegerField(default=120)
+    api_key_expiry = models.CharField(max_length=32, default="90 jours")
+    enable_api_logs = models.BooleanField(default=True)
+    public_api_docs = models.BooleanField(default=False)
+    # Sauvegarde
+    enable_backup = models.BooleanField(default=True)
+    backup_frequency = models.CharField(max_length=32, default="Quotidienne")
+    backup_time = models.TimeField(default="02:00")
+    backup_location = models.CharField(max_length=32, default="AWS S3")
+    s3_bucket = models.CharField(max_length=128, default="ethicalpulse-backups")
+    s3_region = models.CharField(max_length=32, default="eu-west-3")
+    retention_policy = models.CharField(max_length=32, default="30 jours")
+    encrypt_backups = models.BooleanField(default=True)
+    # Journaux
+    log_level = models.CharField(max_length=16, default="Info")
+    log_retention = models.CharField(max_length=16, default="90 jours")
+    log_rotation = models.CharField(max_length=32, default="Quotidienne")
+    enable_audit_logs = models.BooleanField(default=True)
+    forward_syslog = models.BooleanField(default=False)
+    syslog_server = models.CharField(max_length=128, default="logs.entreprise.com")
+    syslog_port = models.IntegerField(default=514)
+    syslog_protocol = models.CharField(max_length=8, default="TCP")
+    # Licence
+    license_type = models.CharField(max_length=32, default="Enterprise")
+    license_company = models.CharField(max_length=128, default="Ethical Security Inc.")
+    license_contact = models.CharField(max_length=128, default="Jean Dupont")
+    license_email = models.EmailField(default="jean.dupont@ethicalsecurity.com")
+    license_issue_date = models.DateField(default="2025-01-15")
+    license_expiry_date = models.DateField(default="2026-01-15")
+    license_hardware_id = models.CharField(
+        max_length=32, default="EP-7890-1234-5678-9012"
+    )
+    license_alerts = models.BooleanField(default=True)
+    license_alert_days = models.IntegerField(default=30)
+    license_notification_contact = models.EmailField(
+        default="admin@ethicalsecurity.com"
+    )
+
+
+class SystemLog(models.Model):
+    timestamp = models.DateTimeField(auto_now_add=True)
+    level = models.CharField(max_length=16)
+    message = models.TextField()
+    user = models.CharField(max_length=128, blank=True, null=True)
+
+
+class AuditLog(models.Model):
+    ACTION_TYPES = [
+        ("create", "Création"),
+        ("update", "Modification"),
+        ("delete", "Suppression"),
+        ("scan", "Scan"),
+        ("vuln", "Vulnérabilité"),
+        ("remediation", "Remédiation"),
+        ("report", "Rapport"),
+        ("login", "Connexion"),
+        ("logout", "Déconnexion"),
+        ("export", "Export"),
+        ("import", "Import"),
+        ("settings", "Paramètres"),
+        ("user", "Utilisateur"),
+        ("notification", "Notification"),
+        ("other", "Autre"),
+    ]
+    action_type = models.CharField(max_length=32, choices=ACTION_TYPES)
+    object_type = models.CharField(max_length=64)
+    object_id = models.CharField(max_length=64, blank=True, null=True)
+    object_repr = models.CharField(max_length=255, blank=True, null=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    details = models.JSONField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=32, default="success")
+    message = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} {self.object_type} ({self.object_id}) par {self.user} le {self.timestamp}"

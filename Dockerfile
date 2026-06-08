@@ -1,5 +1,7 @@
+# Utiliser l'image Python slim
 FROM python:3.10-slim
 
+# Définir le répertoire de travail
 WORKDIR /app
 
 # Installer les dépendances système nécessaires
@@ -12,21 +14,90 @@ RUN apt-get update && apt-get install -y \
     nmap \
     openjdk-17-jre \
     wget \
-    && apt-get clean
+    netcat-openbsd \
+    git \
+    redis-server \
+    libnet-ssleay-perl \
+    libio-socket-ssl-perl \
+    # ✅ Dépendances pour WeasyPrint
+    libcairo2 \
+    libcairo2-dev \
+    libpango-1.0-0 \
+    libpango1.0-dev \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    libssl-dev \
+    libxml2 \
+    libxml2-dev \
+    libxslt1-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpangocairo-1.0-0 \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
-# Installer gvm-tools via pip (car ce n'est pas un paquet apt)
-RUN pip install --no-cache-dir gvm-tools
+# Installer Nikto
+RUN git clone https://github.com/sullo/Nikto /opt/nikto \
+ && chmod +x /opt/nikto/program/nikto.pl \
+ && ln -s /opt/nikto/program/nikto.pl /usr/local/bin/nikto
 
-# Installer OWASP ZAP version 2.16.1
-RUN wget https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1_unix.sh && \
-    sh ZAP_2_16_1_unix.sh -q && \
-    ln -s /root/ZAP_2.16.1/zap.sh /usr/local/bin/zap && \
-    rm ZAP_2_16_1_unix.sh
+# Installer gvm-tools et zapcli
+RUN pip install --no-cache-dir gvm-tools zapcli
 
+# Télécharger et installer ZAP
+RUN wget https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1_unix.sh \
+ && sh ZAP_2_16_1_unix.sh -q \
+ && ln -s /root/ZAP_2.16.1/zap.sh /usr/local/bin/zap \
+ && rm ZAP_2_16_1_unix.sh
+
+# Copier sqlmap localement dans l'image
+COPY sqlmap /opt/sqlmap
+
+# Rendre sqlmap exécutable
+RUN ln -s /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap \
+    && chmod +x /opt/sqlmap/sqlmap.py
+
+# Copier les fichiers de dépendances Python
 COPY requirements.txt .
+COPY dev-requirements.txt .
 
+# Installer les dépendances de production
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Installer les outils de développement (black, flake8...)
+RUN pip install --no-cache-dir -r dev-requirements.txt
+
+# Copier tout le code source
 COPY . .
 
-CMD ["sh", "-c", "until nc -z -v -w30 db 3306; do echo 'Waiting for MySQL...'; sleep 5; done; python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Créer les dossiers nécessaires pour les fichiers statiques et médias
+RUN mkdir -p /app/static /app/staticfiles /app/media
+
+# Copier les fichiers statiques
+COPY static/ /app/static/
+
+# Copier le reste du code de l'application
+COPY . .
+
+# Définir les permissions
+RUN chmod -R 755 /app/static /app/staticfiles /app/media \
+    && chown -R www-data:www-data /app/static /app/staticfiles /app/media
+
+# Collecter les fichiers statiques
+RUN python manage.py collectstatic --noinput
+
+# Commande de démarrage
+CMD ["sh", "-c", "\
+    service redis-server start && \
+    zap.sh -daemon \
+        -host 0.0.0.0 \
+        -port 8086 \
+        -config api.key=620tjnb5od0ef8tep7n78usun \
+        -config api.response.max.size=104857600 & \
+    echo 'Attente que ZAP soit prêt...' && \
+    while ! nc -z localhost 8086; do echo 'ZAP n\\'est pas encore prêt...'; sleep 1; done && \
+    echo 'ZAP est prêt.' && \
+    until nc -z -v -w30 db 3306; do echo 'Waiting for MySQL...'; sleep 5; done && \
+    python manage.py migrate && \
+    celery -A Ethicalpulse worker --loglevel=info & \
+    python manage.py runserver 0.0.0.0:8000"]

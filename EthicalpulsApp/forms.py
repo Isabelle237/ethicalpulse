@@ -3,132 +3,266 @@ from django.contrib.auth.forms import UserCreationForm
 from .models import *
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-from .validators import validate_ip, validate_mac, validate_url
+from .validators import validate_ip, validate_url
 from django.core.validators import RegexValidator
 
 
+# Formulaire de création d'utilisateur personnaliséfrom django import forms
+from django.contrib.auth import get_user_model
 
-class CustomUserCreationForm(UserCreationForm):
+CustomUser = get_user_model()
+
+class CustomUserCreationForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'password1', 'password2', 'role')
+        fields = ("username", "email", "role")
 
         widgets = {
-            'username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'id': 'username',
-                'placeholder': "Nom d'utilisateur",
-                'required': True,
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'id': 'email',
-                'placeholder': 'exemple@domaine.com',
-                'required': True,
-            }),
-            'role': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'role',
-                'required': True,
-            }),
+            "username": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "Nom d'utilisateur",
+                    "required": True,
+                }
+            ),
+            "email": forms.EmailInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "exemple@domaine.com",
+                    "required": True,
+                }
+            ),
+            "role": forms.Select(
+                attrs={
+                    "class": "form-select custom-select",
+                    "required": True,
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super(CustomUserCreationForm, self).__init__(*args, **kwargs)
-        self.fields['password1'].widget.attrs.update({
-            'class': 'form-control',
-            'id': 'password',
-            'placeholder': 'Mot de passe',
-            'required': True
-        })
-        self.fields['password2'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Confirmez le mot de passe',
-            'required': True
-        })
-        
+        # Aucun champ password ici, puisque le mot de passe est géré automatiquement
+
+# Formulaire de connexion par email
 class EmailLoginForm(forms.Form):
     email = forms.EmailField(
         label="Adresse email",
-        widget=forms.EmailInput(attrs={'placeholder': 'Adresse email', 'class': 'form-control'})
+        widget=forms.EmailInput(
+            attrs={"placeholder": "Adresse email", "class": "form-control custom-input"}
+        ),
     )
     password = forms.CharField(
         label="Mot de passe",
-        widget=forms.PasswordInput(attrs={'placeholder': 'Mot de passe', 'class': 'form-control'})
+        widget=forms.PasswordInput(
+            attrs={"placeholder": "Mot de passe", "class": "form-control custom-input"}
+        ),
     )
 
+
+# Formulaire de vérification OTP
 class OTPVerificationForm(forms.Form):
     otp_code = forms.CharField(
-        label='Code OTP',
-        max_length=6,  # Le code OTP standard est de 6 chiffres
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        label="Code OTP",
+        max_length=6,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control custom-input",
+                "placeholder": "Entrez le code OTP",
+            }
+        ),
         required=True,
     )
 
     def clean_otp_code(self):
-        otp_code = self.cleaned_data.get('otp_code')
-        
-        # Vérification ici pour s'assurer que le code OTP est numérique
+        otp_code = self.cleaned_data.get("otp_code")
         if not otp_code.isdigit():
-            raise ValidationError(_('Le code OTP doit être composé de chiffres.'))
-
-        # Vérification de la longueur du code OTP (6 chiffres dans cet exemple)
+            raise ValidationError(_("Le code OTP doit être composé de chiffres."))
         if len(otp_code) != 6:
-            raise ValidationError(_('Le code OTP doit comporter exactement 6 chiffres.'))
-
+            raise ValidationError(
+                _("Le code OTP doit comporter exactement 6 chiffres.")
+            )
         return otp_code
 
 
+# Formulaire de projet
 class ProjectForm(forms.ModelForm):
+    allowed_users = forms.ModelMultipleChoiceField(
+        queryset=CustomUser.objects.all(),
+        widget=forms.SelectMultiple(attrs={"class": "form-select"}),
+        required=False,
+        label="Utilisateurs autorisés",
+    )
+
     class Meta:
         model = Project
-        fields = ['name', 'description', 'project_type', 'domain', 'ip_address', 'url', 'scope']
+        fields = [
+            "name",
+            "description",
+            "project_type",
+            "domain",
+            "ip_address",
+            "url",
+            "allowed_users",
+        ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom du projet'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Description du projet'}),
-            'project_type': forms.Select(attrs={'class': 'form-control'}),
-            'domain': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de domaine'}),
-            'ip_address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Adresse IP'}),
-            'url': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'URL du projet'}),
-            'scope': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Portée du projet'}),
+            "name": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "Nom du projet",
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control custom-textarea",
+                    "placeholder": "Description",
+                }
+            ),
+            "project_type": forms.Select(attrs={"class": "form-select custom-select"}),
+            "domain": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "Nom de domaine",
+                }
+            ),
+            "ip_address": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "Adresse IP",
+                }
+            ),
+            "url": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "URL du projet",
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Vous pouvez aussi ajouter des styles conditionnels ou personnalisés ici si nécessaire.
         for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' custom-class'
+            field.widget.attrs["class"] = (
+                field.widget.attrs.get("class", "") + " custom-class"
+            )
 
     def clean_ip_address(self):
-        ip = self.cleaned_data.get('ip_address')
+        ip = self.cleaned_data.get("ip_address")
         if ip:
             validate_ip(ip)
         return ip
 
-
-
     def clean_url(self):
-        url = self.cleaned_data.get('url')
+        url = self.cleaned_data.get("url")
         if url:
             validate_url(url)
         return url
 
 
-validate_url = RegexValidator(
-    regex=r'^(https?://)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*/?$',
-    message='Entrez une URL valide.'
-)
 from django import forms
-from .models import Scan
 from django.core.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from EthicalpulsApp.models import ScheduledScan
 
+
+class ScheduledScanForm(forms.ModelForm):
+    class Meta:
+        model = ScheduledScan
+        fields = [
+            "name",
+            "description",
+            "tool",
+            "target",
+            "frequency",
+            "next_run_time",
+            "is_active",  # <-- On garde "is_active" pour permettre d'activer dès la création
+        ]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Nom du scan"}
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Description (facultatif)",
+                }
+            ),
+            "tool": forms.Select(attrs={"class": "form-select"}),
+            "target": forms.Select(attrs={"class": "form-select"}),
+            "frequency": forms.Select(attrs={"class": "form-select"}),
+            "next_run_time": forms.DateTimeInput(
+                attrs={"type": "datetime-local", "class": "form-control"}
+            ),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["target"].empty_label = "Sélectionnez une cible"
+
+        # Appliquer les choix dynamiques du champ tool
+        self.fields["tool"].choices = ScheduledScan._meta.get_field("tool").choices
+
+    def clean_next_run_time(self):
+        next_run_time = self.cleaned_data.get("next_run_time")
+        if next_run_time and next_run_time <= timezone.now():
+            raise ValidationError(
+                "La date et l'heure d'exécution doivent être dans le futur."
+            )
+        return next_run_time
+
+
+from django import forms
+from .models import SystemLog
+
+
+class LogExportForm(forms.Form):
+    FORMAT_CHOICES = [
+        ("csv", "CSV"),
+        ("json", "JSON"),
+        ("xml", "XML"),
+    ]
+
+    format = forms.ChoiceField(choices=FORMAT_CHOICES)
+    date_from = forms.DateField(required=False)
+    date_to = forms.DateField(required=False)
+    include_auth = forms.BooleanField(required=False, initial=True)
+    include_scan = forms.BooleanField(required=False, initial=True)
+    include_vuln = forms.BooleanField(required=False, initial=True)
+    include_system = forms.BooleanField(required=False, initial=True)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        date_from = cleaned_data.get("date_from")
+        date_to = cleaned_data.get("date_to")
+
+        if date_from and date_to and date_from > date_to:
+            raise forms.ValidationError(
+                "La date de début doit être antérieure à la date de fin"
+            )
+
+        return cleaned_data
+
+
+# Formulaire de scan
 class ScanForm(forms.ModelForm):
     class Meta:
         model = Scan
-        fields = ['name', 'project', 'tool']
+        fields = ["name", "project", "tool"]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom du scan'}),
-            'project': forms.Select(attrs={'class': 'form-select'}),
-            'tool': forms.Select(attrs={'class': 'form-select'}),
+            "name": forms.TextInput(
+                attrs={
+                    "class": "form-control custom-input",
+                    "placeholder": "Nom du scan",
+                }
+            ),
+            "project": forms.Select(attrs={"class": "form-select custom-select"}),
+            "tool": forms.Select(attrs={"class": "form-select custom-select"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            field.widget.attrs["class"] += " custom-class"
