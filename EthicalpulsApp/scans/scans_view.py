@@ -233,27 +233,6 @@ def delete_scan(request, scan_id):
 
 
 
-@login_required
-def scan_report(request, scan_id):
-    """Affiche le rapport détaillé d'un scan"""
-    scan = get_object_or_404(Scan, id=scan_id)
-
-    context = {
-        "scan": scan,
-        "vulnerabilities": scan.vulnerability_set.all().order_by("-severity"),
-        "scan_details": {
-            "duration": scan.get_duration(),
-            "start_time": scan.start_time,
-            "end_time": scan.end_time,
-            "status": scan.status,
-            "tool": scan.tool,
-            "target": scan.target,
-        },
-    }
-
-    return render(request, "scans/report.html", context)
-
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse, Http404

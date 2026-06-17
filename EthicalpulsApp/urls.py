@@ -38,6 +38,8 @@ urlpatterns = [
     ),  
     # Outils
     path("tools_admin/", views.tools_admin, name="tools_admin"),
+    path("tools/", views.tools, name="tools"),
+    path("notifications/read/", views.mark_notifications_read, name="mark_notifications_read"),
     # path('tools/create/', views.tools_create, name='tools_create'),
     path("tools/<int:tool_id>/edit/", views.tools_edit, name="tools_edit"),
     path("tools/<int:tool_id>/run/", views.tools_run, name="tools_run"),
@@ -45,11 +47,6 @@ urlpatterns = [
     path("remediation/", views.remediations, name="remediations"),
     path("remediations_admin/", views.remediations_admin, name="remediations_admin"),
     path("remediation/create/", views.remediations_create, name="remediations_create"),
-    path(
-        "remediation/<int:remediation_id>/",
-        views.remediation_detail,
-        name="remediation_detail",
-    ),
     path(
         "remediation/<int:remediation_id>/edit/",
         views.remediations_edit,

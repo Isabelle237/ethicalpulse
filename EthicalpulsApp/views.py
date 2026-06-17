@@ -652,6 +652,11 @@ def email_login(request):
             password = form.cleaned_data["password"]
             user = authenticate(request, email=email, password=password)
             if user:
+                # En dev (DEBUG=True), on court-circuite l'OTP pour simplifier les tests.
+                if settings.DEBUG:
+                    auth_login(request, user)
+                    return redirect("analytics_dashboard")
+
                 otp_code = str(
                     random.randint(100000, 999999)
                 )  # Nouveau code à chaque connexion
@@ -795,10 +800,6 @@ def remediations(request):
 
 def remediations_admin(request):
     return render(request, "admin/remediation.html")
-
-
-def remediation_detail(request, remediation_id):
-    return render(request, "admin/remediation_detail.html")
 
 
 def remediations_create(request):
@@ -1764,3 +1765,11 @@ def history(request):
         "search": search,
     }
     return render(request, "history.html", context)
+
+
+@require_POST
+@login_required
+def mark_notifications_read(request):
+    """Marque toutes les notifications de l'utilisateur comme lues (AJAX)."""
+    UserNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({"ok": True})

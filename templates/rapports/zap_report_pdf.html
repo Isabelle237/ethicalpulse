@@ -1,206 +1,64 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8" />
-    <title>Rapport OWASP ZAP - Scan #{{ scan.id }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f9fafb;
-            color: #343a40;
-            margin: 0 auto;
-            max-width: 900px;
-            padding: 2rem 1rem;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-weight: 700;
-            color: #212529;
-        }
-        .section-title {
-            margin-top: 2.5rem;
-            margin-bottom: 1.25rem;
-            border-bottom: 3px solid #0d6efd;
-            padding-bottom: 0.3rem;
-            font-size: 1.5rem;
-            letter-spacing: 0.03em;
-        }
-        .card {
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-            margin-bottom: 1.5rem;
-            padding: 1rem 1.5rem;
-            transition: box-shadow 0.3s ease-in-out;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-        .card:hover {
-            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-        }
-        ul {
-            padding-left: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        li {
-            margin-bottom: 0.35rem;
-            line-height: 1.4;
-        }
-        pre {
-            background-color: #f0f2f5;
-            padding: 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            max-height: 350px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1.5rem;
-        }
-        th, td {
-            border: 1px solid #dee2e6;
-            padding: 0.6rem;
-            text-align: left;
-            vertical-align: top;
-        }
-        th {
-            background-color: #0d6efd;
-            color: white;
-        }
-        .qr img {
-            width: 130px;
-            height: 130px;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .highlight {
-            background-color: #e9f5ff;
-            border-left: 5px solid #0d6efd;
-            padding-left: 1rem;
-            margin-bottom: 1rem;
-            font-style: italic;
-            color: #0b5ed7;
-        }
-        .badge-risk {
-            font-weight: 600;
-            padding: 0.3em 0.7em;
-            border-radius: 0.5rem;
-            color: white;
-            user-select: none;
-        }
-        .badge-risk.Critique {
-            background-color: #dc3545;
-        }
-        .badge-risk.Élevée {
-            background-color: #fd7e14;
-        }
-        .badge-risk.Moyenne {
-            background-color: #ffc107;
-            color: #212529;
-        }
-        .badge-risk.Information {
-            background-color: #0d6efd;
-        }
-        .footer-text {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 3rem;
-            text-align: center;
-            border-top: 1px solid #dee2e6;
-            padding-top: 1rem;
-        }
-        /* Responsive */
-        @media (max-width: 575px) {
-            body {
-                padding: 1rem 0.5rem;
-                max-width: 100%;
-            }
-            .section-title {
-                font-size: 1.3rem;
-            }
-            .qr img {
-                width: 100px;
-                height: 100px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Rapport OWASP ZAP - Scan #{{ scan.id }}</h1>
-        {% if qr_code_base64 %}
-        <div class="qr" title="QR Code du rapport">
-            <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="QR Code"/>
-        </div>
+{% extends "rapports/base_report.html" %}
+
+{% block report_type %}Rapport OWASP ZAP{% endblock %}
+{% block report_label %}OWASP ZAP{% endblock %}
+{% block report_title %}Rapport OWASP ZAP — Scan #{{ scan.id }}{% endblock %}
+
+{% block content %}
+<section>
+    <h2 class="section-title">Détails du scan</h2>
+    <ul class="meta-grid">
+        <li><span class="label">Option utilisée</span><br><span class="value"><code>{{ results.first.option|default:"-" }}</code></span></li>
+        <li><span class="label">Vulnérabilités</span><br><span class="value">{{ results.count }}</span></li>
+    </ul>
+</section>
+
+<section>
+    <h2 class="section-title">Vulnérabilités détectées ({{ results.count }})</h2>
+    {% for res in results %}
+    <div class="card">
+        <h5 class="mb-2">
+            <span class="badge-risk {{ res.risk }}">{{ res.risk }}</span>
+            {{ res.vulnerability }}
+        </h5>
+        <p class="mb-1"><strong>URL :</strong> {{ res.url }}</p>
+        <p class="mb-1"><strong>Description :</strong><br />{{ res.description|linebreaksbr }}</p>
+        {% if res.evidence %}
+        <p class="mb-1"><strong>Preuve :</strong></p><pre>{{ res.evidence }}</pre>
         {% endif %}
-    </header>
+        <p class="mb-0"><strong>Recommandation :</strong><br />{{ res.recommendation|linebreaksbr }}</p>
+    </div>
+    {% empty %}
+    <p>Aucune vulnérabilité détectée.</p>
+    {% endfor %}
+</section>
 
-    <section>
-        <h2 class="section-title">🧾 Informations générales</h2>
-        <ul class="info-list">
-            <li><strong>Cible :</strong> {{ scan.project.url|default:scan.project.domain|default:scan.project.ip_address }}</li>
-            <li><strong>Date du scan :</strong> {{ scan.start_time|date:"d/m/Y H:i" }}</li>
-            <li><strong>Option utilisée :</strong> <code>{{ results.first.option|default:"-" }}</code></li>
-            <li><strong>Statut du scan :</strong> {{ scan.status|capfirst }}</li>
-            <li><strong>Durée :</strong> {{ scan.duration|default:"-" }} secondes</li>
-        </ul>
-    </section>
+{% if scan.raw_output %}
+<section>
+    <h2 class="section-title">Sortie brute du scan (extrait)</h2>
+    <div class="card"><pre>{{ scan.raw_output|truncatechars:4000 }}</pre></div>
+</section>
+{% endif %}
 
-    <section>
-        <h2 class="section-title">🛡️ Vulnérabilités détectées ({{ results.count }})</h2>
-        {% for res in results %}
-        <div class="card">
-            <h5>
-                <span class="badge-risk {{ res.risk }}">{{ res.risk }}</span>
-                {{ res.vulnerability }}
-            </h5>
-            <p><strong>URL :</strong> {{ res.url }}</p>
-            <p><strong>Description :</strong><br />{{ res.description|linebreaksbr }}</p>
-            {% if res.evidence %}
-            <p><strong>Preuve :</strong><br /><pre>{{ res.evidence }}</pre></p>
-            {% endif %}
-            <p><strong>Recommandation :</strong><br />{{ res.recommendation|linebreaksbr }}</p>
-        </div>
-        {% endfor %}
-    </section>
+<section>
+    <h2 class="section-title">Recommandations générales</h2>
+    <ul>
+        <li>Maintenir à jour les serveurs et CMS.</li>
+        <li>Configurer un WAF pour bloquer les attaques courantes.</li>
+        <li>Limiter les informations sensibles dans les en-têtes HTTP.</li>
+        <li>Utiliser des certificats SSL/TLS valides et configurés correctement.</li>
+        <li>Tester régulièrement avec des outils d'analyse de vulnérabilités.</li>
+    </ul>
+</section>
+{% endblock %}
 
-    {% if scan.raw_output %}
-    <section>
-        <h2 class="section-title">📄 Sortie brute du scan (extrait)</h2>
-        <div class="card border-secondary">
-            <pre>{{ scan.raw_output|truncatechars:4000 }}</pre>
-        </div>
-    </section>
-    {% endif %}
-
-    {% if ai_analysis %}
-    <section>
-        <h2 class="section-title">🤖 Analyse IA du Scan</h2>
-        <div class="card bg-warning-subtle border-warning">
-            <pre>{{ ai_analysis }}</pre>
-        </div>
-    </section>
-    {% endif %}
-
-    <section>
-        <h2 class="section-title">🛡️ Recommandations générales</h2>
-        <ul>
-            <li>Maintenir à jour les serveurs et CMS.</li>
-            <li>Configurer un WAF pour bloquer les attaques courantes.</li>
-            <li>Limiter les informations sensibles dans les en-têtes HTTP.</li>
-            <li>Utiliser des certificats SSL/TLS valides et configurés correctement.</li>
-            <li>Tester régulièrement avec des outils d’analyse de vulnérabilités.</li>
-        </ul>
-    </section>
-
-    <footer class="footer-text">
-        Rapport généré par <strong>EthicalPulseShield</strong> — le {{ scan.end_time|date:"d/m/Y H:i" }}
-    </footer>
-</body>
-</html>
+{% block extra_style %}
+.badge-risk {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: .72rem; font-weight: 700; color: #fff; margin-right: 6px;
+}
+.badge-risk.High, .badge-risk.Critical { background: #dc3545; }
+.badge-risk.Medium { background: #fd7e14; }
+.badge-risk.Low { background: #ffc107; color: #20242e; }
+.badge-risk.Informational, .badge-risk.Info { background: #0dcaf0; color: #20242e; }
+{% endblock %}

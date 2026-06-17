@@ -1,4 +1,5 @@
 {% extends "admin/admin_base.html" %}
+{% load static %}
 {% block title %}Analyse globale des vulnérabilités{% endblock %}
 {% block content %}
 <style>
@@ -115,31 +116,11 @@ canvas {
         </div>
     </div>
 
-    <!-- Graphiques en grille compacte -->
-    <div class="row mb-4">
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-header py-2"><small>Vulnérabilités par projet</small></div>
-                <div class="card-body p-2">
-                    <canvas id="vulnBarChart" height="180"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-header py-2"><small>Répartition globale</small></div>
-                <div class="card-body p-2">
-                    <canvas id="vulnPieChart" height="180"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 col-md-12 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-header py-2"><small>Évolution des vulnérabilités critiques</small></div>
-                <div class="card-body p-2">
-                    <canvas id="vulnLineChart" height="180"></canvas>
-                </div>
-            </div>
+    <!-- Graphique : vulnérabilités par projet -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-bar-chart text-accent me-1"></i> Vulnérabilités par projet</div>
+        <div class="card-body">
+            <canvas id="vulnBarChart" height="90"></canvas>
         </div>
     </div>
 
@@ -200,8 +181,8 @@ canvas {
     </div>
 </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js (local) -->
+<script src="{% static 'vendor/chart/chart.umd.min.js' %}"></script>
 <script>
 const barChart = new Chart(document.getElementById('vulnBarChart'), {
     type: 'bar',
@@ -217,65 +198,13 @@ const barChart = new Chart(document.getElementById('vulnBarChart'), {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            legend: { position: 'bottom', labels: { boxWidth: 12, color: '#cfd5ea', font: { size: 11 } } }
         },
         scales: {
-            x: { ticks: { font: { size: 11 } } },
-            y: { beginAtZero: true, ticks: { font: { size: 11 } } }
-        }
-    }
-});
-
-const pieChart = new Chart(document.getElementById('vulnPieChart'), {
-    type: 'pie',
-    data: {
-        labels: ['Critiques', 'Élevées', 'Moyennes', 'Faibles', 'Info'],
-        datasets: [{
-            data: [
-                {{ global_stats.critique }},
-                {{ global_stats.élevée }},
-                {{ global_stats.moyenne }},
-                {{ global_stats.faible }},
-                {{ global_stats.info }}
-            ],
-            backgroundColor: [
-                'rgba(220,53,69,0.7)',
-                'rgba(255,193,7,0.7)',
-                'rgba(23,162,184,0.7)',
-                'rgba(40,167,69,0.7)',
-                'rgba(108,117,125,0.7)'
-            ]
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-        }
-    }
-});
-
-const lineChart = new Chart(document.getElementById('vulnLineChart'), {
-    type: 'line',
-    data: {
-        labels: {{ chart_dates|safe }},
-        datasets: [{
-            label: 'Critiques',
-            data: {{ chart_critique_evolution|safe }},
-            borderColor: 'rgba(220,53,69,1)',
-            fill: false,
-            tension: 0.3
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            x: { ticks: { font: { size: 11 } } },
-            y: { beginAtZero: true, ticks: { font: { size: 11 } } }
+            x: { stacked: true, ticks: { color: '#9aa3c0', font: { size: 11 } }, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, ticks: { color: '#9aa3c0', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.06)' } }
         }
     }
 });

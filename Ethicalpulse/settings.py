@@ -41,13 +41,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "EthicalpulsApp.middleware.AuditLogMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
 
 ROOT_URLCONF = "Ethicalpulse.urls"
@@ -64,7 +64,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                #                'EthicalpulsApp.context_processors.base_template_selector',
+                "EthicalpulsApp.context_processors.notifications",
             ],
         },
     },
@@ -113,9 +113,15 @@ USE_L10N = True
 USE_TZ = True
 
 # Fichiers statiques
-# Fichiers statiques
 STATIC_URL = "/static/"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# En développement (DEBUG=True), runserver sert les fichiers via les finders :
+# on utilise un stockage simple, sans hash ni manifest, pour que le CSS se charge
+# systématiquement. En production, on garde le stockage WhiteNoise avec manifest
+# (nécessite `collectstatic`).
+if DEBUG:
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Configuration des fichiers statiques
 STATICFILES_DIRS = [
@@ -152,6 +158,9 @@ OTP_EXPIRE_MINUTES = 10
 # Logging
 # settings.py
 
+# S'assurer que le dossier de logs existe (sinon FileHandler échoue au démarrage)
+os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -185,11 +194,16 @@ LOGGING = {
 
 
 AUTH_USER_MODEL = "EthicalpulsApp.CustomUser"
+
+# Redirection vers la page de connexion (la route s'appelle 'login' -> /login/),
+# sinon Django redirige vers /accounts/login/ qui n'existe pas.
+LOGIN_URL = "/login/"
 # Configuration Celery
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_BROKER_URL = "redis://redis:6379/0"
 CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+ASGI_APPLICATION = "Ethicalpulse.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",

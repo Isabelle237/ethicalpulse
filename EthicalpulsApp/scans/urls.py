@@ -12,7 +12,6 @@ urlpatterns = [
     path("scans/<int:scan_id>/stop/", scans_view.stop_scan, name="stop_scan"),
     path("scans/<int:scan_id>/delete/", scans_view.delete_scan, name="delete_scan"),
     path("scans/<int:scan_id>/restart/", scans_view.restart_scan, name="restart_scan"),
-    path("scans/<int:scan_id>/report/", scans_view.scan_report, name="scan_report"),
     # Scans planifiés
     path(
         "scans/scheduled/create/",

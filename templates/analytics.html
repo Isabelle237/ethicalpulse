@@ -95,85 +95,33 @@
         </div>
     </div>
 
-    <!-- Graphiques compacts et variés -->
+    <!-- Graphiques (2 vues distinctes) -->
     <div class="row g-4 mb-4">
-        <!-- Courbe lissée : Tendance des scans -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Tendance des Scans</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <canvas id="scanTrendsChart" style="height:160px;max-height:160px;"></canvas>
-                </div>
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><i class="bi bi-graph-up text-accent me-1"></i> Tendance des scans</div>
+                <div class="card-body"><canvas id="scanTrendsChart" height="110"></canvas></div>
             </div>
         </div>
-        <!-- Radar : Distribution par Sévérité -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Distribution par Sévérité</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <canvas id="vulnSeverityChart" style="height:160px;max-height:160px;"></canvas>
-                </div>
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><i class="bi bi-bar-chart text-accent me-1"></i> Types de découvertes</div>
+                <div class="card-body"><canvas id="vulnTypesChart" height="110"></canvas></div>
             </div>
         </div>
     </div>
-    <div class="row g-4 mb-4">
-        <!-- Barres groupées : Types de découvertes -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Types de Découvertes</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <canvas id="vulnTypesChart" style="height:160px;max-height:160px;"></canvas>
-                </div>
-            </div>
-        </div>
-        <!-- Courbe pointillée : Projets les plus exposés -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Projets les Plus Exposés</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <canvas id="vulnerableProjectsChart" style="height:160px;max-height:160px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="row g-4 mb-4">
-        <!-- Doughnut compact : Taux de scans réussis/échoués -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Taux de Scans Réussis / Échoués</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <canvas id="scanSuccessChart" style="height:120px;max-height:120px;"></canvas>
-                </div>
-            </div>
-        </div>
-        <!-- Top 5 découvertes récurrentes -->
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header pb-1">
-                    <h6 class="card-title">Top 5 Découvertes Récurrentes</h6>
-                </div>
-                <div class="card-body pb-2 pt-2">
-                    <ol class="mb-0">
-                        {% for finding in top5_findings %}
-                            <li>
-                                {{ finding.name|truncatechars:40 }} ({{ finding.count }})
-                            </li>
-                        {% empty %}
-                            <li>Aucune donnée</li>
-                        {% endfor %}
-                    </ol>
-                </div>
-            </div>
+
+    <!-- Top 5 découvertes récurrentes -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-list-ol text-accent me-1"></i> Top 5 des découvertes récurrentes</div>
+        <div class="card-body">
+            <ol class="mb-0 ps-3">
+                {% for finding in top5_findings %}
+                    <li class="mb-1">{{ finding.name|truncatechars:60 }} <span class="badge bg-accent ms-1">{{ finding.count }}</span></li>
+                {% empty %}
+                    <li class="text-secondary">Aucune donnée</li>
+                {% endfor %}
+            </ol>
         </div>
     </div>
 
@@ -233,7 +181,7 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'vendor/chart/chart.umd.min.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const filtersForm = document.getElementById('filtersForm');
@@ -286,6 +234,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const vulnerableProjectsData = {{ project_exposed_data|safe }};
   const scanSuccessData = {{ scan_metrics.success_data|safe }};
 
+  // Thème sombre par défaut pour les graphes
+  Chart.defaults.color = '#9aa3c0';
+  Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
+
   // 1. Courbe lissée : Tendance des scans
   new Chart(document.getElementById('scanTrendsChart').getContext('2d'), {
       type: 'line',
@@ -310,28 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
-  // 2. Radar : Distribution par Sévérité
-  new Chart(document.getElementById('vulnSeverityChart').getContext('2d'), {
-      type: 'radar',
-      data: {
-          labels: vulnSeverityLabels,
-          datasets: [{
-              label: 'Découvertes',
-              data: vulnSeverityData,
-              backgroundColor: 'rgba(211,47,47,0.15)',
-              borderColor: '#d32f2f',
-              pointBackgroundColor: '#d32f2f'
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { r: { beginAtZero: true } }
-      }
-  });
-
-  // 3. Barres groupées : Types de découvertes
+  // 2. Barres : Types de découvertes
   new Chart(document.getElementById('vulnTypesChart').getContext('2d'), {
       type: 'bar',
       data: {
@@ -352,45 +283,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
-  // 4. Courbe pointillée : Projets les plus exposés
-  new Chart(document.getElementById('vulnerableProjectsChart').getContext('2d'), {
-      type: 'line',
-      data: {
-          labels: vulnerableProjectsLabels,
-          datasets: [{
-              label: 'Découvertes',
-              data: vulnerableProjectsData,
-              fill: false,
-              borderColor: '#d32f2f',
-              borderDash: [5, 5],
-              pointBackgroundColor: '#d32f2f',
-              tension: 0.3
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } }
-      }
-  });
-
-  // 5. Doughnut compact : Taux de scans réussis/échoués
-  new Chart(document.getElementById('scanSuccessChart').getContext('2d'), {
-      type: 'doughnut',
-      data: {
-          labels: ['Réussis', 'Échoués'],
-          datasets: [{
-              data: scanSuccessData,
-              backgroundColor: ['#388e3c', '#d32f2f']
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } }
-      }
-  });
 });
 </script>
 {% endblock %}

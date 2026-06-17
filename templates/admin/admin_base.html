@@ -1,4 +1,3 @@
-
 {% load static %}
 <!DOCTYPE html>
 <html lang="fr">
@@ -6,12 +5,585 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EthicalPulse - Plateforme de Sécurité</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-  <!-- Chart.js -->
-<link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
+       <style>
+        :root {
+            --navy-dark: rgba(34, 39, 54, 0.9);
+            --navy-medium: rgba(34, 39, 54, 0.9);
+            --navy-light: rgba(34, 39, 54, 0.9);
+            --orange-primary: rgb(199, 86, 5);
+            --orange-light: rgb(231, 126, 40);
+            --glass-bg: rgba(34, 39, 54, 0.9);
+        }
 
-{% block extra_css %}{% endblock %}
+        body {
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            color: #f7fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 256px;
+            height: 100vh;
+            font-size: 0.875rem;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, rgba(25, 33, 58, 0.9) 100%);
+            border-right: 1px solid rgba(249, 115, 22, 0.2);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-256px);
+        }
+
+        .sidebar-header {
+            padding: 1.1rem;
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #f7fafc;
+            text-decoration: none;
+        }
+
+        .sidebar-brand:hover {
+            color: var(--orange-primary);
+        }
+        // Ajouter dans la section style existante    
+        .sidebar-icon {
+            width: 2rem;
+            height: 2rem;
+            color: var(--orange-primary);
+            animation: pulse-orange 2s infinite;
+        }
+
+        .sidebar-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            background: linear-gradient(to right, var(--orange-primary), var(--orange-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.75rem;
+            color: rgba(247, 250, 252, 0.6);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-section-title {
+            padding: 0 0.75rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(247, 250, 252, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.225rem 0.75rem;
+            margin-bottom: 0.05rem;
+            border-radius: 0.5rem;
+            color: #f7fafc;
+            text-decoration: none;
+            font-weight: 500;
+            border-left: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .sidebar-nav-link:hover {
+            background: rgba(249, 115, 22, 0.1);
+            color: var(--orange-light);
+            border-left-color: rgba(249, 115, 22, 0.3);
+            transform: scale(1.02);
+        }
+
+        .sidebar-nav-link.active {
+            background: linear-gradient(to right, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.2));
+            color: var(--orange-primary);
+            border-left-color: var(--orange-primary);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
+        }
+
+        .sidebar-nav-link.active::after {
+            content: '';
+            position: absolute;
+            right: 0.75rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--orange-primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 256px;
+            margin-top: 70px;
+            transition: margin-left 0.3s ease;
+            min-height: calc(100vh - 70px);
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Navbar */
+        .main-navbar {
+            position: fixed;
+            top: 0;
+            left: 256px;
+            right: 0;
+            z-index: 1020;
+            background: rgba(34, 39, 54, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .main-navbar.expanded {
+            left: 0;
+        }
+
+        /* Sidebar Toggle */
+        .sidebar-toggle {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-brand:hover {
+            color: var(--orange-primary);
+        }
+
+        .mobile-toggle {
+            background: rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            color: #fff;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Animations */
+        @keyframes pulse-orange {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% {
+                opacity: 0.8;
+                box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-navbar {
+                left: 0;
+            }
+
+            .mobile-navbar {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        /* Glass effect */
+        .glass-card {
+            background: rgba(34, 39, 54, 0.8);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom scrollbar */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: rgba(34, 39, 54, 0.3);
+        }
+
+         .sidebar-nav {
+            padding: 1.5rem 0.75rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(249, 115, 22, 0.7);
+        }
+
+        /* Utilitaires d'accent orange réutilisables (complètent Bootstrap) */
+        .text-accent { color: var(--orange-primary) !important; }
+        .bg-accent { background-color: var(--orange-primary) !important; color: #fff !important; }
+        .btn-accent {
+            background-color: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: #fff;
+        }
+        .btn-accent:hover, .btn-accent:focus {
+            background-color: var(--orange-light);
+            border-color: var(--orange-light);
+            color: #fff;
+        }
+        .btn-outline-accent {
+            color: var(--orange-primary);
+            border-color: var(--orange-primary);
+        }
+        .btn-outline-accent:hover {
+            background-color: var(--orange-primary);
+            color: #fff;
+        }
+        .badge.bg-accent { background-color: var(--orange-primary) !important; }
+        /* ============================================================
+           DESIGN SYSTEM PRO — raffinements (override des règles ci-dessus)
+           ============================================================ */
+
+        /* --- Surface de contenu --- */
+        .main-content { background-color: #eef1f6; }
+
+        /* --- Sidebar : liens plus aérés + état actif soigné --- */
+        .sidebar-header { padding: 1.25rem 1.1rem; }
+        .sidebar-title { font-size: 1.05rem; letter-spacing: .2px; }
+        .nav-section-title {
+            padding: 1.1rem .9rem .45rem;
+            font-size: .68rem;
+            letter-spacing: .12em;
+            color: rgba(247, 250, 252, .45);
+        }
+        .sidebar-nav-link {
+            padding: .6rem .85rem;
+            margin-bottom: .15rem;
+            border-radius: .6rem;
+            border-left: 3px solid transparent;
+            font-size: .92rem;
+            color: rgba(247, 250, 252, .82);
+        }
+        .sidebar-nav-link:hover {
+            background: rgba(249, 115, 22, .12);
+            color: #fff;
+            transform: none;
+        }
+        .sidebar-nav-link.active {
+            background: linear-gradient(90deg, rgba(249,115,22,.22), rgba(249,115,22,.04));
+            color: #fff;
+            border-left-color: var(--orange-primary);
+            box-shadow: none;
+        }
+        .sidebar-nav-link.active::after { display: none; }
+        .sidebar-nav-icon { width: 1.15rem; text-align: center; opacity: .9; }
+
+        /* --- Top navbar --- */
+        .main-navbar {
+            height: var(--navbar-height);
+            padding: 0 .5rem;
+            background: rgba(20, 25, 40, .85);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 1px 0 rgba(249, 115, 22, .12);
+        }
+        .navbar-search .input-group-text {
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-right: 0;
+            color: rgba(255, 255, 255, .65);
+            border-radius: 2rem 0 0 2rem;
+        }
+        .navbar-search .form-control {
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-left: 0;
+            color: #fff;
+            border-radius: 0 2rem 2rem 0;
+            box-shadow: none;
+        }
+        .navbar-search .form-control::placeholder { color: rgba(255, 255, 255, .5); }
+        .navbar-search:focus-within .input-group-text,
+        .navbar-search:focus-within .form-control { border-color: var(--orange-light); }
+        .navbar-select {
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #fff;
+            border-radius: 2rem;
+            min-width: 190px;
+        }
+        .navbar-select:focus { border-color: var(--orange-light); box-shadow: 0 0 0 .2rem rgba(249,115,22,.2); color:#fff; }
+        .navbar-select option { color: #1a202c; }
+        .main-navbar .dropdown-toggle { font-weight: 500; }
+
+        /* --- Dropdown sombre (corrige le menu blanc/texte clair) --- */
+        .main-navbar .dropdown-menu {
+            background: #1b2236;
+            border: 1px solid rgba(249, 115, 22, .18);
+            border-radius: .65rem;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, .35);
+            padding: .35rem;
+        }
+        .main-navbar .dropdown-item {
+            color: rgba(247, 250, 252, .85);
+            border-radius: .45rem;
+            padding: .5rem .75rem;
+        }
+        .main-navbar .dropdown-item:hover,
+        .main-navbar .dropdown-item:focus {
+            background: rgba(249, 115, 22, .15);
+            color: #fff;
+        }
+        .main-navbar .dropdown-divider { border-color: rgba(255, 255, 255, .1); }
+
+        /* --- Menu Notifications --- */
+        .notif-menu { width: 340px; max-width: 92vw; }
+        .notif-head { border-bottom: 1px solid rgba(255, 255, 255, .1); }
+        .notif-list { max-height: 380px; overflow-y: auto; }
+        .notif-list .dropdown-item { white-space: normal; border-radius: .45rem; }
+        .notif-list .dropdown-item small { color: #8b93ad; }
+        .notif-unread { background: rgba(249, 115, 22, .08); }
+        .notif-unread::before {
+            content: ''; position: absolute; left: 4px; top: 50%;
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--orange-primary); transform: translateY(-50%);
+        }
+        .notif-list .dropdown-item { position: relative; }
+        .notif-list::-webkit-scrollbar { width: 5px; }
+        .notif-list::-webkit-scrollbar-thumb { background: rgba(249,115,22,.4); border-radius: 3px; }
+
+        /* --- Cartes de contenu --- */
+        .main-content .card {
+            border: 1px solid rgba(20, 25, 40, .06);
+            border-radius: .85rem;
+            box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .06);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .main-content .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(16, 24, 40, .10);
+        }
+        .main-content .card-header {
+            padding: .9rem 1.15rem;
+            font-weight: 600;
+            background: transparent;
+            border-bottom: 1px solid rgba(20, 25, 40, .06);
+        }
+        .main-content .card-body { padding: 1.15rem; }
+
+        /* --- Pastilles d'icônes pour les KPI --- */
+        .stat-icon {
+            width: 3rem; height: 3rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: .85rem; font-size: 1.35rem;
+        }
+        .stat-icon.accent { background: rgba(249,115,22,.12); color: var(--orange-primary); }
+        .stat-icon.success { background: rgba(25,135,84,.12); color: #198754; }
+        .stat-icon.danger  { background: rgba(220,53,69,.12);  color: #dc3545; }
+        .stat-icon.warning { background: rgba(255,193,7,.16);  color: #b8860b; }
+        .stat-icon.info    { background: rgba(13,202,240,.14); color: #0aa2c0; }
+
+        /* --- Boutons & formulaires --- */
+        .main-content .btn { border-radius: .55rem; font-weight: 500; }
+        .btn-accent { box-shadow: 0 2px 8px rgba(249, 115, 22, .25); }
+        .main-content .form-control,
+        .main-content .form-select { border-radius: .55rem; }
+        .main-content .form-control:focus,
+        .main-content .form-select:focus {
+            border-color: var(--orange-light);
+            box-shadow: 0 0 0 .2rem rgba(249, 115, 22, .15);
+        }
+
+        /* --- Tables --- */
+        .main-content .table { vertical-align: middle; }
+        .main-content .table > thead th {
+            text-transform: uppercase;
+            font-size: .72rem;
+            letter-spacing: .04em;
+            color: #6b7280;
+            border-bottom-width: 1px;
+        }
+
+        /* --- Modals (thème sombre cohérent, global) --- */
+        .modal-content {
+            border: 1px solid rgba(249, 115, 22, .2);
+            border-radius: .9rem;
+            background: #1b2236;
+            color: #f7fafc;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+        }
+        .modal-header, .modal-footer { border-color: rgba(255, 255, 255, .08); }
+        .modal-content .form-control,
+        .modal-content .form-select {
+            background: rgba(255, 255, 255, .06);
+            border-color: rgba(255, 255, 255, .14);
+            color: #fff;
+            border-radius: .55rem;
+        }
+        .modal-content .form-control::placeholder { color: rgba(255, 255, 255, .5); }
+        .modal-content .form-control:focus,
+        .modal-content .form-select:focus {
+            background: rgba(255, 255, 255, .08);
+            border-color: var(--orange-light);
+            box-shadow: 0 0 0 .2rem rgba(249, 115, 22, .2);
+            color: #fff;
+        }
+        .modal-content .btn-close { filter: invert(1) grayscale(1) brightness(1.6); }
+
+        /* ============================================================
+           THÈME SOMBRE DU CONTENU (full dark dashboard)
+           ============================================================ */
+        .main-content { background-color: #0f1426; color: #e7eaf3; }
+        .main-content .card {
+            background: #1a2138;
+            border-color: rgba(255, 255, 255, .07);
+            color: #e7eaf3;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .20), 0 6px 20px rgba(0, 0, 0, .22);
+        }
+        .main-content .card:hover { box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+        .main-content .card-header { border-bottom-color: rgba(255, 255, 255, .07); color: #fff; }
+        .main-content h1, .main-content h2, .main-content h3,
+        .main-content h4, .main-content h5, .main-content h6 { color: #f2f4fa; }
+        .main-content .text-muted,
+        .main-content .text-secondary { color: #98a2bd !important; }
+
+        .main-content .list-group { --bs-list-group-bg: transparent; }
+        .main-content .list-group-item {
+            background: transparent;
+            color: #e7eaf3;
+            border-color: rgba(255, 255, 255, .07);
+        }
+
+        .main-content .table {
+            color: #e7eaf3;
+            --bs-table-bg: transparent;
+            --bs-table-color: #e7eaf3;
+            --bs-table-border-color: rgba(255, 255, 255, .08);
+            --bs-table-striped-color: #e7eaf3;
+            --bs-table-striped-bg: rgba(255, 255, 255, .03);
+            --bs-table-hover-color: #fff;
+            --bs-table-hover-bg: rgba(249, 115, 22, .08);
+        }
+        .main-content .table > thead th {
+            color: #9aa3c0;
+            border-bottom-color: rgba(255, 255, 255, .10);
+        }
+
+        .main-content .form-control,
+        .main-content .form-select {
+            background: rgba(255, 255, 255, .05);
+            border-color: rgba(255, 255, 255, .12);
+            color: #fff;
+        }
+        .main-content .form-control::placeholder { color: rgba(255, 255, 255, .45); }
+        .main-content .form-control:focus,
+        .main-content .form-select:focus {
+            background: rgba(255, 255, 255, .07);
+            color: #fff;
+        }
+        .main-content .form-select option { color: #1a202c; }
+        .main-content .input-group-text {
+            background: rgba(255, 255, 255, .05);
+            border-color: rgba(255, 255, 255, .12);
+            color: #98a2bd;
+        }
+
+        /* Compat : neutralise les anciennes classes claires sur fond sombre */
+        .main-content .bg-white { background: #1a2138 !important; color: #e7eaf3 !important; }
+        .main-content .bg-light { background: #222a44 !important; color: #e7eaf3 !important; }
+        .main-content .text-dark { color: #e7eaf3 !important; }
+        .main-content .border { border-color: rgba(255, 255, 255, .08) !important; }
+        .main-content a:not(.btn):not(.dropdown-item):not(.nav-link):not(.page-link):not(.sidebar-nav-link) {
+            color: var(--orange-light);
+        }
+        .main-content .nav-tabs { border-bottom-color: rgba(255, 255, 255, .1); }
+        .main-content .nav-tabs .nav-link { color: #98a2bd; border: 0; }
+        .main-content .nav-tabs .nav-link:hover { color: #fff; }
+        .main-content .nav-tabs .nav-link.active {
+            color: #fff;
+            background: transparent;
+            border-bottom: 2px solid var(--orange-primary);
+        }
+        .main-content .page-link {
+            background: #1a2138;
+            border-color: rgba(255, 255, 255, .1);
+            color: #cfd5ea;
+        }
+        .main-content .page-item.active .page-link {
+            background: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: #fff;
+        }
+
+        /* --- Unification de l'accent : primary -> orange dans le contenu --- */
+        .main-content .btn-primary {
+            background-color: var(--orange-primary);
+            border-color: var(--orange-primary);
+            box-shadow: 0 2px 8px rgba(249, 115, 22, .25);
+        }
+        .main-content .btn-primary:hover,
+        .main-content .btn-primary:focus {
+            background-color: var(--orange-light);
+            border-color: var(--orange-light);
+        }
+        .main-content .btn-outline-primary {
+            color: var(--orange-light);
+            border-color: var(--orange-primary);
+        }
+        .main-content .btn-outline-primary:hover {
+            background-color: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: #fff;
+        }
+        .main-content .bg-primary { background-color: var(--orange-primary) !important; }
+        .main-content .text-primary { color: var(--orange-light) !important; }
+        .main-content .list-group-item.active {
+            background-color: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: #fff;
+        }
+        .main-content .nav-pills .nav-link.active,
+        .main-content .nav-pills .show > .nav-link {
+            background-color: var(--orange-primary);
+            color: #fff;
+        }
+        .main-content .nav-pills .nav-link { color: #cfd5ea; }
+        .main-content .form-check-input:checked {
+            background-color: var(--orange-primary);
+            border-color: var(--orange-primary);
+        }
+        .main-content .spinner-border.text-primary { color: var(--orange-light) !important; }
+</style>
+    {% block extra_css %}{% endblock %}
 
 </head>
 <body>
@@ -47,55 +619,45 @@
 
         <nav class="sidebar-nav">
             <div class="nav-section-title">Navigation Principale</div>
-            {% if user.role != 'ADMIN' %}
-            <a href="/" class="sidebar-nav-link">
+            <a href="{% url 'dashboard'%}" class="sidebar-nav-link">
                 <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
-                <span>Tableau de bord</span>
+                <span>Tableau de bord<active/span>
             </a>
-            <a href="{% url 'vulnerabilities_user' %}" class="sidebar-nav-link">
-                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
-                <span>Vulnérabilités</span>
+            <a href="{% url 'users'%}" class="sidebar-nav-link">
+                <i class="bi bi-people-fill sidebar-nav-icon"></i>
+                <span>Utilisateurs</span>
             </a>
-            <a href="{% url 'remediations' %}" class="sidebar-nav-link">
-                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
-                <span>Remédiation</span>
+            <a href="{% url 'admin_projets'%}" class="sidebar-nav-link">
+                <i class="bi bi-folder-fill sidebar-nav-icon"></i>
+                <span>Projets</span>
             </a>
-            {% endif %}
-            {% if user.role == 'ADMIN' %}
-                <!-- Section Admin uniquement -->
-                <a href="{% url 'analytics_dashboard'%}" class="sidebar-nav-link">
-                    <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
-                    <span>Tableau de bord<active/span>
-                </a>
-                <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
-                    <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
-                    <span>Vulnérabilités</span>
-                </a>
-                <a href="{% url 'users'%}" class="sidebar-nav-link">
-                    <i class="bi bi-people-fill sidebar-nav-icon"></i>
-                    <span>Utilisateurs</span>
-                </a>
-                <a href="{% url 'admin_projets'%}" class="sidebar-nav-link">
-                    <i class="bi bi-folder-fill sidebar-nav-icon"></i>
-                    <span>Projets</span>
-                </a>
-                <a href="{% url 'history' %}" class="sidebar-nav-link">
-                    <i class="bi bi-clock-history sidebar-nav-icon"></i>
-                    <span>Historique</span>
-                </a>
-                            <a href="{% url 'remediations_admin' %}" class="sidebar-nav-link">
-                    <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
-                    <span>Remédiation</span>
-                </a>
-            {% endif %}
             <a href="{% url 'scan_list' %}" class="sidebar-nav-link">
                 <i class="bi bi-search sidebar-nav-icon"></i>
                 <span>Scans</span>
             </a>
-
+            <a href="{% url 'vulnerabilities' %}" class="sidebar-nav-link">
+                <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
+                <span>Vulnérabilités</span>
+            </a>
             <a href="{% url 'tools_admin' %}" class="sidebar-nav-link">
                 <i class="bi bi-tools sidebar-nav-icon"></i>
                 <span>Outils</span>
+            </a>
+            <a href="{% url 'remediations_admin' %}" class="sidebar-nav-link">
+                <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
+                <span>Remédiation</span>
+            </a>
+            <a href="{% url 'reports' %}" class="sidebar-nav-link">
+                <i class="bi bi-bar-chart sidebar-nav-icon"></i>
+                <span>Rapports</span>
+            </a>
+            <a href="{% url 'history' %}" class="sidebar-nav-link">
+                <i class="bi bi-clock-history sidebar-nav-icon"></i>
+                <span>Historique</span>
+            </a>
+            <a href="{% url 'analytics_dashboard' %}" class="sidebar-nav-link">
+                <i class="bi bi-graph-up sidebar-nav-icon"></i>
+                <span>Analytique</span>
             </a>
             <a href="{% url 'training' %}" class="sidebar-nav-link">
                 <i class="bi bi-mortarboard sidebar-nav-icon"></i>
@@ -129,29 +691,21 @@
                     
                     <!-- Actions utilisateur -->
                     <div class="mt-3">
-                            {% if user.role == 'ADMIN' %}
-                            <!-- Section Admin uniquement -->
-                                <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
-                                    <i class="bi bi-gear sidebar-nav-icon"></i>
-                                    <span>Paramètres</span>
-                                </a>
-                            {% else %}
-                                <div class="nav-section-title mt-3">Utilisateur</div>
-                                <a href="{% url 'settings_users' %}" class="sidebar-nav-link">
-                                    <i class="bi bi-gear sidebar-nav-icon"></i>
-                                    <span>Paramètres</span>
-                            {% endif %}
-                            {% if user.is_authenticated %}
-                                <a href="{% url 'logout' %}" class="sidebar-nav-link">
-                                    <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
-                                    <span>Déconnexion</span>
-                                </a>
-                            {% else %}
-                                <a href="{% url 'login' %}" class="sidebar-nav-link">
-                                    <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
-                                    <span>Connexion</span>
-                                </a>
-                            {% endif %}
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'settings_admin' %}" class="sidebar-nav-link">
+                                <i class="bi bi-gear sidebar-nav-icon"></i>
+                                <span>Paramètres</span>
+                            </a>
+                            <a href="{% url 'logout' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-right sidebar-nav-icon"></i>
+                                <span>Déconnexion</span>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'login' %}" class="sidebar-nav-link">
+                                <i class="bi bi-box-arrow-in-right sidebar-nav-icon"></i>
+                                <span>Connexion</span>
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -162,20 +716,50 @@
         <button class="btn btn-link text-light me-3 d-flex align-items-center sidebar-toggle">
             <i class="bi bi-list fs-4"></i>
         </button>
-        <!-- Global Search -->
-        <div class="d-none d-lg-flex align-items-center flex-grow-1 mx-lg-4">
-            <form class="w-100 me-3" action="" method="GET">
-                <div class="input-group">
-                    <input type="search" name="q" class="form-control" 
-                           placeholder="Recherche globale..." 
-                           style="background: rgba(255, 255, 255, 0.1); border-color: rgba(249, 115, 22, 0.3); color: #fff;">
-                    <button class="btn btn-outline-warning" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </form>
-        </div>
+        <!-- Espaceur -->
+        <div class="flex-grow-1"></div>
 
+        <!-- Notifications -->
+        <div class="dropdown me-2">
+            <button class="btn btn-link text-light position-relative p-2" type="button"
+                    id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell fs-5"></i>
+                {% if nav_notif_unread %}
+                <span class="position-absolute translate-middle badge rounded-pill bg-accent"
+                      style="top:6px;left:78%;font-size:.6rem;">
+                    {{ nav_notif_unread }}<span class="visually-hidden">non lues</span>
+                </span>
+                {% endif %}
+            </button>
+            <div class="dropdown-menu dropdown-menu-end notif-menu p-0" aria-labelledby="notifDropdown">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 notif-head">
+                    <span class="fw-semibold text-white"><i class="bi bi-bell me-1"></i> Notifications</span>
+                    {% if nav_notif_unread %}
+                    <button type="button" class="btn btn-sm p-0 notif-mark-read text-accent border-0 bg-transparent"
+                            data-url="{% url 'mark_notifications_read' %}" data-csrf="{{ csrf_token }}">
+                        <i class="bi bi-check2-all me-1"></i>Tout marquer comme lu
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="notif-list">
+                    {% for n in nav_notifications %}
+                    <a href="{{ n.url }}" class="dropdown-item d-flex align-items-start gap-2 py-2 {% if not n.is_read %}notif-unread{% endif %}">
+                        <span class="stat-icon {{ n.color }} flex-shrink-0" style="width:2.1rem;height:2.1rem;font-size:.95rem;border-radius:.55rem;">
+                            <i class="bi {{ n.icon }}"></i>
+                        </span>
+                        <span class="flex-grow-1 overflow-hidden">
+                            <span class="d-block text-truncate">{{ n.text }}</span>
+                            <small class="text-secondary"><i class="bi bi-clock me-1"></i>{{ n.time|timesince }}</small>
+                        </span>
+                    </a>
+                    {% empty %}
+                    <div class="text-center text-secondary py-4">
+                        <i class="bi bi-bell-slash d-block fs-4 mb-2"></i>Aucune notification
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
 
         <!-- User Profile Dropdown -->
         <div class="dropdown ms-3">
@@ -236,39 +820,39 @@
         </div>
         <div class="offcanvas-body p-0">
             <nav class="sidebar-nav">
-                <a href="{% url 'dashboard'%}" class="sidebar-nav-link active">
+                <a href="/" class="sidebar-nav-link active">
                     <i class="bi bi-speedometer2 sidebar-nav-icon"></i>
                     <span>Tableau de bord</span>
                 </a>
-                <a href="/{% url 'scan_list'%}" class="sidebar-nav-link">
+                <a href="/scans" class="sidebar-nav-link">
                     <i class="bi bi-search sidebar-nav-icon"></i>
                     <span>Scans</span>
                 </a>
-                <a href="/{% url 'vulnerabilities'%}" class="sidebar-nav-link">
+                <a href="/vulnerabilities" class="sidebar-nav-link">
                     <i class="bi bi-shield-exclamation sidebar-nav-icon"></i>
                     <span>Vulnérabilités</span>
                 </a>
-                <a href="/{% url 'tools_admin'%}" class="sidebar-nav-link">
+                <a href="/tools" class="sidebar-nav-link">
                     <i class="bi bi-tools sidebar-nav-icon"></i>
                     <span>Outils</span>
                 </a>
-                <a href="/{% url 'remediations'%}" class="sidebar-nav-link">
+                <a href="/remediation" class="sidebar-nav-link">
                     <i class="bi bi-clipboard-check sidebar-nav-icon"></i>
                     <span>Remédiation</span>
                 </a>
-                <a href="/{% url 'reports'%}" class="sidebar-nav-link">
+                <a href="/reports" class="sidebar-nav-link">
                     <i class="bi bi-bar-chart sidebar-nav-icon"></i>
                     <span>Rapports</span>
                 </a>
-                <a href="/{% url 'history'%}" class="sidebar-nav-link">
+                <a href="/history" class="sidebar-nav-link">
                     <i class="bi bi-clock-history sidebar-nav-icon"></i>
                     <span>Historique</span>
                 </a>
-                <a href="/{% url 'analytics_dashboard'%}" class="sidebar-nav-link">
+                <a href="/analytics" class="sidebar-nav-link">
                     <i class="bi bi-graph-up sidebar-nav-icon"></i>
                     <span>Analytique</span>
                 </a>
-                <a href="/{% url 'training'%}" class="sidebar-nav-link">
+                <a href="/training" class="sidebar-nav-link">
                     <i class="bi bi-mortarboard sidebar-nav-icon"></i>
                     <span>Formation</span>
                 </a>
@@ -345,9 +929,7 @@
         </div>
     </div>
 
-
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+<script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
 <script>
     
 document.addEventListener('DOMContentLoaded', function () {
@@ -427,6 +1009,30 @@ document.addEventListener('DOMContentLoaded', function () {
             boundary: 'viewport'
         });
     });
+
+    // Notifications : « Tout marquer comme lu »
+    const markReadBtn = document.querySelector('.notif-mark-read');
+    if (markReadBtn) {
+        markReadBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fetch(this.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.dataset.csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(r => r.json()).then(data => {
+                if (data && data.ok) {
+                    // retire le badge de la cloche
+                    document.querySelectorAll('#notifDropdown .badge').forEach(b => b.remove());
+                    // retire le surlignage non-lu
+                    document.querySelectorAll('.notif-unread').forEach(n => n.classList.remove('notif-unread'));
+                    markReadBtn.remove();
+                }
+            }).catch(() => {});
+        });
+    }
 });
 </script>
 

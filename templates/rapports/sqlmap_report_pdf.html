@@ -1,236 +1,92 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8" />
-    <title>Rapport SQLMap - Scan {{ scan.id }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f9fafb;
-            color: #343a40;
-            margin: 0 auto;
-            max-width: 900px;
-            padding: 2rem 1rem;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-weight: 700;
-            color: #212529;
-        }
-        .section-title {
-            margin-top: 2.5rem;
-            margin-bottom: 1.25rem;
-            border-bottom: 3px solid #0d6efd;
-            padding-bottom: 0.3rem;
-            font-size: 1.5rem;
-            letter-spacing: 0.03em;
-        }
-        .card {
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-            margin-bottom: 1.5rem;
-            padding: 1rem 1.5rem;
-            transition: box-shadow 0.3s ease-in-out;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-        .card:hover {
-            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-        }
-        ul {
-            padding-left: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        li {
-            margin-bottom: 0.35rem;
-            line-height: 1.4;
-        }
-        pre {
-            background-color: #f0f2f5;
-            padding: 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            max-height: 350px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        .qr img {
-            width: 130px;
-            height: 130px;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .highlight {
-            background-color: #e9f5ff;
-            border-left: 5px solid #0d6efd;
-            padding-left: 1rem;
-            margin-bottom: 1rem;
-            font-style: italic;
-            color: #0b5ed7;
-        }
-        .badge-custom {
-            background-color: #0d6efd;
-            color: white;
-            font-size: 0.85rem;
-            padding: 0.3em 0.7em;
-            border-radius: 15px;
-            margin-right: 0.4rem;
-            user-select: none;
-        }
-        .info-list strong {
-            color: #0d6efd;
-        }
-        .footer-text {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 3rem;
-            text-align: center;
-            border-top: 1px solid #dee2e6;
-            padding-top: 1rem;
-        }
-        /* Responsive */
-        @media (max-width: 575px) {
-            body {
-                padding: 1rem 0.5rem;
-                max-width: 100%;
-            }
-            .section-title {
-                font-size: 1.3rem;
-            }
-            .qr img {
-                width: 100px;
-                height: 100px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Rapport SQLMap - Scan #{{ scan.id }}</h1>
-        {% if qr_code_base64 %}
-        <div class="qr" title="QR Code du rapport">
-            <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="QR Code"/>
-        </div>
-        {% endif %}
-    </header>
+{% extends "rapports/base_report.html" %}
 
-    <section>
-        <h2 class="section-title">🧾 Informations générales</h2>
-        <ul class="info-list">
-            <li><strong>Cible :</strong> {{ scan.project.url|default:scan.project.domain|default:scan.project.ip_address }}</li>
-            <li><strong>Date du scan :</strong> {{ scan.created_at|date:"d/m/Y H:i" }}</li>
-            <li><strong>Vulnérable :</strong> <span class="badge-custom">{{ result.is_vulnerable|yesno:"Oui,Non" }}</span></li>
-            <li><strong>Type d'injection :</strong> {{ result.injection_type|default:"-" }}</li>
-            <li><strong>DBMS :</strong> {{ result.dbms|default:"-" }}</li>
-            <li><strong>Technique(s) utilisée(s) :</strong> {{ result.techniques_used|default:"-" }}</li>
-            <li><strong>Options utilisées :</strong> <code>{{ result.options_used|default:"-" }}</code></li>
-        </ul>
-    </section>
+{% block report_type %}Rapport SQLMap{% endblock %}
+{% block report_label %}SQLMap{% endblock %}
+{% block report_title %}Rapport SQLMap — Scan #{{ scan.id }}{% endblock %}
 
-    {% if result.payloads %}
-    <section>
-        <h2 class="section-title">💣 Payloads détectés</h2>
-        <div class="card">
-            <pre>{{ result.payloads }}</pre>
-        </div>
-    </section>
-    {% endif %}
+{% block content %}
+<section>
+    <h2 class="section-title">Détails de l'injection</h2>
+    <ul class="meta-grid">
+        <li><span class="label">Vulnérable</span><br>
+            <span class="value">
+                {% if result.is_vulnerable %}<span class="badge bg-danger">Oui</span>{% else %}<span class="badge bg-success">Non</span>{% endif %}
+            </span></li>
+        <li><span class="label">Type d'injection</span><br><span class="value">{{ result.injection_type|default:"-" }}</span></li>
+        <li><span class="label">DBMS</span><br><span class="value">{{ result.dbms|default:"-" }}</span></li>
+        <li><span class="label">Technique(s)</span><br><span class="value">{{ result.techniques_used|default:"-" }}</span></li>
+        <li><span class="label">Options utilisées</span><br><span class="value"><code>{{ result.options_used|default:"-" }}</code></span></li>
+    </ul>
+</section>
 
-    {% if result.dbs_found %}
-    <section>
-        <h2 class="section-title">📦 Bases de données trouvées</h2>
-        <div class="row">
-            {% for db in result.dbs_found.splitlines %}
-            <div class="col-md-4 col-sm-6 mb-3">
-                <div class="card border-success shadow-sm">
-                    <div class="card-body">
-                        <span class="fs-5 text-success">📂 {{ db }}</span>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
+{% if result.payloads %}
+<section>
+    <h2 class="section-title">Payloads détectés</h2>
+    <div class="card"><pre>{{ result.payloads }}</pre></div>
+</section>
+{% endif %}
 
-    {% if result.tables_found %}
-    <section>
-        <h2 class="section-title">📚 Tables détectées</h2>
-        {% for db, tables in result.tables_found.items %}
-            <h5 class="mt-3 text-primary">Base : <strong>{{ db }}</strong></h5>
-            <ul>
-            {% for table in tables %}
-                <li>🔹 {{ table }}</li>
-            {% endfor %}
-            </ul>
-        {% endfor %}
-    </section>
-    {% endif %}
+{% if result.dbs_found %}
+<section>
+    <h2 class="section-title">Bases de données trouvées</h2>
+    <ul>
+    {% for db in result.dbs_found.splitlines %}
+        <li><i class="bi bi-database me-1"></i>{{ db }}</li>
+    {% endfor %}
+    </ul>
+</section>
+{% endif %}
 
-    {% if result.columns_found %}
-    <section>
-        <h2 class="section-title">📋 Colonnes détectées</h2>
-        {% for table, columns in result.columns_found.items %}
-            <h5 class="mt-3 text-info">Table : <strong>{{ table }}</strong></h5>
-            <ul>
-            {% for col in columns %}
-                <li>▫️ {{ col }}</li>
-            {% endfor %}
-            </ul>
-        {% endfor %}
-    </section>
-    {% endif %}
+{% if result.tables_found %}
+<section>
+    <h2 class="section-title">Tables détectées</h2>
+    {% for db, tables in result.tables_found.items %}
+        <h5 class="section-sub">Base : <strong>{{ db }}</strong></h5>
+        <ul>{% for table in tables %}<li>{{ table }}</li>{% endfor %}</ul>
+    {% endfor %}
+</section>
+{% endif %}
 
-    {% if result.data_dumped %}
-    <section>
-        <h2 class="section-title">🧾 Données extraites (dump)</h2>
-        {% for table, rows in result.data_dumped.items %}
-            <h5 class="mt-3 text-warning">Table : <strong>{{ table }}</strong></h5>
-            <ul>
-            {% for row in rows %}
-                <li>▪️ {{ row }}</li>
-            {% endfor %}
-            </ul>
-        {% endfor %}
-    </section>
-    {% endif %}
+{% if result.columns_found %}
+<section>
+    <h2 class="section-title">Colonnes détectées</h2>
+    {% for table, columns in result.columns_found.items %}
+        <h5 class="section-sub">Table : <strong>{{ table }}</strong></h5>
+        <ul>{% for col in columns %}<li>{{ col }}</li>{% endfor %}</ul>
+    {% endfor %}
+</section>
+{% endif %}
 
-    {% if result.raw_output %}
-    <section>
-        <h2 class="section-title">📄 Sortie brute du scan (extrait)</h2>
-        <div class="card border-secondary">
-            <pre>{{ result.raw_output|truncatechars:4000 }}</pre>
-        </div>
-    </section>
-    {% endif %}
+{% if result.data_dumped %}
+<section>
+    <h2 class="section-title">Données extraites (dump)</h2>
+    {% for table, rows in result.data_dumped.items %}
+        <h5 class="section-sub">Table : <strong>{{ table }}</strong></h5>
+        <ul>{% for row in rows %}<li>{{ row }}</li>{% endfor %}</ul>
+    {% endfor %}
+</section>
+{% endif %}
 
-    {% if scan.ai_analysis %}
-    <section>
-        <h2 class="section-title">🤖 Analyse IA du Scan</h2>
-        <div class="card bg-warning-subtle border-warning">
-            <pre>{{ scan.ai_analysis }}</pre>
-        </div>
-    </section>
-    {% endif %}
+{% if result.raw_output %}
+<section>
+    <h2 class="section-title">Sortie brute du scan (extrait)</h2>
+    <div class="card"><pre>{{ result.raw_output|truncatechars:4000 }}</pre></div>
+</section>
+{% endif %}
 
-    <section>
-        <h2 class="section-title">🛡️ Recommandations générales</h2>
-        <ul>
-            <li>Filtrer et valider toutes les entrées utilisateur côté serveur.</li>
-            <li>Utiliser des requêtes paramétrées (prepared statements).</li>
-            <li>Désactiver les messages d’erreurs détaillés en production.</li>
-            <li>Appliquer des mises à jour régulières des CMS et serveurs.</li>
-            <li>Activer un pare-feu applicatif (WAF) pour bloquer les injections SQL connues.</li>
-            <li>Effectuer des tests d’intrusion périodiques.</li>
-        </ul>
-    </section>
+<section>
+    <h2 class="section-title">Recommandations générales</h2>
+    <ul>
+        <li>Filtrer et valider toutes les entrées utilisateur côté serveur.</li>
+        <li>Utiliser des requêtes paramétrées (prepared statements).</li>
+        <li>Désactiver les messages d'erreurs détaillés en production.</li>
+        <li>Appliquer des mises à jour régulières des CMS et serveurs.</li>
+        <li>Activer un pare-feu applicatif (WAF) pour bloquer les injections SQL.</li>
+        <li>Effectuer des tests d'intrusion périodiques.</li>
+    </ul>
+</section>
+{% endblock %}
 
-    <footer class="footer-text">
-        Rapport généré par <strong>EthicalPulseShield</strong> — le {{ scan.end_time|date:"d/m/Y H:i" }}
-    </footer>
-</body>
-</html>
+{% block extra_style %}
+.section-sub { color: var(--orange); font-size: .95rem; margin-top: 14px; }
+{% endblock %}

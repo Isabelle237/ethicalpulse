@@ -145,9 +145,6 @@
                                         <i class="bi bi-play-fill me-1"></i>Lancer
                                     </button>
                                 {% elif scan.status == 'completed' %}
-                                    <a href="{% url 'scan_report' scan.id %}" class="btn btn-outline-primary btn-sm" aria-label="Voir le rapport">
-                                        <i class="bi bi-file-text me-1"></i>Rapport
-                                    </a>
                                     <button class="btn btn-orange btn-sm action-btn" data-action="restart" data-scan-id="{{ scan.id }}" aria-label="Relancer le scan">
                                         <i class="bi bi-arrow-repeat me-1"></i>Relancer
                                     </button>

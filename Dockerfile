@@ -1,5 +1,6 @@
-# Utiliser l'image Python slim
-FROM python:3.10-slim
+# Utiliser l'image Python slim (épinglée sur Debian bookworm : trixie a renommé/retiré
+# openjdk-17-jre et libgdk-pixbuf2.0-0, ce qui cassait le build)
+FROM python:3.10-slim-bookworm
 
 # Définir le répertoire de travail
 WORKDIR /app
